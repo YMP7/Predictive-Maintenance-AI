@@ -2,8 +2,8 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from pydantic import BaseModel
+import bcrypt
 
 # Security configurations
 # Generate a secret with:  openssl rand -hex 32
@@ -18,8 +18,6 @@ SECRET_KEY = _secret
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
 
-pwd_context = CryptContext(schemes=["bcrypt_sha256", "bcrypt"], deprecated="auto")
-
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -33,11 +31,19 @@ class User(BaseModel):
     username: str
     role: str
 
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+def get_password_hash(password: str) -> str:
+    """Hash password, truncating to 72 bytes (bcrypt limit)."""
+    # Truncate to 72 bytes to comply with bcrypt limitation
+    truncated_password = password.encode('utf-8')[:72]
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(truncated_password, salt).decode('utf-8')
 
-def get_password_hash(password):
-    return pwd_context.hash(password)
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify password against hash."""
+    # Also truncate here for consistency
+    truncated_password = plain_password.encode('utf-8')[:72]
+    hashed_password_bytes = hashed_password.encode('utf-8')
+    return bcrypt.checkpw(truncated_password, hashed_password_bytes)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
