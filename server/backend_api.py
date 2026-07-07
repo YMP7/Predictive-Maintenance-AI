@@ -12,8 +12,8 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from data_service import get_data_service
-from auth import (
+from server.data_service import get_data_service
+from server.auth import (
     Token,
     TokenData,
     User,

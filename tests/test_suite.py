@@ -1,6 +1,6 @@
 import pytest
-from sensor_simulator import SensorSimulator, MultiMachineSimulator
-from ai_agent import AlertGenerator, FaultDetector, RULEstimator, AIAgent
+from server.sensor_simulator import SensorSimulator, MultiMachineSimulator
+from server.ai_agent import AlertGenerator, FaultDetector, RULEstimator, AIAgent
 
 class TestSensorSimulator:
     def test_simulator_initialization(self):

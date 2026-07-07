@@ -1,6 +1,6 @@
 import pytest
 import time
-from data_service import get_data_service
+from server.data_service import get_data_service
 
 class TestDataServiceIntegration:
     def test_simulation_start_stop(self):

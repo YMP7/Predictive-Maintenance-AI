@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from backend_api import app
+from server.backend_api import app
 
 
 client = TestClient(app)
@@ -67,7 +67,7 @@ def test_control_endpoint_jwt_auth():
 
 def test_login_rate_limiting():
     """The 6th rapid login attempt within a minute should return 429."""
-    from backend_api import limiter
+    from server.backend_api import limiter
     # Reset any existing rate limit state so this test is isolated
     limiter.reset()
 
@@ -85,7 +85,7 @@ def test_login_rate_limiting():
 
 def test_no_duplicate_password_hashes():
     """Ensure no two accounts share the same password/hash (prevents privilege escalation)."""
-    from backend_api import fake_users_db
+    from server.backend_api import fake_users_db
     
     seen_hashes = set()
     for username, data in fake_users_db.items():
@@ -97,8 +97,8 @@ def test_no_duplicate_password_hashes():
 def test_demo_viewer_privilege():
     """Verify demo_viewer can login but gets 403 on privileged endpoints."""
     # We use a mocked password for demo_viewer so we can test it
-    from backend_api import fake_users_db
-    import auth
+    from server.backend_api import fake_users_db
+    from server import auth
     
     # Temporarily set demo_viewer's password to a known value for testing
     original_hash = fake_users_db["demo_viewer"]["hashed_password"]
@@ -106,7 +106,7 @@ def test_demo_viewer_privilege():
     fake_users_db["demo_viewer"]["hashed_password"] = auth.get_password_hash(test_pw)
     
     try:
-        from backend_api import limiter
+        from server.backend_api import limiter
         limiter.reset()
         
         # 1. Login

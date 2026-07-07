@@ -9,8 +9,8 @@ from typing import Dict, List, Optional
 import numpy as np
 from dotenv import load_dotenv
 
-from sensor_simulator import MultiMachineSimulator
-from ai_agent import AIAgent
+from server.sensor_simulator import MultiMachineSimulator
+from server.ai_agent import AIAgent
 
 # Load environment variables
 load_dotenv()
@@ -281,7 +281,7 @@ class DataService:
                             self._save_alert_to_db(alert)
                             # Route alerts through alert_handler queue
                             try:
-                                from alert_handler import get_alert_handler
+                                from server.alert_handler import get_alert_handler
                                 get_alert_handler().queue_alert(alert)
                             except Exception as ex:
                                 logger.error(f"Failed to queue alert in alert handler: {ex}")

@@ -2,9 +2,9 @@
 Demonstration Scenarios for AI Digital Twin Prototype
 """
 
-from sensor_simulator import MultiMachineSimulator
-from ai_agent import AIAgent
-from data_service import get_data_service
+from server.sensor_simulator import MultiMachineSimulator
+from server.ai_agent import AIAgent
+from server.data_service import get_data_service
 import time
 import json
 

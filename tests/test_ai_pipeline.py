@@ -4,9 +4,9 @@ Tests for the AI agent processing pipeline.
 
 import time
 
-from ai_agent import AIAgent
-from data_service import get_data_service
-from sensor_simulator import MultiMachineSimulator
+from server.ai_agent import AIAgent
+from server.data_service import get_data_service
+from server.sensor_simulator import MultiMachineSimulator
 
 
 VALID_STATUSES = {"Normal", "Warning", "Critical"}

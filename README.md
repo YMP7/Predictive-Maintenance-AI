@@ -3,6 +3,12 @@
 
 This guide provides step-by-step instructions on how to run the Predictive Maintenance Digital Twin system locally and deploy it securely to the internet.
 
+### Project Structure
+- `client/` - React SPA Frontend
+- `server/` - Python FastAPI Backend
+- `docs/` - Project documentation
+- `scripts/` - Verification and utility scripts
+
 ---
 
 ### 1. How to Run Locally
@@ -63,7 +69,7 @@ There are two primary methods to run the unified application (FastAPI backend + 
 4. **Launch the Unified Integrated Server**:
    - The integrated server hosts both the React build (SPA) and the REST API on a single port:
      ```bash
-     python integrated_server.py
+     python server/integrated_server.py
      ```
    - Open your web browser and navigate to `http://localhost:8000`.
 

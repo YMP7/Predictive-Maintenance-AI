@@ -8,8 +8,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import uvicorn
 
-from data_service import get_data_service
-from backend_api import app
+from server.data_service import get_data_service
+from server.backend_api import app
 
 logger = logging.getLogger("DigitalTwin")
 service = get_data_service()

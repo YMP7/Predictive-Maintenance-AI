@@ -1,7 +1,7 @@
 import time
 import psutil
-from ai_agent import AIAgent
-from sensor_simulator import MultiMachineSimulator
+from server.ai_agent import AIAgent
+from server.sensor_simulator import MultiMachineSimulator
 
 def test_processing_latency():
     print("Testing processing latency...")
