@@ -4,11 +4,14 @@ import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
 import NotFound from './pages/NotFound';
 
+import Login from './pages/Login';
+
 /**
  * Simple hash-based router.
  * Routes:
  *   /           → Home
- *   /dashboard  → Dashboard
+ *   /login      → Login
+ *   /dashboard  → Dashboard (Protected)
  *   *           → NotFound
  */
 function useRoute() {
@@ -47,14 +50,29 @@ function useRoute() {
   return path;
 }
 
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    window.location.replace('/login');
+    return null;
+  }
+  return <>{children}</>;
+}
+
 function Router() {
   const path = useRoute();
 
   switch (path) {
     case '/':
       return <Home />;
+    case '/login':
+      return <Login />;
     case '/dashboard':
-      return <Dashboard />;
+      return (
+        <ProtectedRoute>
+          <Dashboard />
+        </ProtectedRoute>
+      );
     default:
       return <NotFound />;
   }

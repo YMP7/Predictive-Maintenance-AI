@@ -173,6 +173,16 @@ const Dashboard: React.FC = () => {
               <option value="mr">मराठी (Marathi)</option>
             </select>
           </div>
+          
+          <button 
+            onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('role'); window.location.href='/login'; }}
+            style={{
+              background: 'var(--bg-secondary)', color: 'var(--text-primary)', 
+              border: '1px solid var(--border-color)', padding: '6px 12px', 
+              borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 600
+            }}>
+            Logout
+          </button>
         </div>
       </header>
 

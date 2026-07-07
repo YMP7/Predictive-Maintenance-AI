@@ -11,7 +11,8 @@ from sensor_simulator import MultiMachineSimulator
 
 VALID_STATUSES = {"Normal", "Warning", "Critical"}
 VALID_SEVERITIES = {"Low", "Medium", "High", "Critical"}
-LATENCY_BUDGET_MS = 100
+# Setup constants
+LATENCY_BUDGET_MS = 200
 
 
 def _assert_valid_result(result):

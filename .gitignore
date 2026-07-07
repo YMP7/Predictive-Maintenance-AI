@@ -86,3 +86,4 @@ logs/
 
 # Project specific
 digital_twin.db
+.real_passwords.txt
