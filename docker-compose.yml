@@ -1,0 +1,56 @@
+services:
+  ai-digital-twin:
+    build:
+      context: .
+    image: ai-digital-twin:latest
+    container_name: ai-digital-twin
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      CORS_ORIGINS: "${CORS_ORIGINS:-*}"
+      SIMULATION_ENABLED: "${SIMULATION_ENABLED:-true}"
+      SIMULATION_INTERVAL: "${SIMULATION_INTERVAL:-1}"
+      LOG_LEVEL: "${LOG_LEVEL:-INFO}"
+      LOG_FILE: /app/logs/agent.log
+      ALERT_COOLDOWN: "${ALERT_COOLDOWN:-300}"
+      ALERT_LANGUAGES: "${ALERT_LANGUAGES:-en,hi,te,ta,mr}"
+      API_KEY: "${API_KEY:-}"
+      TWILIO_ACCOUNT_SID: "${TWILIO_ACCOUNT_SID:-}"
+      TWILIO_AUTH_TOKEN: "${TWILIO_AUTH_TOKEN:-}"
+      TWILIO_FROM_NUMBER: "${TWILIO_FROM_NUMBER:-}"
+      TWILIO_TO_NUMBER: "${TWILIO_TO_NUMBER:-}"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD:-}"
+      SMTP_FROM: "${SMTP_FROM:-}"
+      SMTP_USE_SSL: "${SMTP_USE_SSL:-false}"
+      SMTP_USE_TLS: "${SMTP_USE_TLS:-true}"
+      ALERT_EMAIL_TO: "${ALERT_EMAIL_TO:-}"
+    volumes:
+      - ai-digital-twin-data:/app/data
+      - ai-digital-twin-logs:/app/logs
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "7"
+
+volumes:
+  ai-digital-twin-data:
+  ai-digital-twin-logs:

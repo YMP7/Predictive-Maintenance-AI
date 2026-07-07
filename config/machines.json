@@ -1,0 +1,44 @@
+{
+  "machines": {
+    "M001": {
+      "name": "Lathe Machine",
+      "type": "Lathe",
+      "location": "Section A",
+      "thresholds": {
+        "vibration": {"warning": 1.5, "critical": 3.0},
+        "temperature": {"warning": 60, "critical": 75},
+        "current": {"warning": 3.5, "critical": 4.5}
+      }
+    },
+    "M002": {
+      "name": "Pump Motor",
+      "type": "Motor",
+      "location": "Section B",
+      "thresholds": {
+        "vibration": {"warning": 1.2, "critical": 2.8},
+        "temperature": {"warning": 65, "critical": 80},
+        "current": {"warning": 4.0, "critical": 5.0}
+      }
+    },
+    "M003": {
+      "name": "Drill Press",
+      "type": "Drill",
+      "location": "Section C",
+      "thresholds": {
+        "vibration": {"warning": 1.8, "critical": 3.5},
+        "temperature": {"warning": 55, "critical": 70},
+        "current": {"warning": 3.0, "critical": 4.2}
+      }
+    },
+    "M004": {
+      "name": "Furnace",
+      "type": "Heater",
+      "location": "Section D",
+      "thresholds": {
+        "vibration": {"warning": 0.8, "critical": 1.5},
+        "temperature": {"warning": 80, "critical": 95},
+        "current": {"warning": 5.0, "critical": 6.5}
+      }
+    }
+  }
+}
