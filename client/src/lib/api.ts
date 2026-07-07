@@ -26,7 +26,26 @@ export async function apiFetch<T>(endpoint: string, options?: RequestInit): Prom
   });
 
   if (!response.ok) {
-    throw new Error(`API error ${response.status}: ${response.statusText}`);
+    if (response.status === 401) {
+      // Clear auth and redirect to login on unauthorized
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      window.location.href = '/login';
+    }
+    
+    let errorMessage = response.statusText;
+    try {
+      const errorData = await response.json();
+      if (errorData && errorData.detail) {
+        errorMessage = typeof errorData.detail === 'string' ? errorData.detail : JSON.stringify(errorData.detail);
+      } else if (errorData && errorData.message) {
+        errorMessage = errorData.message;
+      }
+    } catch (e) {
+      // Ignore JSON parse errors for non-JSON responses
+    }
+    
+    throw new Error(`API error ${response.status}: ${errorMessage}`);
   }
 
   return response.json() as Promise<T>;
