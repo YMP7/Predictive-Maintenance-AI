@@ -35,10 +35,15 @@ There are two primary methods to run the unified application (FastAPI backend + 
      ```bash
      pip install -r requirements.txt
      ```
-   - Initialize environment variables:
-     ```bash
-     cp .env.example .env # Create .env from the template and configure variables
-     ```
+    - Initialize environment variables:
+      ```bash
+      cp .env.example .env # Create .env from the template
+      ```
+    - **Important:** Edit `.env` and generate a secure `JWT_SECRET_KEY`:
+      ```bash
+      openssl rand -hex 32
+      ```
+      The backend will fail to start if this is not set.
 
 3. **Build the Frontend Client**:
    - Navigate to the client directory and install npm packages:
@@ -113,7 +118,7 @@ This is the standard approach using a virtual machine running Linux (e.g. Ubuntu
   ```
 
 ##### 2. Deploy Project Files:
-- Clone your repository to the `/opt/ai-digital-twin` folder and create your `.env` file. Ensure `API_KEY` is configured to secure POST control endpoints.
+- Clone your repository to the `/opt/ai-digital-twin` folder and create your `.env` file. Ensure `JWT_SECRET_KEY` is configured to secure the authentication system.
 
 ##### 3. Run the Container Stack:
 - Start the server on localhost inside the Docker network:
@@ -182,7 +187,7 @@ SQLite is a local file-based database. Container platforms use ephemeral file sy
       --platform managed \
       --port 8000 \
       --allow-unauthenticated \
-      --set-env-vars="API_KEY=your_secure_key,LOG_LEVEL=INFO"
+      --set-env-vars="JWT_SECRET_KEY=your_secure_generated_key,LOG_LEVEL=INFO"
   ```
 - Cloud Run will automatically generate an HTTPS URL (e.g. `https://ai-digital-twin-xyz.a.run.app`) for internet access.
 
@@ -192,11 +197,13 @@ SQLite is a local file-based database. Container platforms use ephemeral file sy
 
 Before exposing the application to the internet, verify that the following security policies are in place:
 
-1. **API Key Authentication**: 
-   - Set a secure token in the `API_KEY` environment variable. This will force API key header validation (`X-API-Key`) on all post endpoints like `/api/simulation/start`, `/api/simulation/stop`, and `/api/machines/{machine_id}/fault`, preventing unauthorized controls.
-2. **Disable Simulation (Optional)**:
+1. **JWT Secret Key**: 
+   - A secure, 32-byte hexadecimal string MUST be set in the `JWT_SECRET_KEY` environment variable (`openssl rand -hex 32`). This is used to sign authentication tokens. The app will refuse to start in production without it.
+2. **Role-Based Access Control (RBAC)**:
+   - Control endpoints (like `/api/machines/{machine_id}/fault` and `/api/simulation/start`) are protected and require an authentication token from an account with the `admin` role. Ensure production passwords for admin accounts are strong and securely stored.
+3. **Disable Simulation (Optional)**:
    - In production, set `SIMULATION_ENABLED=false` to stop simulated sensor generation, and hook up physical sensors to the `DataService` telemetry pipeline instead.
-3. **Secure Secrets**:
-   - Never commit your `.env` file containing SMTP passwords or Twilio SID tokens to Git. Use environment secrets managers in AWS, GCP, or GitHub Actions.
-4. **CORS Configuration**:
-   - Set `CORS_ORIGINS` to your domain URL (e.g. `https://yourdomain.com`) instead of the wildcard `*` to restrict dashboard queries to authorized domains only.
+4. **Secure Secrets**:
+   - Never commit your `.env` file containing passwords or JWT secrets to Git. Use environment secrets managers in AWS, GCP, or GitHub Actions.
+5. **CORS Configuration**:
+   - Set `CORS_ORIGINS` to your domain URL (e.g., `https://yourdomain.com`) to restrict dashboard queries to authorized domains only. It defaults to local dev URLs if unset.
