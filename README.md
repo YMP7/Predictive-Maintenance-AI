@@ -61,6 +61,12 @@ There are two primary methods to run the unified application (FastAPI backend + 
      ```bash
      npm run build
      ```
+4. **Mosquitto MQTT Broker (Optional for IoT Ingestion)**:
+   - If you want to use the MQTT ingestion feature, start the Mosquitto broker using Docker:
+     ```bash
+     docker-compose up -d mosquitto-init mosquitto
+     ```
+   - This sets up Eclipse Mosquitto on port `1883` with password authentication.
    - Return to the root directory:
      ```bash
      cd ..

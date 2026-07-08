@@ -54,3 +54,24 @@ services:
 volumes:
   ai-digital-twin-data:
   ai-digital-twin-logs:
+
+  mosquitto-init:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto-init
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+    command: sh -c "cp /mosquitto/config/pwfile.raw /mosquitto/config/pwfile && mosquitto_passwd -U /mosquitto/config/pwfile"
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    depends_on:
+      mosquitto-init:
+        condition: service_completed_successfully

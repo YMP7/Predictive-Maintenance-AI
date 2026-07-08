@@ -87,3 +87,5 @@ logs/
 # Project specific
 digital_twin.db
 .real_passwords.txt
+mosquitto/data/
+mosquitto/log/

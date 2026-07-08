@@ -1,0 +1,19 @@
+# backend_service can read all telemetry
+user backend_service
+topic read factory/+/telemetry
+
+# Machine 1
+user device_M001
+topic write factory/M001/telemetry
+
+# Machine 2
+user device_M002
+topic write factory/M002/telemetry
+
+# Machine 3
+user device_M003
+topic write factory/M003/telemetry
+
+# Machine 4
+user device_M004
+topic write factory/M004/telemetry

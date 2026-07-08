@@ -8,6 +8,8 @@ The following environment variables **must** be configured before starting the a
 |---|---|---|
 | `JWT_SECRET_KEY` | **Yes** | HMAC signing key for JWT tokens. The app will **refuse to start** without this. Generate one with: `openssl rand -hex 32` |
 | `CORS_ORIGINS` | Recommended | Comma-separated list of allowed frontend origins (e.g., `https://yourdomain.com`). Defaults to `http://localhost:3000` if unset. |
+| `MQTT_USERNAME` | Required if MQTT used | Username for the MQTT broker (e.g. `backend_service`) |
+| `MQTT_PASSWORD` | Required if MQTT used | Password for the MQTT broker. Fails loudly if `MQTT_BROKER_HOST` is set but creds are missing. |
 
 ## Security Hardening Applied
 
@@ -21,6 +23,11 @@ The following environment variables **must** be configured before starting the a
 - CORS no longer defaults to wildcard `*`.
 - When `CORS_ORIGINS` is not set, the server only accepts requests from `http://localhost:3000` and logs a warning.
 - In production, set `CORS_ORIGINS` to the exact URL of your deployed frontend.
+
+### MQTT Ingestion Security
+- **Authentication**: Mosquitto runs with `allow_anonymous false`. A `pwfile` is strictly enforced.
+- **Access Control (ACL)**: Edge devices use per-device credentials (e.g., `device_M001`) and are strictly restricted via `mosquitto.acl` to only write to their own topic (`factory/M001/telemetry`). They cannot read data.
+- **Payload Validation**: All incoming MQTT payloads are treated as entirely untrusted. They are deserialized and sanitized through strict Pydantic bounds (e.g. preventing negative temperatures, malformed JSON injections, and unknown machine IDs) before they ever touch the internal `DataService`. Malformed packets are logged and dropped without crashing the ingestion loop.
 
 ### Password Storage
 - All user passwords are hashed with **bcrypt** via the `passlib` library.

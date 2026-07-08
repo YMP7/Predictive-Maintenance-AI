@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 
 from server.sensor_simulator import MultiMachineSimulator
 from server.ai_agent import AIAgent
+from server.mqtt_client import MQTTClientManager
 
 # Load environment variables
 load_dotenv()
@@ -81,6 +82,13 @@ class DataService:
         self.db_path = os.path.join(os.path.dirname(__file__), "data", "digital_twin.db")
         self._init_db()
         self._load_historical_data()
+
+        # Initialize MQTT client if configured
+        if os.environ.get("MQTT_BROKER_HOST"):
+            self.mqtt_client = MQTTClientManager(ingest_callback=self.ingest_telemetry)
+            self.mqtt_client.start()
+        else:
+            self.mqtt_client = None
 
     def _init_db(self):
         try:
@@ -238,54 +246,61 @@ class DataService:
         if thread_to_join and thread_to_join.is_alive():
             thread_to_join.join(timeout=5)
 
+    def ingest_telemetry(self, machine_id: str, reading: Dict):
+        try:
+            result = self.agent.process_reading(reading)
+            
+            # Store reading
+            with self._lock:
+                # Append status into reading cache
+                reading_cached = {**reading, "status": result["status"]}
+                if machine_id not in self.telemetry_cache:
+                    self.telemetry_cache[machine_id] = []
+                self.telemetry_cache[machine_id].append(reading_cached)
+                # Limit cache size
+                if len(self.telemetry_cache[machine_id]) > 1000:
+                    self.telemetry_cache[machine_id].pop(0)
+                
+                # Update status cache
+                self.status_cache[machine_id] = {
+                    "machine_id": machine_id,
+                    "status": result["status"],
+                    "fault_type": result["fault_type"],
+                    "detected_issues": result["detected_issues"],
+                    "rul_days": result["rul_days"],
+                    "rul_confidence": result["rul_confidence"],
+                    "recommendation": result["recommendation"],
+                    "machine_info": self.machine_info.get(machine_id, {"name": f"Machine {machine_id}", "type": "Unknown", "location": "Unknown"})
+                }
+                
+                # Log alerts
+                if result["alerts"]:
+                    for alert in result["alerts"]:
+                        self.alerts_log.append(alert)
+                        if len(self.alerts_log) > 500:
+                            self.alerts_log.pop(0)
+                            
+            # Save to DB outside memory locks
+            self._save_telemetry_to_db(machine_id, reading, result["status"])
+            if result["alerts"]:
+                for alert in result["alerts"]:
+                    self._save_alert_to_db(alert)
+                    # Route alerts through alert_handler queue
+                    try:
+                        from server.alert_handler import get_alert_handler
+                        get_alert_handler().queue_alert(alert)
+                    except Exception as ex:
+                        logger.error(f"Failed to queue alert in alert handler: {ex}")
+        except Exception as e:
+            logger.error(f"Error ingesting telemetry for {machine_id}: {e}")
+
     def _run_simulation(self, interval: float):
         while self.is_running:
             try:
                 # Generate and process readings
                 for machine_id in self.machine_info.keys():
                     reading = self.simulator.get_machine_reading(machine_id)
-                    result = self.agent.process_reading(reading)
-                    
-                    # Store reading
-                    with self._lock:
-                        # Append status into reading cache
-                        reading_cached = {**reading, "status": result["status"]}
-                        self.telemetry_cache[machine_id].append(reading_cached)
-                        # Limit cache size
-                        if len(self.telemetry_cache[machine_id]) > 1000:
-                            self.telemetry_cache[machine_id].pop(0)
-                        
-                        # Update status cache
-                        self.status_cache[machine_id] = {
-                            "machine_id": machine_id,
-                            "status": result["status"],
-                            "fault_type": result["fault_type"],
-                            "detected_issues": result["detected_issues"],
-                            "rul_days": result["rul_days"],
-                            "rul_confidence": result["rul_confidence"],
-                            "recommendation": result["recommendation"],
-                            "machine_info": self.machine_info[machine_id]
-                        }
-                        
-                        # Log alerts
-                        if result["alerts"]:
-                            for alert in result["alerts"]:
-                                self.alerts_log.append(alert)
-                                if len(self.alerts_log) > 500:
-                                    self.alerts_log.pop(0)
-                                    
-                    # Save to DB outside memory locks
-                    self._save_telemetry_to_db(machine_id, reading, result["status"])
-                    if result["alerts"]:
-                        for alert in result["alerts"]:
-                            self._save_alert_to_db(alert)
-                            # Route alerts through alert_handler queue
-                            try:
-                                from server.alert_handler import get_alert_handler
-                                get_alert_handler().queue_alert(alert)
-                            except Exception as ex:
-                                logger.error(f"Failed to queue alert in alert handler: {ex}")
-                                    
+                    self.ingest_telemetry(machine_id, reading)
                 time.sleep(interval)
             except Exception as e:
                 logger.error(f"Error in simulation loop: {e}")
@@ -378,9 +393,12 @@ class DataService:
                 total_rul += status["rul_days"]
                 valid_rul_count += 1
                 
-        for alert in self.alerts_log:
-            sev = alert.get("severity", "Medium")
-            alert_severity_counts[sev] = alert_severity_counts.get(sev, 0) + 1
+        with self._lock:
+            # Safely iterate and count alerts
+            for alert in self.alerts_log:
+                sev = alert.get("severity", "Medium")
+                alert_severity_counts[sev] = alert_severity_counts.get(sev, 0) + 1
+            total_alerts = len(self.alerts_log)
             
         avg_rul = total_rul / valid_rul_count if valid_rul_count > 0 else 0
         
@@ -390,7 +408,7 @@ class DataService:
             "machine_status_counts": status_counts,
             "alert_severity_counts": alert_severity_counts,
             "average_rul_days": round(avg_rul, 1),
-            "total_alerts": len(self.alerts_log),
+            "total_alerts": total_alerts,
             "machines": statuses
         }
 
