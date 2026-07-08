@@ -12,7 +12,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY ai_agent.py alert_handler.py backend_api.py data_service.py data_sync.py integrated_server.py sensor_simulator.py ./
+COPY server ./server
+COPY scripts ./scripts
 COPY config ./config
 COPY client/dist ./client/dist
 
@@ -27,4 +28,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()" || exit 1
 
-CMD ["python", "integrated_server.py"]
+CMD ["python", "server/integrated_server.py"]

@@ -137,7 +137,7 @@ const Dashboard: React.FC = () => {
         <div>
           <h1 className="gradient-text" style={{ fontSize: '24px', fontWeight: 800 }}>{t.title}</h1>
           <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            MSME Industry 4.0 Predictive Edge Analytics Gateway
+            Enterprise Industry 4.0 Predictive Edge Analytics Gateway
           </p>
         </div>
 

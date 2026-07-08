@@ -67,6 +67,26 @@ There are two primary methods to run the unified application (FastAPI backend + 
      docker-compose up -d mosquitto-init mosquitto
      ```
    - This sets up Eclipse Mosquitto on port `1883` with password authentication.
+
+5. **TimescaleDB (Required for Data Persistence)**:
+   - Start the TimescaleDB container:
+     ```bash
+     # Set the password (use a strong password in production)
+     export TSDB_PASSWORD=your_secure_password
+     docker-compose up -d timescaledb
+     ```
+   - Run the schema migration:
+     ```bash
+     python scripts/migrate.py
+     ```
+   - Seed development accounts (dev/CI only — **never run in production**):
+     ```bash
+     python scripts/seed_dev.py
+     ```
+   - Add `DATABASE_URL` to your `.env`:
+     ```
+     DATABASE_URL=postgresql://dtwin:your_secure_password@localhost:5432/digital_twin
+     ```
    - Return to the root directory:
      ```bash
      cd ..

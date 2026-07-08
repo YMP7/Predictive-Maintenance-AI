@@ -12,6 +12,8 @@ from fastapi import HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import uvicorn
+from dotenv import load_dotenv
+load_dotenv()
 
 from server.data_service import get_data_service
 from server.backend_api import app

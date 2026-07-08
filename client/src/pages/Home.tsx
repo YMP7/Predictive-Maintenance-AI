@@ -50,7 +50,7 @@ const Home: React.FC = () => {
           color: 'var(--accent-primary)'
         }}>
           <Activity size={14} />
-          MSME Industry 4.0 — Predictive Edge Analytics
+          Enterprise Industry 4.0 — Predictive Edge Analytics
         </div>
 
         <h1 className="gradient-text" style={{
@@ -127,7 +127,7 @@ const Home: React.FC = () => {
           {
             icon: <Activity size={28} style={{ color: '#8b5cf6' }} />,
             title: 'Edge-Ready Architecture',
-            description: 'Designed for low-cost deployment on Raspberry Pi and edge gateways for MSME factory floors.'
+            description: 'Designed for low-cost deployment on Raspberry Pi and edge gateways for Enterprise factory floors.'
           },
           {
             icon: <ShieldCheck size={28} style={{ color: '#ec4899' }} />,
@@ -158,7 +158,7 @@ const Home: React.FC = () => {
         color: 'var(--text-muted)',
         borderTop: '1px solid var(--border-color)'
       }}>
-        AI Digital Twin Prototype — MSME Industry 4.0 Predictive Maintenance System
+        AI Digital Twin — Enterprise Industry 4.0 Predictive Maintenance System
       </footer>
     </div>
   );

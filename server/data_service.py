@@ -2,7 +2,6 @@ import time
 import os
 import json
 import threading
-import sqlite3
 import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
@@ -12,6 +11,7 @@ from dotenv import load_dotenv
 from server.sensor_simulator import MultiMachineSimulator
 from server.ai_agent import AIAgent
 from server.mqtt_client import MQTTClientManager
+from server.database import pool
 
 # Load environment variables
 load_dotenv()
@@ -77,10 +77,7 @@ class DataService:
                     "location": "Main Hall"
                 }
 
-        # Initialize SQLite database
-        os.makedirs(os.path.join(os.path.dirname(__file__), "data"), exist_ok=True)
-        self.db_path = os.path.join(os.path.dirname(__file__), "data", "digital_twin.db")
-        self._init_db()
+        # Load historical data from TimescaleDB into in-memory cache
         self._load_historical_data()
 
         # Initialize MQTT client if configured
@@ -90,138 +87,96 @@ class DataService:
         else:
             self.mqtt_client = None
 
-    def _init_db(self):
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS telemetry (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    machine_id TEXT,
-                    timestamp TEXT,
-                    vibration_x REAL,
-                    vibration_y REAL,
-                    vibration_z REAL,
-                    vibration_rms REAL,
-                    temperature REAL,
-                    current REAL,
-                    status TEXT
-                )
-            """)
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS alerts (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp TEXT,
-                    machine_id TEXT,
-                    type TEXT,
-                    severity TEXT,
-                    message TEXT,
-                    fault_type TEXT
-                )
-            """)
-            conn.commit()
-            conn.close()
-            logger.info("SQLite database initialized successfully.")
-        except Exception as e:
-            logger.error(f"Failed to initialize SQLite database: {e}")
-
     def _load_historical_data(self):
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            # Load telemetry
-            telemetry_loaded = 0
-            for machine_id in self.telemetry_cache.keys():
-                cursor.execute("""
-                    SELECT timestamp, vibration_x, vibration_y, vibration_z, vibration_rms, temperature, current, status
-                    FROM telemetry
-                    WHERE machine_id = ?
-                    ORDER BY id DESC LIMIT 1000
-                """, (machine_id,))
-                rows = cursor.fetchall()
+            with pool.connection() as conn:
+                # Load telemetry
+                telemetry_loaded = 0
+                for machine_id in self.telemetry_cache.keys():
+                    rows = conn.execute("""
+                        SELECT time, vibration_x, vibration_y, vibration_z, vibration_rms,
+                               temperature, current_val, status
+                        FROM telemetry
+                        WHERE machine_id = %s
+                        ORDER BY time DESC LIMIT 1000
+                    """, (machine_id,)).fetchall()
+                    for row in reversed(rows):
+                        reading = {
+                            "machine_id": machine_id,
+                            "timestamp": row[0].isoformat() if hasattr(row[0], 'isoformat') else str(row[0]),
+                            "vibration": {
+                                "x": row[1],
+                                "y": row[2],
+                                "z": row[3],
+                                "rms": row[4]
+                            },
+                            "temperature": row[5],
+                            "current": row[6],
+                            "status": row[7]
+                        }
+                        self.telemetry_cache[machine_id].append(reading)
+                        telemetry_loaded += 1
+
+                # Load alerts
+                rows = conn.execute("""
+                    SELECT time, machine_id, type, severity, message, fault_type
+                    FROM alerts
+                    ORDER BY time DESC LIMIT 500
+                """).fetchall()
                 for row in reversed(rows):
-                    reading = {
-                        "machine_id": machine_id,
-                        "timestamp": row[0],
-                        "vibration": {
-                            "x": row[1],
-                            "y": row[2],
-                            "z": row[3],
-                            "rms": row[4]
-                        },
-                        "temperature": row[5],
-                        "current": row[6],
-                        "status": row[7]
+                    alert = {
+                        "timestamp": row[0].isoformat() if hasattr(row[0], 'isoformat') else str(row[0]),
+                        "machine_id": row[1],
+                        "type": row[2],
+                        "severity": row[3],
+                        "message": row[4],
+                        "fault_type": row[5]
                     }
-                    self.telemetry_cache[machine_id].append(reading)
-                    telemetry_loaded += 1
-            
-            # Load alerts
-            cursor.execute("""
-                SELECT timestamp, machine_id, type, severity, message, fault_type
-                FROM alerts
-                ORDER BY id DESC LIMIT 500
-            """)
-            rows = cursor.fetchall()
-            for row in reversed(rows):
-                alert = {
-                    "timestamp": row[0],
-                    "machine_id": row[1],
-                    "type": row[2],
-                    "severity": row[3],
-                    "message": row[4],
-                    "fault_type": row[5]
-                }
-                self.alerts_log.append(alert)
-                
-            conn.close()
-            logger.info(f"Loaded {telemetry_loaded} telemetry readings and {len(self.alerts_log)} alerts from historical DB.")
+                    self.alerts_log.append(alert)
+
+            logger.info(f"Loaded {telemetry_loaded} telemetry readings and {len(self.alerts_log)} alerts from TimescaleDB.")
         except Exception as e:
-            logger.error(f"Error loading historical data: {e}")
+            logger.error(f"Error loading historical data from TimescaleDB: {e}")
 
     def _save_telemetry_to_db(self, machine_id: str, reading: Dict, status: str):
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO telemetry (machine_id, timestamp, vibration_x, vibration_y, vibration_z, vibration_rms, temperature, current, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                machine_id,
-                reading["timestamp"],
-                reading["vibration"]["x"],
-                reading["vibration"]["y"],
-                reading["vibration"]["z"],
-                reading["vibration"]["rms"],
-                reading["temperature"],
-                reading["current"],
-                status
-            ))
-            conn.commit()
-            conn.close()
+            with pool.connection() as conn:
+                conn.execute("""
+                    INSERT INTO telemetry (time, machine_id, vibration_x, vibration_y,
+                        vibration_z, vibration_rms, temperature, current_val, status)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    reading["timestamp"],
+                    machine_id,
+                    reading["vibration"]["x"],
+                    reading["vibration"]["y"],
+                    reading["vibration"]["z"],
+                    reading["vibration"]["rms"],
+                    reading["temperature"],
+                    reading["current"],
+                    status
+                ))
+                conn.commit()
         except Exception as e:
-            logger.error(f"Error saving telemetry to SQLite: {e}")
+            logger.error(f"Error saving telemetry to TimescaleDB: {e}")
 
     def _save_alert_to_db(self, alert: Dict):
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute("""
-                INSERT INTO alerts (timestamp, machine_id, type, severity, message, fault_type)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (
-                alert["timestamp"],
-                alert["machine_id"],
-                alert["type"],
-                alert["severity"],
-                alert["message"],
-                alert.get("fault_type", "Normal")
-            ))
-            conn.commit()
-            conn.close()
+            with pool.connection() as conn:
+                conn.execute("""
+                    INSERT INTO alerts (time, machine_id, type, severity, message, fault_type)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (
+                    alert["timestamp"],
+                    alert["machine_id"],
+                    alert["type"],
+                    alert["severity"],
+                    alert["message"],
+                    alert.get("fault_type", "Normal")
+                ))
+                conn.commit()
         except Exception as e:
-            logger.error(f"Error saving alert to SQLite: {e}")
+            logger.error(f"Error saving alert to TimescaleDB: {e}")
 
     def start_simulation(self, interval: float = 1.0) -> None:
         with self._lock:

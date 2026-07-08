@@ -13,6 +13,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from server.data_service import get_data_service
+from server.database import pool
 from server.auth import (
     Token,
     TokenData,
@@ -85,45 +86,17 @@ def require_machine(machine_id: str) -> None:
 from fastapi.security import OAuth2PasswordBearer
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
-# TODO: Migrate user storage to TimescaleDB in Step 3 of the Implementation Plan.
-#       This in-memory store is temporary and must not be used in production.
-#
-# SECURITY AUDIT (updated):
-#   - Passwords ARE properly bcrypt-hashed at startup via get_password_hash(). ✓
-#   - Passwords rotated from weak defaults to generated 16-char secrets. ✓
-#   - See .env.example or SECURITY.md for current credentials.
-fake_users_db = {
-    # --- REAL ACCOUNTS ---
-    "admin": {
-        "username": "admin",
-        "hashed_password": "$2b$12$UQKupFiYWDzaF9CwOyNyFe5QCK39/QQd2HaMrimhdHhwG7cYrKEKq",
-        "role": "admin"
-    },
-    "operator": {
-        "username": "operator",
-        "hashed_password": "$2b$12$zo5CBQizAe/rCmdtGWJiPOv849BCb5Vi3dUX3RuayIIqfHgvRAt6a",
-        "role": "operator"
-    },
-    
-    # --- TEST / DEMO ACCOUNTS (Safe to be public in source) ---
-    "test_admin": {
-        "username": "test_admin",
-        "hashed_password": "$2b$12$PN/KSiAtVVlmuis1ZBvR.OqjsdeX8HhnfKsSUiQWMi5YzlAt1ZMX2",
-        "role": "admin"
-    },
-    "test_operator": {
-        "username": "test_operator",
-        "hashed_password": "$2b$12$hfaBZ5ST1zPmhkEqVnFM/.cjV2GQgIOtiPZsL48Y0b7SkV6Ypl1Pq",
-        "role": "operator"
-    },
-    
-    # --- DEMO ACCOUNT (Safe for public UI hints, restricted permissions) ---
-    "demo_viewer": {
-        "username": "demo_viewer",
-        "hashed_password": "$2b$12$V8g5FnbMAT3mQ2No0J5bZeYDSiWJdKtejjoV32fjKynejhZUeh2em",
-        "role": "viewer"
-    }
-}
+# User lookup via TimescaleDB (replaces the old fake_users_db in-memory dict)
+def get_user_from_db(username: str) -> dict | None:
+    """Query the users table for a single user by username."""
+    with pool.connection() as conn:
+        row = conn.execute(
+            "SELECT username, hashed_password, role FROM users WHERE username = %s",
+            (username,)
+        ).fetchone()
+        if row:
+            return {"username": row[0], "hashed_password": row[1], "role": row[2]}
+    return None
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     credentials_exception = HTTPException(
@@ -140,7 +113,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     except JWTError:
         raise credentials_exception
         
-    user_dict = fake_users_db.get(token_data.username)
+    user_dict = get_user_from_db(token_data.username)
     if user_dict is None:
         raise credentials_exception
     return User(**user_dict)
@@ -165,7 +138,7 @@ class LoginRequest(BaseModel):
 @app.post("/api/auth/login", response_model=Token)
 @limiter.limit("5/minute")
 async def login_for_access_token(request: Request, login_req: LoginRequest):
-    user_dict = fake_users_db.get(login_req.username)
+    user_dict = get_user_from_db(login_req.username)
     if not user_dict or not verify_password(login_req.password, user_dict["hashed_password"]):
         raise HTTPException(
             status_code=401,
