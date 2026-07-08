@@ -1,9 +1,32 @@
 import React from 'react';
-import { Activity, Cpu, ShieldCheck, ArrowRight, BarChart3, Zap } from 'lucide-react';
+import { Activity, Cpu, ShieldCheck, ArrowRight, BarChart3, Zap, Sun, Moon } from 'lucide-react';
+import { useTheme } from '../contexts/ThemeContext';
 
 const Home: React.FC = () => {
+  const { theme, toggleTheme } = useTheme();
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      
+      {/* Top Nav for Theme Toggle */}
+      <div style={{ padding: '16px 24px', display: 'flex', justifyContent: 'flex-end' }}>
+        <button 
+          onClick={toggleTheme}
+          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+          style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            color: 'var(--text-primary)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '8px',
+            borderRadius: '8px'
+          }}
+        >
+          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
+      </div>
 
       {/* Hero Section */}
       <header style={{

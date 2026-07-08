@@ -40,7 +40,15 @@ app = FastAPI(
     version="1.0.0"
 )
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+def custom_rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    response = JSONResponse(
+        {"error": f"Rate limit exceeded: {exc.detail}"}, status_code=429
+    )
+    # Since our limit is 5/minute, 60 seconds is a safe backoff value
+    response.headers["Retry-After"] = "60"
+    return response
+
+app.add_exception_handler(RateLimitExceeded, custom_rate_limit_exceeded_handler)
 
 _cors_env = os.environ.get("CORS_ORIGINS", "").strip()
 if _cors_env:
@@ -142,6 +150,11 @@ async def require_admin(current_user: User = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Not enough privileges")
     return current_user
 
+async def require_operator_or_admin(current_user: User = Depends(get_current_user)):
+    if current_user.role not in ["admin", "operator"]:
+        raise HTTPException(status_code=403, detail="Not enough privileges")
+    return current_user
+
 # Note: Replacing API Key with JWT Admin dependency for control endpoints
 
 
@@ -231,14 +244,14 @@ async def get_machine_alerts(
     alerts = service.get_alerts_by_machine(machine_id, limit=limit)
     return JSONResponse(content=alerts)
 
-@app.post("/api/simulation/start", dependencies=[Depends(require_admin)])
+@app.post("/api/simulation/start", dependencies=[Depends(require_operator_or_admin)])
 async def start_simulation(
     interval: float = Query(default=1.0, gt=0, le=3600),
 ):
     service.start_simulation(interval=interval)
     return {"status": "simulation started", "interval": interval}
 
-@app.post("/api/simulation/stop", dependencies=[Depends(require_admin)])
+@app.post("/api/simulation/stop", dependencies=[Depends(require_operator_or_admin)])
 async def stop_simulation():
     service.stop_simulation()
     return {"status": "simulation stopped"}

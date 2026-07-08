@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useDashboardData, useMachineDetails } from '../hooks/useDashboardData';
+import { useTheme } from '../contexts/ThemeContext';
 import { MachineCard } from '../components/MachineCard';
 import { apiFetch } from '../lib/api';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
 } from 'recharts';
 import {
-  Activity, AlertTriangle, ShieldCheck, Thermometer, Zap, RefreshCw, Languages, Info
+  Activity, AlertTriangle, ShieldCheck, Thermometer, Zap, RefreshCw, Languages, Info, Sun, Moon
 } from 'lucide-react';
 
 const TRANSLATIONS: Record<string, Record<string, string>> = {
@@ -97,7 +98,8 @@ const Dashboard: React.FC = () => {
   const [selectedMachine, setSelectedMachine] = useState<string | null>('M001');
   const { summary, loading: summaryLoading, error: summaryError } = useDashboardData(2000);
   const { telemetry, loading: _detailsLoading } = useMachineDetails(selectedMachine, 2000);
-  const [injectionStatus, setInjectionStatus] = useState<string | null>(null);
+  const [injectionStatus, setInjectionStatus] = useState<{message: string, type: 'success' | 'error'} | null>(null);
+  const { theme, toggleTheme } = useTheme();
 
   const t = TRANSLATIONS[selectedLang] || TRANSLATIONS.en;
 
@@ -110,10 +112,10 @@ const Dashboard: React.FC = () => {
         method: 'POST',
         body: JSON.stringify({ fault_mode: faultMode })
       });
-      setInjectionStatus(`${t.injectSuccess} (${faultMode})`);
+      setInjectionStatus({ message: `${t.injectSuccess} (${faultMode})`, type: 'success' });
       setTimeout(() => setInjectionStatus(null), 3000);
-    } catch {
-      setInjectionStatus("Connection error.");
+    } catch (err: any) {
+      setInjectionStatus({ message: err.message || "Connection error.", type: 'error' });
       setTimeout(() => setInjectionStatus(null), 3000);
     }
   };
@@ -173,6 +175,22 @@ const Dashboard: React.FC = () => {
               <option value="mr">मराठी (Marathi)</option>
             </select>
           </div>
+
+          <button 
+            onClick={toggleTheme}
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '6px'
+            }}
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
           
           <button 
             onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('role'); window.location.href='/login'; }}
@@ -271,8 +289,8 @@ const Dashboard: React.FC = () => {
                     <button style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--status-normal)' }} onClick={() => handleInjectFault('normal')}>Reset Normal</button>
                   </div>
                   {injectionStatus && (
-                    <div style={{ fontSize: '12px', color: 'var(--status-normal)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Info size={12} /> {injectionStatus}
+                    <div style={{ fontSize: '12px', color: injectionStatus.type === 'error' ? 'var(--status-critical)' : 'var(--status-normal)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {injectionStatus.type === 'error' ? <AlertTriangle size={12} /> : <Info size={12} />} {injectionStatus.message}
                     </div>
                   )}
                 </div>

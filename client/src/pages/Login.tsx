@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { apiFetch } from '../lib/api';
+import { useTheme } from '../contexts/ThemeContext';
+import { Sun, Moon } from 'lucide-react';
 
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const { theme, toggleTheme } = useTheme();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,10 +28,31 @@ const Login: React.FC = () => {
 
   return (
     <div style={{
-      display: 'flex', justifyContent: 'center', alignItems: 'center', 
+      display: 'flex', flexDirection: 'column',
       minHeight: '100vh', background: 'var(--bg-primary)'
     }}>
-      <form className="glass-panel" onSubmit={handleLogin} style={{
+      {/* Top Nav for Theme Toggle */}
+      <div style={{ padding: '16px 24px', display: 'flex', justifyContent: 'flex-end' }}>
+        <button 
+          onClick={toggleTheme}
+          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+          style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            color: 'var(--text-primary)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '8px',
+            borderRadius: '8px'
+          }}
+        >
+          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
+      </div>
+
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '24px' }}>
+        <form className="glass-panel" onSubmit={handleLogin} style={{
         display: 'flex', flexDirection: 'column', gap: '16px', 
         width: '100%', maxWidth: '400px', padding: '32px'
       }}>
@@ -77,7 +101,8 @@ const Login: React.FC = () => {
         <div style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '16px' }}>
           Demo Account: demo_viewer/ix_rPBrwjyX3cnOPHSZ6gg (Read-only viewer)
         </div>
-      </form>
+        </form>
+      </div>
     </div>
   );
 };

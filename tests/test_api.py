@@ -81,6 +81,7 @@ def test_login_rate_limiting():
     # 6th attempt should be rate-limited
     resp = client.post("/api/auth/login", json=login_payload)
     assert resp.status_code == 429, f"Expected 429 on 6th attempt, got {resp.status_code}"
+    assert "retry-after" in resp.headers.keys() or "Retry-After" in resp.headers.keys(), "Missing Retry-After header on 429"
 
 
 def test_no_duplicate_password_hashes():
@@ -127,5 +128,28 @@ def test_demo_viewer_privilege():
     finally:
         # Restore
         fake_users_db["demo_viewer"]["hashed_password"] = original_hash
+
+
+def test_operator_privilege():
+    """Verify operator can control simulation but gets 403 on fault endpoints."""
+    # Login as test_operator
+    login_resp = client.post("/api/auth/login", json={"username": "test_operator", "password": "test_operator_public_pw_123"})
+    assert login_resp.status_code == 200, "test_operator login failed"
+    token = login_resp.json()["access_token"]
+    
+    # 1. Can operator start simulation? Yes.
+    sim_resp = client.post(
+        "/api/simulation/start?interval=1.0",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert sim_resp.status_code == 200, "Operator should be able to start simulation"
+    
+    # 2. Can operator inject faults? No.
+    fault_resp = client.post(
+        "/api/machines/M001/fault",
+        json={"fault_mode": "overheating"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert fault_resp.status_code == 403, "Operator should be forbidden from fault injection"
 
 

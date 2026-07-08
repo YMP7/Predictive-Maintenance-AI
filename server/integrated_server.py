@@ -1,7 +1,12 @@
 import logging
 import os
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+# Add project root to sys.path so 'server.X' absolute imports work when run as a script
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
 
 from fastapi import HTTPException
 from fastapi.staticfiles import StaticFiles
@@ -13,8 +18,7 @@ from server.backend_api import app
 
 logger = logging.getLogger("DigitalTwin")
 service = get_data_service()
-base_dir = Path(__file__).resolve().parent
-client_dist = base_dir / "client" / "dist"
+client_dist = project_root / "client" / "dist"
 
 
 def _env_int(name: str, default: int) -> int:

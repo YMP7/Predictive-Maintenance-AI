@@ -25,6 +25,7 @@ The following environment variables **must** be configured before starting the a
 ### Password Storage
 - All user passwords are hashed with **bcrypt** via the `passlib` library.
 - No plaintext passwords are stored at rest.
+- **Note on Test Accounts**: The credentials for `test_admin` and `test_operator` are intentionally public for CI/CD and local testing purposes. Their plaintext passwords can be found in `server/backend_api.py` and `tests/test_api.py`. This is by design and not a security oversight.
 
 ## Known Limitations
 
