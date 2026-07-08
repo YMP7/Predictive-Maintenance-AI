@@ -27,6 +27,7 @@ jobs:
     - name: Run Pytest Test Suite
       env:
         JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
         PYTHONPATH: .
       run: |
         pytest tests/ -q
