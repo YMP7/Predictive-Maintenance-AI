@@ -24,6 +24,28 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt pytest httpx
         
+    - name: Start Infrastructure (TimescaleDB & Mosquitto)
+      env:
+        TSDB_PASSWORD: devpassword123
+      run: |
+        docker compose up -d timescaledb mosquitto
+        
+        # Wait for database to be ready
+        echo "Waiting for TimescaleDB to be ready..."
+        for i in {1..30}; do
+          if docker exec timescaledb pg_isready -U dtwin -d digital_twin; then
+            echo "Database is ready!"
+            break
+          fi
+          sleep 2
+        done
+
+    - name: Run Database Migrations
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        PYTHONPATH: .
+      run: python scripts/migrate.py
+        
     - name: Run Pytest Test Suite
       env:
         JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
