@@ -43,6 +43,7 @@ jobs:
     - name: Run Database Migrations
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
         PYTHONPATH: .
       run: |
         export ADMIN_PASSWORD_HASH=$(python -c "from server.auth import get_password_hash; print(get_password_hash('ci_admin_test_pw_not_real'))")
