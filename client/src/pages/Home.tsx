@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Activity, Cpu, ShieldCheck, ArrowRight, BarChart3, Zap, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+
+const MachineAnimation = lazy(() => import('../components/MachineAnimation'));
 
 const Home: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
@@ -30,67 +32,80 @@ const Home: React.FC = () => {
 
       {/* Hero Section */}
       <header style={{
-        padding: '48px 24px',
-        display: 'flex',
-        flexDirection: 'column',
+        padding: '24px 24px',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+        gap: '48px',
         alignItems: 'center',
-        textAlign: 'center',
-        gap: '24px'
+        maxWidth: '1200px',
+        margin: '0 auto',
+        width: '100%'
       }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          padding: '8px 16px',
-          borderRadius: '9999px',
-          background: 'rgba(59, 130, 246, 0.1)',
-          border: '1px solid rgba(59, 130, 246, 0.2)',
-          fontSize: '13px',
-          fontWeight: 600,
-          color: 'var(--accent-primary)'
-        }}>
-          <Activity size={14} />
-          Enterprise Industry 4.0 — Predictive Edge Analytics
-        </div>
-
-        <h1 className="gradient-text" style={{
-          fontSize: 'clamp(32px, 5vw, 56px)',
-          fontWeight: 800,
-          lineHeight: 1.1,
-          maxWidth: '720px'
-        }}>
-          AI Digital Twin &amp; Predictive Maintenance
-        </h1>
-
-        <p style={{
-          fontSize: '18px',
-          color: 'var(--text-secondary)',
-          maxWidth: '560px',
-          lineHeight: 1.6
-        }}>
-          Real-time machine health monitoring, fault prediction, and multilingual
-          alert generation for small and medium enterprises.
-        </p>
-
-        <a
-          href="/dashboard"
-          style={{
-            display: 'inline-flex',
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', alignItems: 'flex-start' }}>
+          <div style={{
+            display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            padding: '14px 32px',
-            borderRadius: '12px',
-            background: 'var(--accent-primary)',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: '16px',
-            textDecoration: 'none',
-            transition: 'all 0.2s ease',
-            boxShadow: '0 0 20px var(--accent-glow)'
-          }}
-        >
-          Open Dashboard <ArrowRight size={18} />
-        </a>
+            gap: '12px',
+            padding: '8px 16px',
+            borderRadius: '9999px',
+            background: 'rgba(59, 130, 246, 0.1)',
+            border: '1px solid rgba(59, 130, 246, 0.2)',
+            fontSize: '13px',
+            fontWeight: 600,
+            color: 'var(--accent-primary)'
+          }}>
+            <Activity size={14} />
+            Enterprise Industry 4.0 — Predictive Edge Analytics
+          </div>
+
+          <h1 className="gradient-text" style={{
+            fontSize: 'clamp(32px, 5vw, 56px)',
+            fontWeight: 800,
+            lineHeight: 1.1,
+            textAlign: 'left'
+          }}>
+            AI Digital Twin &amp; Predictive Maintenance
+          </h1>
+
+          <p style={{
+            fontSize: '18px',
+            color: 'var(--text-secondary)',
+            lineHeight: 1.6,
+            textAlign: 'left'
+          }}>
+            Real-time machine health monitoring, fault prediction, and multilingual
+            alert generation for small and medium enterprises.
+          </p>
+
+          <a
+            href="/dashboard"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '14px 32px',
+              borderRadius: '12px',
+              background: 'var(--accent-primary)',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: '16px',
+              textDecoration: 'none',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 0 20px var(--accent-glow)'
+            }}
+          >
+            Open Dashboard <ArrowRight size={18} />
+          </a>
+        </div>
+        <div style={{ width: '100%', height: '400px', position: 'relative' }}>
+          <Suspense fallback={
+            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+              Loading 3D visualization...
+            </div>
+          }>
+            <MachineAnimation />
+          </Suspense>
+        </div>
       </header>
 
       {/* Feature Cards */}

@@ -120,3 +120,50 @@ export function useMachineDetails(machineId: string | null, refreshInterval: num
 
   return { telemetry, trends, loading, error };
 }
+
+export interface AlertData {
+  alert_id: number;
+  timestamp: string;
+  machine_id: string;
+  severity: string;
+  fault_type: string;
+  description: string;
+}
+
+export function useAlerts(limit: number = 20, refreshInterval: number = 2000) {
+  const [alerts, setAlerts] = useState<AlertData[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const fetchAlerts = async () => {
+      try {
+        setLoading(true);
+        const data = await apiFetch<AlertData[]>(`/api/alerts/recent?limit=${limit}`);
+        if (active) {
+          setAlerts(data);
+          setError(null);
+        }
+      } catch (err: any) {
+        if (active) {
+          setError(err.message);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchAlerts();
+    const interval = setInterval(fetchAlerts, refreshInterval);
+    
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [limit, refreshInterval]);
+
+  return { alerts, loading, error };
+}

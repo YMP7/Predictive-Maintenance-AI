@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useDashboardData, useMachineDetails } from '../hooks/useDashboardData';
+import { useDashboardData, useMachineDetails, useAlerts } from '../hooks/useDashboardData';
 import { useTheme } from '../contexts/ThemeContext';
 import { MachineCard } from '../components/MachineCard';
 import { apiFetch } from '../lib/api';
@@ -98,8 +98,17 @@ const Dashboard: React.FC = () => {
   const [selectedMachine, setSelectedMachine] = useState<string | null>('M001');
   const { summary, loading: summaryLoading, error: summaryError } = useDashboardData(2000);
   const { telemetry, loading: _detailsLoading } = useMachineDetails(selectedMachine, 2000);
+  
+  // Import the new alerts hook
+  const { alerts, loading: alertsLoading } = useAlerts(10, 5000);
+
   const [injectionStatus, setInjectionStatus] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const { theme, toggleTheme } = useTheme();
+
+  // Role check for UI rendering
+  const userRoleMatch = document.cookie.match(/(^|;)\s*user_role=([^;]+)/);
+  const userRole = userRoleMatch ? userRoleMatch[2] : 'viewer';
+  const canInjectFault = userRole === 'admin' || userRole === 'operator';
 
   const t = TRANSLATIONS[selectedLang] || TRANSLATIONS.en;
 
@@ -226,21 +235,57 @@ const Dashboard: React.FC = () => {
       {/* Main Grid */}
       <main style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '24px' }}>
         
-        {/* Left Side: Machines Grid */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-secondary)' }}>Physical Assets</h2>
-          {summaryLoading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}><RefreshCw className="spin" /></div>
-          ) : (
-            summary?.machines.map(machine => (
-              <MachineCard 
-                key={machine.machine_id}
-                machine={machine}
-                isSelected={selectedMachine === machine.machine_id}
-                onClick={() => setSelectedMachine(machine.machine_id)}
-              />
-            ))
-          )}
+        {/* Left Side: Machines Grid & Alerts Panel */}
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-secondary)' }}>Physical Assets</h2>
+            {summaryLoading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}><RefreshCw className="spin" /></div>
+            ) : (
+              summary?.machines.map(machine => (
+                <MachineCard 
+                  key={machine.machine_id}
+                  machine={machine}
+                  isSelected={selectedMachine === machine.machine_id}
+                  onClick={() => setSelectedMachine(machine.machine_id)}
+                />
+              ))
+            )}
+          </div>
+
+          {/* New Alerts Panel surfacing real data */}
+          <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)' }}>Recent System Alerts</h3>
+            {alertsLoading && !alerts ? (
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Loading alerts...</div>
+            ) : alerts && alerts.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
+                {alerts.map((alert: any, idx: number) => (
+                  <div key={alert.alert_id || idx} style={{
+                    padding: '8px',
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid var(--border-color)',
+                    borderLeft: `3px solid var(--status-${alert.severity.toLowerCase()})`,
+                    borderRadius: '6px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 600 }}>{alert.machine_id} - {alert.fault_type}</span>
+                      <span className={`badge badge-${alert.severity.toLowerCase()}`} style={{ fontSize: '10px' }}>{alert.severity}</span>
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{new Date(alert.timestamp).toLocaleString()}</span>
+                    <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{alert.description}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>No active alerts detected. All systems normal.</p>
+            )}
+          </div>
+
         </section>
 
         {/* Right Side: Details & Digital Twin Graphs */}
@@ -279,31 +324,47 @@ const Dashboard: React.FC = () => {
                   )}
                 </div>
 
-                {/* Remaining Useful Life status */}
+                {/* Remaining Useful Life status Gauge */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Remaining Useful Life (RUL):</span>
-                  <span style={{ fontSize: '32px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: currentMachine.rul_days && currentMachine.rul_days < 7 ? 'var(--status-critical)' : 'var(--status-normal)' }}>
-                    {currentMachine.rul_days !== null ? `${currentMachine.rul_days} Days` : 'Estimating...'}
-                  </span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Confidence Score: {Math.round(currentMachine.rul_confidence * 100)}%</span>
-                </div>
-
-                {/* Fault injector controls */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t.faultInjection}:</span>
-                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    <button onClick={() => handleInjectFault('bearing_wear')}>{t.inject} (Bearing)</button>
-                    <button onClick={() => handleInjectFault('misalignment')}>{t.inject} (Align)</button>
-                    <button onClick={() => handleInjectFault('overheating')}>{t.inject} (Heat)</button>
-                    <button onClick={() => handleInjectFault('electrical_fault')}>{t.inject} (Elec)</button>
-                    <button style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--status-normal)' }} onClick={() => handleInjectFault('normal')}>Reset Normal</button>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                    <span style={{ fontSize: '32px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: currentMachine.rul_days !== null && currentMachine.rul_days < 7 ? 'var(--status-critical)' : currentMachine.rul_days !== null && currentMachine.rul_days < 14 ? 'var(--status-warning)' : 'var(--status-normal)' }}>
+                      {currentMachine.rul_days !== null ? `${currentMachine.rul_days} Days` : 'Estimating...'}
+                    </span>
                   </div>
-                  {injectionStatus && (
-                    <div style={{ fontSize: '12px', color: injectionStatus.type === 'error' ? 'var(--status-critical)' : 'var(--status-normal)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      {injectionStatus.type === 'error' ? <AlertTriangle size={12} /> : <Info size={12} />} {injectionStatus.message}
+                  
+                  {/* Visual Progress Bar for RUL */}
+                  {currentMachine.rul_days !== null && (
+                    <div style={{ width: '100%', height: '8px', background: 'var(--bg-secondary)', borderRadius: '4px', overflow: 'hidden', marginTop: '8px' }}>
+                      <div style={{ 
+                        height: '100%', 
+                        width: `${Math.min(100, Math.max(0, (currentMachine.rul_days / 30) * 100))}%`, 
+                        background: currentMachine.rul_days < 7 ? 'var(--status-critical)' : currentMachine.rul_days < 14 ? 'var(--status-warning)' : 'var(--status-normal)',
+                        transition: 'width 0.5s ease-out'
+                      }} />
                     </div>
                   )}
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>Confidence Score: {Math.round(currentMachine.rul_confidence * 100)}%</span>
                 </div>
+
+                {/* Fault injector controls (Role-Aware) */}
+                {canInjectFault && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t.faultInjection} (Admin/Operator):</span>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      <button onClick={() => handleInjectFault('bearing_wear')}>{t.inject} (Bearing)</button>
+                      <button onClick={() => handleInjectFault('misalignment')}>{t.inject} (Align)</button>
+                      <button onClick={() => handleInjectFault('overheating')}>{t.inject} (Heat)</button>
+                      <button onClick={() => handleInjectFault('electrical_fault')}>{t.inject} (Elec)</button>
+                      <button style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--status-normal)' }} onClick={() => handleInjectFault('normal')}>Reset Normal</button>
+                    </div>
+                    {injectionStatus && (
+                      <div style={{ fontSize: '12px', color: injectionStatus.type === 'error' ? 'var(--status-critical)' : 'var(--status-normal)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {injectionStatus.type === 'error' ? <AlertTriangle size={12} /> : <Info size={12} />} {injectionStatus.message}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Trend Graphs */}
@@ -375,36 +436,6 @@ const Dashboard: React.FC = () => {
               Select a physical asset from the sidebar to inspect its digital twin telemetry.
             </div>
           )}
-
-          {/* Alerts panel */}
-          <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 600 }}>{t.activeAlerts} Log</h3>
-            <div style={{ maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {summary && summary.total_alerts > 0 ? (
-                summary.machines
-                  .flatMap(m => m.detected_issues.map(issue => ({ machine: m.machine_info.name, issue, status: m.status })))
-                  .map((alert, idx) => (
-                    <div 
-                      key={idx} 
-                      style={{
-                        padding: '10px 16px',
-                        background: 'rgba(255,255,255,0.02)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '8px',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <span style={{ fontSize: '13px', fontWeight: 500 }}>{alert.issue} ({alert.machine})</span>
-                      <span className={`badge badge-${alert.status.toLowerCase()}`}>{alert.status}</span>
-                    </div>
-                  ))
-              ) : (
-                <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No active alerts detected. All systems normal.</p>
-              )}
-            </div>
-          </div>
 
         </section>
 
