@@ -55,6 +55,7 @@ jobs:
       env:
         JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        NOTIFICATIONS_ENABLED: "false"
         PYTHONPATH: .
       run: |
         pytest tests/ -q

@@ -42,29 +42,37 @@ def main():
     # These are the same accounts that were in fake_users_db.
     # Passwords for real accounts should be changed after first login.
     # Test/demo account passwords are intentionally public (see SECURITY.md).
+    # (username, hashed_password, role, email, phone)
     dev_users = [
         # Real accounts (passwords from .env / rotated secrets)
-        ("admin",         admin_hash, "admin"),
-        ("operator",      operator_hash, "operator"),
+        ("admin",         admin_hash, "admin",
+         os.environ.get("ADMIN_EMAIL", "admin@digitaltwin.local"),
+         os.environ.get("ADMIN_PHONE")),
+        ("operator",      operator_hash, "operator", None, None),
         # Test accounts (intentionally public passwords)
-        ("test_admin",    get_password_hash("test_admin_public_pw_123"), "admin"),
-        ("test_operator", get_password_hash("test_operator_public_pw_123"), "operator"),
+        ("test_admin",    get_password_hash("test_admin_public_pw_123"), "admin",
+         "testadmin@digitaltwin.local", None),
+        ("test_operator", get_password_hash("test_operator_public_pw_123"), "operator",
+         None, None),
         # Demo account (intentionally public password)
-        ("demo_viewer",   get_password_hash("demo_viewer_public_pw_123"), "viewer"),
+        ("demo_viewer",   get_password_hash("demo_viewer_public_pw_123"), "viewer",
+         None, None),
     ]
 
     print(f"Seeding {len(dev_users)} users into database (APP_ENV={APP_ENV})...")
     with psycopg.connect(db_url) as conn:
         with conn.cursor() as cur:
-            for username, hashed_pw, role in dev_users:
+            for username, hashed_pw, role, email, phone in dev_users:
                 cur.execute("""
-                    INSERT INTO users (username, hashed_password, role)
-                    VALUES (%s, %s, %s)
+                    INSERT INTO users (username, hashed_password, role, email, phone)
+                    VALUES (%s, %s, %s, %s, %s)
                     ON CONFLICT (username) DO UPDATE
                     SET hashed_password = EXCLUDED.hashed_password,
-                        role = EXCLUDED.role;
-                """, (username, hashed_pw, role))
-                print(f"  Seeded user: {username} (role={role})")
+                        role = EXCLUDED.role,
+                        email = EXCLUDED.email,
+                        phone = EXCLUDED.phone;
+                """, (username, hashed_pw, role, email, phone))
+                print(f"  Seeded user: {username} (role={role}, email={email or '-'}, phone={phone or '-'})")
         conn.commit()
     print("Seeding complete.")
 

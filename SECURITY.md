@@ -11,6 +11,12 @@ The following environment variables **must** be configured before starting the a
 | `CORS_ORIGINS` | Recommended | Comma-separated list of allowed frontend origins (e.g., `https://yourdomain.com`). Defaults to `http://localhost:3000` if unset. |
 | `MQTT_USERNAME` | Required if MQTT used | Username for the MQTT broker (e.g. `backend_service`) |
 | `MQTT_PASSWORD` | Required if MQTT used | Password for the MQTT broker. Fails loudly if `MQTT_BROKER_HOST` is set but creds are missing. |
+| `NOTIFICATIONS_ENABLED` | No (default: `false`) | Set to `true` to enable SMS/email/voice dispatch. When `true`, all Twilio + SMTP credentials below become **required**. |
+| `TWILIO_ACCOUNT_SID` | Required if notifications enabled | Twilio API account SID |
+| `TWILIO_AUTH_TOKEN` | Required if notifications enabled | Twilio API auth token |
+| `TWILIO_FROM_NUMBER` | Required if notifications enabled | Twilio sender phone number |
+| `SMTP_HOST` | Required if notifications enabled | SMTP server hostname |
+| `SMTP_FROM` | Required if notifications enabled | Email sender address |
 
 ## Security Hardening Applied
 
@@ -35,6 +41,13 @@ The following environment variables **must** be configured before starting the a
 - No plaintext passwords are stored at rest — the `hashed_password` column contains only bcrypt `$2b$` hashes.
 - User accounts are managed via `scripts/seed_dev.py` (development) or direct SQL (production).
 - **Note on Test Accounts**: The credentials for `test_admin`, `test_operator`, and `demo_viewer` are intentionally public for CI/CD and local testing purposes. Their plaintext passwords can be found in `scripts/seed_dev.py` and `tests/test_api.py`. This is by design and not a security oversight.
+
+### Notification Credentials (Phase 5)
+- **Fail-loud at startup**: If `NOTIFICATIONS_ENABLED=true` but any required Twilio or SMTP credential is missing, the `AlertHandler` raises a `RuntimeError` at initialization — same pattern as `JWT_SECRET_KEY` and `DATABASE_URL`.
+- **No external calls when disabled**: When `NOTIFICATIONS_ENABLED` is unset or `false`, the system runs with dashboard/log-only alerting. No Twilio or SMTP connections are attempted, and no external credentials are required.
+- **Debounce persistence**: Notification cooldown state is stored in the `notifications_sent` TimescaleDB hypertable, surviving server restarts. This prevents alert storms from spamming recipients after a reboot.
+- **Recipient fan-out**: SMS and email alerts are sent to all `admin`-role users who have `phone` or `email` set in the `users` table. This avoids hardcoding a single recipient in `.env`.
+- **Error isolation**: A failure in any notification channel (Twilio API down, SMTP timeout) is logged but never crashes or blocks the telemetry ingestion pipeline.
 
 ## Known Limitations
 

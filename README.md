@@ -239,3 +239,10 @@ Before exposing the application to the internet, verify that the following secur
    - Never commit your `.env` file containing passwords or JWT secrets to Git. Use environment secrets managers in AWS, GCP, or GitHub Actions.
 5. **CORS Configuration**:
    - Set `CORS_ORIGINS` to your domain URL (e.g., `https://yourdomain.com`) to restrict dashboard queries to authorized domains only. It defaults to local dev URLs if unset.
+6. **Notification Integration** (Phase 5):
+   - Set `NOTIFICATIONS_ENABLED=true` in `.env` to enable SMS, email, and voice call alerts.
+   - **Twilio** (SMS + Voice): Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` in `.env`. Sign up at [twilio.com](https://www.twilio.com/).
+   - **SMTP** (Email): Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` in `.env`.
+   - **Fail-loud**: If `NOTIFICATIONS_ENABLED=true` but required credentials are missing, the server will refuse to start.
+   - **Recipients**: Add `email` and `phone` columns to admin user accounts in the `users` table. Notifications fan out to all admin-role users with contact info.
+   - **Debounce**: Duplicate alerts for the same machine+fault are suppressed within a configurable window (`ALERT_COOLDOWN`, default 300 seconds). Debounce state is persisted in TimescaleDB (`notifications_sent` table) and survives server restarts.

@@ -78,7 +78,35 @@ def main():
                 SELECT create_hypertable('alerts', 'time', if_not_exists => TRUE);
             """)
 
-            # 4. Create indexes for common query patterns
+            # 4. Notifications sent hypertable (Phase 5 — debounce tracking)
+            print("Creating notifications_sent table...")
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS notifications_sent (
+                    id           SERIAL,
+                    time         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    machine_id   VARCHAR(10) NOT NULL,
+                    fault_type   VARCHAR(50) NOT NULL,
+                    channel      VARCHAR(20) NOT NULL,
+                    recipient    TEXT NOT NULL,
+                    severity     VARCHAR(20),
+                    message      TEXT
+                );
+            """)
+            print("Converting notifications_sent to hypertable...")
+            cur.execute("""
+                SELECT create_hypertable('notifications_sent', 'time', if_not_exists => TRUE);
+            """)
+
+            # 5. Add email/phone columns to users table for recipient fan-out
+            print("Adding email/phone columns to users table...")
+            cur.execute("""
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
+            """)
+            cur.execute("""
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
+            """)
+
+            # 6. Create indexes for common query patterns
             print("Creating indexes...")
             cur.execute("""
                 CREATE INDEX IF NOT EXISTS idx_telemetry_machine_time
@@ -87,6 +115,10 @@ def main():
             cur.execute("""
                 CREATE INDEX IF NOT EXISTS idx_alerts_machine_time
                 ON alerts (machine_id, time DESC);
+            """)
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_notif_machine_fault_time
+                ON notifications_sent (machine_id, fault_type, time DESC);
             """)
 
         conn.commit()
