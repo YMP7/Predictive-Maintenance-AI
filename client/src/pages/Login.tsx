@@ -16,9 +16,7 @@ const Login: React.FC = () => {
         method: 'POST',
         body: JSON.stringify({ username, password })
       });
-      if (response.access_token) {
-        localStorage.setItem('token', response.access_token);
-        localStorage.setItem('role', response.role);
+      if (response && response.role) {
         window.location.href = '/dashboard';
       }
     } catch (err: any) {

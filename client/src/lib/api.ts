@@ -10,26 +10,23 @@ export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\
  */
 export async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  const token = localStorage.getItem('token');
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    'X-API-Request': 'true', // CSRF mitigation
     ...options?.headers as Record<string, string>
   };
   
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
   const response = await fetch(url, {
     ...options,
+    credentials: 'include', // Send HttpOnly cookies
     headers
   });
 
   if (!response.ok) {
     if (response.status === 401) {
-      // Clear auth and redirect to login on unauthorized
-      localStorage.removeItem('token');
-      localStorage.removeItem('role');
+      // Clear auth UI state and redirect to login
+      document.cookie = "auth_status=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      document.cookie = "user_role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
       window.location.href = '/login';
     }
     

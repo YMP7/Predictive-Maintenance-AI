@@ -83,8 +83,7 @@ def require_machine(machine_id: str) -> None:
     if machine_id not in service.machine_info:
         raise HTTPException(status_code=404, detail="Machine not found")
 
-from fastapi.security import OAuth2PasswordBearer
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+# Removed OAuth2PasswordBearer for HttpOnly cookies
 
 # User lookup via TimescaleDB (replaces the old fake_users_db in-memory dict)
 def get_user_from_db(username: str) -> dict | None:
@@ -98,12 +97,23 @@ def get_user_from_db(username: str) -> dict | None:
             return {"username": row[0], "hashed_password": row[1], "role": row[2]}
     return None
 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
+async def get_current_user(request: Request) -> User:
     credentials_exception = HTTPException(
         status_code=401,
         detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
     )
+    
+    # CSRF Protection: Require custom header
+    if request.headers.get("X-API-Request") != "true":
+        raise HTTPException(
+            status_code=403, 
+            detail="Missing CSRF protection header (X-API-Request)"
+        )
+
+    token = request.cookies.get("access_token")
+    if not token:
+        raise credentials_exception
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
@@ -135,7 +145,7 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
-@app.post("/api/auth/login", response_model=Token)
+@app.post("/api/auth/login")
 @limiter.limit("5/minute")
 async def login_for_access_token(request: Request, login_req: LoginRequest):
     user_dict = get_user_from_db(login_req.username)
@@ -143,13 +153,51 @@ async def login_for_access_token(request: Request, login_req: LoginRequest):
         raise HTTPException(
             status_code=401,
             detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user_dict["username"], "role": user_dict["role"]}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer", "role": user_dict["role"]}
+    
+    IS_LOCAL_DEV = os.getenv("ENVIRONMENT", "development") == "development"
+    
+    response = JSONResponse(content={"role": user_dict["role"]})
+    # Set HttpOnly cookie for the token
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=not IS_LOCAL_DEV,
+        samesite="lax",
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    )
+    # Set non-HttpOnly cookie for frontend UI state
+    response.set_cookie(
+        key="auth_status",
+        value="true",
+        httponly=False,
+        secure=not IS_LOCAL_DEV,
+        samesite="lax",
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    )
+    # Also set a non-HttpOnly cookie for role if needed by frontend
+    response.set_cookie(
+        key="user_role",
+        value=user_dict["role"],
+        httponly=False,
+        secure=not IS_LOCAL_DEV,
+        samesite="lax",
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    )
+    return response
+
+@app.post("/api/auth/logout")
+async def logout():
+    response = JSONResponse(content={"detail": "Logged out successfully"})
+    response.delete_cookie("access_token", samesite="lax")
+    response.delete_cookie("auth_status", samesite="lax")
+    response.delete_cookie("user_role", samesite="lax")
+    return response
 
 @app.get("/api/auth/me", response_model=User)
 async def read_users_me(current_user: User = Depends(get_current_user)):

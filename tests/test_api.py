@@ -47,19 +47,21 @@ def test_control_endpoint_jwt_auth():
     endpoint = "/api/machines/M001/fault"
     payload = {"fault_mode": "normal"}
 
-    # 1. Unauthenticated request should fail
-    assert client.post(endpoint, json=payload).status_code == 401
+    # 1. Unauthenticated request should fail (401 because CSRF header is present, but no token)
+    assert client.post(endpoint, json=payload, headers={"X-API-Request": "true"}).status_code == 401
 
     # 2. Login to get token
     login_resp = client.post("/api/auth/login", json={"username": "test_admin", "password": "test_admin_public_pw_123"})
     assert login_resp.status_code == 200
-    token = login_resp.json()["access_token"]
+    token = login_resp.cookies.get("access_token")
+    assert token is not None
 
     # 3. Authenticated request should succeed
     response = client.post(
         endpoint,
         json=payload,
-        headers={"Authorization": f"Bearer {token}"},
+        cookies={"access_token": token},
+        headers={"X-API-Request": "true"},
     )
     assert response.status_code == 200
     assert response.json()["fault_mode"] == "normal"
@@ -105,7 +107,8 @@ def test_demo_viewer_privilege():
     # 1. Login
     login_resp = client.post("/api/auth/login", json={"username": "demo_viewer", "password": "demo_viewer_public_pw_123"})
     assert login_resp.status_code == 200, "demo_viewer login failed"
-    token = login_resp.json()["access_token"]
+    token = login_resp.cookies.get("access_token")
+    assert token is not None
     assert login_resp.json()["role"] == "viewer"
     
     # 2. Try privileged action
@@ -114,7 +117,8 @@ def test_demo_viewer_privilege():
     fault_resp = client.post(
         endpoint,
         json=payload,
-        headers={"Authorization": f"Bearer {token}"},
+        cookies={"access_token": token},
+        headers={"X-API-Request": "true"},
     )
     assert fault_resp.status_code == 403, "demo_viewer should be forbidden from fault endpoints"
 
@@ -124,12 +128,14 @@ def test_operator_privilege():
     # Login as test_operator
     login_resp = client.post("/api/auth/login", json={"username": "test_operator", "password": "test_operator_public_pw_123"})
     assert login_resp.status_code == 200, "test_operator login failed"
-    token = login_resp.json()["access_token"]
+    token = login_resp.cookies.get("access_token")
+    assert token is not None
     
     # 1. Can operator start simulation? Yes.
     sim_resp = client.post(
         "/api/simulation/start?interval=1.0",
-        headers={"Authorization": f"Bearer {token}"},
+        cookies={"access_token": token},
+        headers={"X-API-Request": "true"},
     )
     assert sim_resp.status_code == 200, "Operator should be able to start simulation"
     
@@ -137,6 +143,38 @@ def test_operator_privilege():
     fault_resp = client.post(
         "/api/machines/M001/fault",
         json={"fault_mode": "overheating"},
-        headers={"Authorization": f"Bearer {token}"},
+        cookies={"access_token": token},
+        headers={"X-API-Request": "true"},
     )
     assert fault_resp.status_code == 403, "Operator should be forbidden from fault injection"
+
+def test_csrf_protection_rejects_missing_header():
+    """Verify that requests missing the X-API-Request header are rejected even with a valid cookie."""
+    login_resp = client.post("/api/auth/login", json={"username": "test_admin", "password": "test_admin_public_pw_123"})
+    token = login_resp.cookies.get("access_token")
+    
+    # Try to access protected route without X-API-Request header
+    response = client.post(
+        "/api/machines/M001/fault",
+        json={"fault_mode": "normal"},
+        cookies={"access_token": token},
+        # No X-API-Request header
+    )
+    assert response.status_code == 403
+    assert "Missing CSRF protection header" in response.json()["detail"]
+
+def test_logout_clears_cookies():
+    """Verify logout endpoint clears auth cookies."""
+    # Start fresh client to test cookie jar behavior
+    with TestClient(app) as test_client:
+        test_client.post("/api/auth/login", json={"username": "test_admin", "password": "test_admin_public_pw_123"})
+        assert "access_token" in test_client.cookies
+        assert "auth_status" in test_client.cookies
+        
+        logout_resp = test_client.post("/api/auth/logout")
+        assert logout_resp.status_code == 200
+        
+        # Check Set-Cookie headers for cleared values (max-age=0 or expires in past, or missing from client jar)
+        # TestClient automatically removes cookies if they are expired/deleted by the server
+        assert "access_token" not in test_client.cookies
+        assert "auth_status" not in test_client.cookies

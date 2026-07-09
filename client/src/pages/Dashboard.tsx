@@ -193,7 +193,17 @@ const Dashboard: React.FC = () => {
           </button>
           
           <button 
-            onClick={() => { localStorage.removeItem('token'); localStorage.removeItem('role'); window.location.href='/login'; }}
+            onClick={async () => {
+              try {
+                await apiFetch('/api/auth/logout', { method: 'POST' });
+              } catch (e) {
+                console.error("Logout failed", e);
+              } finally {
+                document.cookie = "auth_status=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                document.cookie = "user_role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                window.location.href='/login';
+              }
+            }}
             style={{
               background: 'var(--bg-secondary)', color: 'var(--text-primary)', 
               border: '1px solid var(--border-color)', padding: '6px 12px', 

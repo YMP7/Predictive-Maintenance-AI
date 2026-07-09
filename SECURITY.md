@@ -53,7 +53,7 @@ The following environment variables **must** be configured before starting the a
 
 > These are tracked as future work in the Implementation Plan and do not represent vulnerabilities in the current prototype scope.
 
-1. **localStorage Token Storage**: JWT tokens are stored in the browser's `localStorage`. This is vulnerable to XSS (Cross-Site Scripting) attacks. A production deployment should migrate to HttpOnly cookies with `SameSite=Strict`. *(Deferred — out of scope for current hardening pass.)*
+1. ~~**localStorage Token Storage**~~: ✅ **RESOLVED (Phase 6)** — JWT tokens are now stored exclusively in `HttpOnly` cookies (`SameSite=Lax`, `Secure`), mitigating XSS token theft. A custom `X-API-Request: true` header is strictly required on backend routes to trigger CORS preflight and mitigate CSRF.
 2. ~~**In-Memory User Store**~~: ✅ **RESOLVED** — User accounts are now stored in TimescaleDB's `users` table, replacing the old `fake_users_db` in-memory dict.
 3. ~~**Weak Default Passwords**~~: ✅ **RESOLVED** — Demo passwords have been rotated to cryptographically generated 16-character secrets.
 4. ~~**No Rate Limiting**~~: ✅ **RESOLVED** — The `/api/auth/login` endpoint is now rate-limited to 5 attempts per minute per IP via `slowapi`. Exceeding the limit returns HTTP 429 with a `Retry-After` header.

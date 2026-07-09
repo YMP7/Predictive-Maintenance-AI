@@ -51,8 +51,9 @@ function useRoute() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const token = localStorage.getItem('token');
-  if (!token) {
+  // Use the non-HttpOnly flag cookie set by the backend to determine UI state synchronously
+  const isAuthenticated = document.cookie.includes('auth_status=true');
+  if (!isAuthenticated) {
     window.location.replace('/login');
     return null;
   }
