@@ -44,7 +44,11 @@ jobs:
       env:
         DATABASE_URL: ${{ secrets.DATABASE_URL }}
         PYTHONPATH: .
-      run: python scripts/migrate.py
+      run: |
+        export ADMIN_PASSWORD_HASH=$(python -c "from server.auth import get_password_hash; print(get_password_hash('ci_admin_test_pw_not_real'))")
+        export OPERATOR_PASSWORD_HASH=$(python -c "from server.auth import get_password_hash; print(get_password_hash('ci_operator_test_pw_not_real'))")
+        python scripts/migrate.py
+        python scripts/seed_dev.py
         
     - name: Run Pytest Test Suite
       env:
