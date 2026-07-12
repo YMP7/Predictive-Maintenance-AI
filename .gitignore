@@ -90,3 +90,4 @@ digital_twin.db
 mosquitto/data/
 mosquitto/log/
 new_passwords.txt
+cookies.txt

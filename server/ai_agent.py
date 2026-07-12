@@ -120,14 +120,30 @@ class RULEstimator:
                 "status": "Insufficient Data"
             }
             
-        # Linear trend extrapolation
+        # Get raw data
         x = np.arange(len(history))
-        y = np.array(history)
+        y_raw = np.array(history)
         
-        # Fit linear curve: y = mx + c
-        m, c = np.polyfit(x, y, 1)
+        # 1. Rolling Median Filter (window=5) to remove anomalous spikes (noise)
+        window_size = 5
+        y_med = np.copy(y_raw)
+        if len(y_raw) >= window_size:
+            for i in range(len(y_raw)):
+                start_idx = max(0, i - window_size // 2)
+                end_idx = min(len(y_raw), i + window_size // 2 + 1)
+                y_med[i] = np.median(y_raw[start_idx:end_idx])
+
+        # 2. Exponential Moving Average (EMA) to track recent genuine trends smoothly
+        alpha = 0.15 # Smoothness factor
+        y_ema = np.zeros_like(y_med)
+        y_ema[0] = y_med[0]
+        for i in range(1, len(y_med)):
+            y_ema[i] = alpha * y_med[i] + (1 - alpha) * y_ema[i - 1]
+            
+        # Fit linear curve: y = mx + c on the smoothed data
+        m, c = np.polyfit(x, y_ema, 1)
         
-        current_deg = history[-1]
+        current_deg = y_ema[-1]
         critical_threshold = 0.8
         
         if current_deg >= critical_threshold:
@@ -136,27 +152,32 @@ class RULEstimator:
                 "confidence": 0.95,
                 "status": "Degrading"
             }
-            
+        
+        # R-squared value for confidence (using smoothed data)
+        y_pred = m * x + c
+        ss_res = np.sum((y_ema - y_pred) ** 2)
+        ss_tot = np.sum((y_ema - np.mean(y_ema)) ** 2)
+        r_sq = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
+        confidence = max(0.5, min(0.95, float(r_sq)))
+
+        # Stable / improving machine — extrapolate conservatively
+        # Use remaining headroom above current degradation as a proxy:
+        # 1 unit of headroom ≈ 200 simulation days (calibrated to real machine life)
         if m <= 0:
+            headroom = max(0.0, critical_threshold - current_deg)
+            # More headroom = more RUL; cap at 365 days for realism
+            rul_days = min(365, max(30, int(headroom * 200)))
             return {
-                "rul_days": 100,  # stable
-                "confidence": 0.80,
+                "rul_days": rul_days,
+                "confidence": round(confidence, 2),
                 "status": "Stable"
             }
             
         # Estimate remaining steps to reach critical threshold
         steps_to_fail = (critical_threshold - current_deg) / m
         
-        # Assume 1 step = 1 simulation interval. In real days:
-        # Scale steps for simulation purposes: e.g., 100 steps = 14 days
-        rul_days = max(1, int(steps_to_fail * 0.14))
-        
-        # R-squared value for confidence
-        y_pred = m * x + c
-        ss_res = np.sum((y - y_pred) ** 2)
-        ss_tot = np.sum((y - np.mean(y)) ** 2)
-        r_sq = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
-        confidence = max(0.5, min(0.95, float(r_sq)))
+        # Scale steps → days: 1 simulation step ≈ 0.14 days, capped at 365 days
+        rul_days = min(365, max(1, int(steps_to_fail * 0.14)))
         
         status = "Degrading" if current_deg > 0.5 else "Collecting Data"
         if rul_days > 30:
@@ -167,6 +188,7 @@ class RULEstimator:
             "confidence": round(confidence, 2),
             "status": status
         }
+
 
 class AlertGenerator:
     def __init__(self):

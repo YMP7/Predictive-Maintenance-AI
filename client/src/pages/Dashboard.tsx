@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useDashboardData, useMachineDetails, useAlerts } from '../hooks/useDashboardData';
 import { useTheme } from '../contexts/ThemeContext';
 import { MachineCard } from '../components/MachineCard';
+import AgentChat from '../components/AgentChat';
 import { apiFetch } from '../lib/api';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
@@ -104,6 +105,7 @@ const Dashboard: React.FC = () => {
 
   const [injectionStatus, setInjectionStatus] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const { theme, toggleTheme } = useTheme();
+  const [chatOpen, setChatOpen] = useState(false);
 
   // Role check for UI rendering
   const userRoleMatch = document.cookie.match(/(^|;)\s*user_role=([^;]+)/);
@@ -251,38 +253,6 @@ const Dashboard: React.FC = () => {
                   onClick={() => setSelectedMachine(machine.machine_id)}
                 />
               ))
-            )}
-          </div>
-
-          {/* New Alerts Panel surfacing real data */}
-          <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-secondary)' }}>Recent System Alerts</h3>
-            {alertsLoading && !alerts ? (
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Loading alerts...</div>
-            ) : alerts && alerts.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
-                {alerts.map((alert: any, idx: number) => (
-                  <div key={alert.alert_id || idx} style={{
-                    padding: '8px',
-                    background: 'rgba(255,255,255,0.02)',
-                    border: '1px solid var(--border-color)',
-                    borderLeft: `3px solid var(--status-${alert.severity.toLowerCase()})`,
-                    borderRadius: '6px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '12px', fontWeight: 600 }}>{alert.machine_id} - {alert.fault_type}</span>
-                      <span className={`badge badge-${alert.severity.toLowerCase()}`} style={{ fontSize: '10px' }}>{alert.severity}</span>
-                    </div>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{new Date(alert.timestamp).toLocaleString()}</span>
-                    <p style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{alert.description}</p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>No active alerts detected. All systems normal.</p>
             )}
           </div>
 
@@ -437,9 +407,74 @@ const Dashboard: React.FC = () => {
             </div>
           )}
 
+          {/* Active Alerts Log Panel */}
+          <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px' }}>
+            <h3 style={{ fontSize: '15px', fontWeight: 600 }}>{t.activeAlerts}</h3>
+            {alertsLoading && !alerts ? (
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Loading alerts...</div>
+            ) : alerts && alerts.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+                {alerts.map((alert: any, idx: number) => (
+                  <div key={alert.alert_id || idx} style={{
+                    padding: '12px',
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid var(--border-color)',
+                    borderLeft: `4px solid var(--status-${alert.severity.toLowerCase()})`,
+                    borderRadius: '8px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600 }}>{alert.description}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{new Date(alert.timestamp).toLocaleString()}</span>
+                    </div>
+                    <span className={`badge badge-${alert.severity.toLowerCase()}`} style={{ fontSize: '11px' }}>{alert.severity}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No active alerts detected. All systems normal.</p>
+            )}
+          </div>
+
         </section>
 
       </main>
+
+      {/* Floating AI Agent Button */}
+      <button
+        onClick={() => setChatOpen(true)}
+        title="Ask the AI Maintenance Agent"
+        style={{
+          position: 'fixed', bottom: 28, right: 28, zIndex: 900,
+          width: 58, height: 58, borderRadius: '50%',
+          background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+          border: 'none', cursor: 'pointer',
+          boxShadow: '0 4px 24px rgba(124,58,237,0.5), 0 0 0 0 rgba(124,58,237,0.4)',
+          animation: 'agent-pulse 2.5s ease-in-out infinite',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 24, transition: 'transform 0.2s',
+        }}
+        onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.1)')}
+        onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+      >
+        🤖
+      </button>
+
+      <style>{`
+        @keyframes agent-pulse {
+          0%, 100% { box-shadow: 0 4px 24px rgba(124,58,237,0.5), 0 0 0 0 rgba(124,58,237,0.4); }
+          50% { box-shadow: 0 4px 24px rgba(124,58,237,0.5), 0 0 0 12px rgba(124,58,237,0); }
+        }
+      `}</style>
+
+      <AgentChat
+        machineId={selectedMachine ?? undefined}
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
+      />
 
     </div>
   );

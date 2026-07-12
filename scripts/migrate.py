@@ -121,6 +121,68 @@ def main():
                 ON notifications_sent (machine_id, fault_type, time DESC);
             """)
 
+            # 7. Phase 8: agent_memory table (persistent LLM agent reasoning history)
+            print("Creating agent_memory table...")
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS agent_memory (
+                    memory_id    UUID PRIMARY KEY,
+                    machine_id   VARCHAR(10) NOT NULL,
+                    timestamp    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    user_message TEXT,
+                    agent_response TEXT,
+                    summary      TEXT,
+                    tools_used   TEXT,
+                    triggered_by VARCHAR(100)
+                );
+            """)
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_agent_memory_machine_time
+                ON agent_memory (machine_id, timestamp DESC);
+            """)
+
+            # 8. Phase 8: work_orders table (autonomous maintenance scheduling)
+            print("Creating work_orders table...")
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS work_orders (
+                    order_id     UUID PRIMARY KEY,
+                    machine_id   VARCHAR(10) NOT NULL,
+                    action       TEXT NOT NULL,
+                    urgency      VARCHAR(20) NOT NULL DEFAULT 'Medium',
+                    status       VARCHAR(20) NOT NULL DEFAULT 'Open',
+                    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    resolved_at  TIMESTAMPTZ,
+                    notes        TEXT,
+                    created_by   VARCHAR(100) DEFAULT 'agent'
+                );
+            """)
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_work_orders_machine
+                ON work_orders (machine_id, created_at DESC);
+            """)
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_work_orders_status
+                ON work_orders (status, urgency);
+            """)
+
+            # 9. Phase 8 (Safeguards): work_order_audit_log table
+            print("Creating work_order_audit_log table...")
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS work_order_audit_log (
+                    id                 UUID PRIMARY KEY,
+                    timestamp          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                    machine_id         VARCHAR(10) NOT NULL,
+                    action             TEXT NOT NULL,
+                    urgency            VARCHAR(20) NOT NULL,
+                    justification      TEXT,
+                    validation_result  VARCHAR(50) NOT NULL,
+                    real_data_snapshot TEXT
+                );
+            """)
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_work_order_audit_machine_time
+                ON work_order_audit_log (machine_id, timestamp DESC);
+            """)
+
         conn.commit()
     print("Migration complete.")
 

@@ -14,6 +14,9 @@ from slowapi.errors import RateLimitExceeded
 
 from server.data_service import get_data_service
 from server.database import pool
+from server.llm_agent import run_agent
+from server.agent_memory import AgentMemory
+from server.agent_tools import get_recent_alerts as tool_get_recent_alerts
 from server.auth import (
     Token,
     TokenData,
@@ -77,6 +80,11 @@ if not _cors_env:
 
 class FaultInjectionPayload(BaseModel):
     fault_mode: str
+
+
+class AgentChatPayload(BaseModel):
+    message: str
+    machine_id: Optional[str] = None
 
 
 def require_machine(machine_id: str) -> None:
@@ -290,6 +298,145 @@ async def inject_fault(machine_id: str, payload: FaultInjectionPayload):
     # Reset degradation steps to allow clean progression
     service.simulator.machines[machine_id].degradation_step = 0
     return {"status": "fault injected", "machine_id": machine_id, "fault_mode": payload.fault_mode}
+
+
+# ---------------------------------------------------------------------------
+# Phase 8: Agentic AI Endpoints
+# ---------------------------------------------------------------------------
+
+@app.post("/api/agent/chat", dependencies=[Depends(require_operator_or_admin)])
+@limiter.limit("10/minute")
+async def agent_chat(
+    request: Request,
+    payload: AgentChatPayload,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Main agentic chat endpoint. Requires operator or admin role.
+    The LLM agent reasons over the question, autonomously calls tools
+    (telemetry, alerts, maintenance history), and returns a diagnosis.
+    Rate-limited to 10 requests/minute to bound autonomous work order creation.
+    """
+    result = run_agent(
+        user_message=payload.message,
+        machine_id=payload.machine_id,
+        username=current_user.username,
+    )
+    return JSONResponse(content=result)
+
+
+@app.get("/api/agent/memory/{machine_id}")
+async def get_agent_memory(
+    machine_id: str,
+    limit: int = Query(default=10, ge=1, le=50),
+    current_user: User = Depends(get_current_user),
+):
+    """Return the agent's past diagnoses for a specific machine."""
+    require_machine(machine_id)
+    memory = AgentMemory()
+    memories = memory.get_recent_memories(machine_id, limit=limit)
+    return JSONResponse(content={"machine_id": machine_id, "memories": memories})
+
+
+@app.get("/api/work-orders")
+async def get_work_orders(
+    machine_id: Optional[str] = Query(default=None),
+    status: Optional[str] = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+    current_user: User = Depends(get_current_user),
+):
+    """Return maintenance work orders, optionally filtered by machine or status."""
+    try:
+        with pool.connection() as conn:
+            filters = []
+            params = []
+            if machine_id:
+                filters.append("machine_id = %s")
+                params.append(machine_id)
+            if status:
+                filters.append("status = %s")
+                params.append(status)
+            where = ("WHERE " + " AND ".join(filters)) if filters else ""
+            params.append(limit)
+            rows = conn.execute(
+                f"""
+                SELECT order_id, machine_id, action, urgency, status, created_at, resolved_at, notes, created_by
+                FROM work_orders {where}
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                params
+            ).fetchall()
+
+        orders = [
+            {
+                "order_id": str(row[0]),
+                "machine_id": row[1],
+                "action": row[2],
+                "urgency": row[3],
+                "status": row[4],
+                "created_at": row[5].isoformat() if hasattr(row[5], "isoformat") else str(row[5]),
+                "resolved_at": row[6].isoformat() if row[6] and hasattr(row[6], "isoformat") else None,
+                "notes": row[7],
+                "created_by": row[8],
+            }
+            for row in rows
+        ]
+        return JSONResponse(content={"count": len(orders), "work_orders": orders})
+    except Exception as e:
+        logger.error(f"Error fetching work orders: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve work orders")
+
+
+@app.post("/api/work-orders/{order_id}/approve", dependencies=[Depends(require_operator_or_admin)])
+async def approve_work_order(order_id: str):
+    """Approve a pending work order (Human confirmation gate)."""
+    try:
+        with pool.connection() as conn:
+            result = conn.execute(
+                """
+                UPDATE work_orders
+                SET status = 'Open'
+                WHERE order_id = %s AND status = 'Pending Approval'
+                RETURNING order_id
+                """,
+                (order_id,)
+            ).fetchone()
+            conn.commit()
+        if not result:
+            raise HTTPException(status_code=404, detail="Pending work order not found or already processed")
+        return {"status": "approved", "order_id": order_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error approving work order: {e}")
+        raise HTTPException(status_code=500, detail="Failed to approve work order")
+
+
+@app.patch("/api/work-orders/{order_id}/resolve", dependencies=[Depends(require_operator_or_admin)])
+async def resolve_work_order(order_id: str):
+    """Mark a work order as resolved."""
+    try:
+        with pool.connection() as conn:
+            result = conn.execute(
+                """
+                UPDATE work_orders
+                SET status = 'Resolved', resolved_at = NOW()
+                WHERE order_id = %s
+                RETURNING order_id
+                """,
+                (order_id,)
+            ).fetchone()
+            conn.commit()
+        if not result:
+            raise HTTPException(status_code=404, detail="Work order not found")
+        return {"status": "resolved", "order_id": order_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error resolving work order: {e}")
+        raise HTTPException(status_code=500, detail="Failed to resolve work order")
+
 
 if __name__ == "__main__":
     import uvicorn

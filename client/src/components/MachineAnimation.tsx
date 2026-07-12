@@ -24,79 +24,203 @@ const DataPoint = ({ start, end, speed = 1, delay = 0 }: { start: [number, numbe
   );
 };
 
-const MachineParts = ({ prefersReducedMotion }: { prefersReducedMotion: boolean }) => {
-  const groupRef = useRef<THREE.Group>(null);
-  const motorRef = useRef<THREE.Mesh>(null);
-  const gearRef = useRef<THREE.Mesh>(null);
-  const sensorRef = useRef<THREE.Mesh>(null);
-
-  // Animation values
-  const [assembled, setAssembled] = useState(prefersReducedMotion);
-
+// 1. Lathe Machine M001
+const LatheMachine = ({ prefersReducedMotion }: { prefersReducedMotion: boolean }) => {
+  const chuckRef = useRef<THREE.Mesh>(null);
+  
   useFrame((state) => {
-    if (prefersReducedMotion) return; // static if reduced motion
-
-    const t = state.clock.elapsedTime;
-
-    // Assembly phase
-    if (t < 3) {
-      // Ease in assembly
-      const progress = Math.min(t / 2, 1); // 0 to 1 over 2 seconds
-      const ease = 1 - Math.pow(1 - progress, 3); // cubic ease out
-
-      if (motorRef.current) motorRef.current.position.y = (1 - ease) * 5 + 0.5;
-      if (gearRef.current) gearRef.current.position.x = (1 - ease) * -5 + 1.2;
-      if (sensorRef.current) sensorRef.current.position.z = (1 - ease) * 5;
-    } else {
-      if (!assembled) setAssembled(true);
-      
-      // Breathing phase (idling after assembly)
-      if (groupRef.current) {
-        groupRef.current.position.y = Math.sin(t * 1.5) * 0.05;
-        // Subtle gear rotation representing a live machine
-        if (gearRef.current) {
-          gearRef.current.rotation.x = Math.PI / 2;
-          gearRef.current.rotation.z = t * 0.5;
-        }
-      }
+    if (!prefersReducedMotion && chuckRef.current) {
+      // Chuck and workpiece rotate
+      chuckRef.current.rotation.x = state.clock.elapsedTime * 4;
     }
   });
 
   return (
-    <group ref={groupRef}>
-      {/* Base Chassis */}
-      <Box args={[2.5, 0.4, 1.5]} position={[0, -0.4, 0]}>
+    <group position={[-1.2, -0.2, 0]} rotation={[0, Math.PI / 4, 0]}>
+      {/* Lathe Bed */}
+      <Box args={[1.4, 0.25, 0.4]}>
         <meshStandardMaterial color="#334155" metalness={0.7} roughness={0.3} />
       </Box>
+      {/* Headstock */}
+      <Box args={[0.35, 0.6, 0.4]} position={[-0.525, 0.175, 0]}>
+        <meshStandardMaterial color="#1e293b" metalness={0.8} roughness={0.4} />
+      </Box>
+      {/* Rotating Chuck */}
+      <Cylinder ref={chuckRef} args={[0.16, 0.16, 0.15, 16]} position={[-0.2, 0.25, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <meshStandardMaterial color="#94a3b8" metalness={0.9} roughness={0.1} />
+      </Cylinder>
+      {/* Spindle Workpiece */}
+      <Cylinder args={[0.06, 0.06, 0.6, 16]} position={[0.1, 0.25, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <meshStandardMaterial color="#cbd5e1" metalness={0.9} roughness={0.2} />
+      </Cylinder>
+      {/* Tailstock */}
+      <Box args={[0.25, 0.4, 0.3]} position={[0.45, 0.125, 0]}>
+        <meshStandardMaterial color="#475569" metalness={0.8} roughness={0.3} />
+      </Box>
+      {/* Tool Post */}
+      <Box args={[0.15, 0.25, 0.15]} position={[0.05, 0.2, 0.12]}>
+        <meshStandardMaterial color="#0f172a" metalness={0.8} roughness={0.3} />
+      </Box>
+      {/* Sensor Node */}
+      <Box args={[0.15, 0.15, 0.15]} position={[-0.525, 0.525, 0]}>
+        <meshStandardMaterial color="#10b981" emissive="#059669" emissiveIntensity={1} />
+      </Box>
+    </group>
+  );
+};
 
-      {/* Motor Housing */}
-      <Cylinder ref={motorRef} args={[0.5, 0.5, 1.8, 32]} position={[0, 0.5, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <meshStandardMaterial color="#94a3b8" metalness={0.8} roughness={0.4} />
+// 2. Pump Motor M002
+const PumpMotor = ({ prefersReducedMotion }: { prefersReducedMotion: boolean }) => {
+  const shaftRef = useRef<THREE.Mesh>(null);
+  
+  useFrame((state) => {
+    if (!prefersReducedMotion && shaftRef.current) {
+      shaftRef.current.rotation.x = state.clock.elapsedTime * 6;
+    }
+  });
+
+  return (
+    <group position={[1.2, -0.1, 0]} rotation={[0, -Math.PI / 4, 0]}>
+      {/* Motor Base Mount */}
+      <Box args={[0.8, 0.15, 0.6]} position={[0, -0.1, 0]}>
+        <meshStandardMaterial color="#475569" metalness={0.6} roughness={0.4} />
+      </Box>
+      {/* Main Stator Cylinder */}
+      <Cylinder args={[0.3, 0.3, 0.7, 16]} position={[0, 0.2, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <meshStandardMaterial color="#1e3a8a" metalness={0.7} roughness={0.4} />
+      </Cylinder>
+      {/* Cooling Fins (Procedural Rings) */}
+      <Torus args={[0.31, 0.02, 8, 24]} position={[-0.2, 0.2, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <meshStandardMaterial color="#172554" metalness={0.7} />
+      </Torus>
+      <Torus args={[0.31, 0.02, 8, 24]} position={[0, 0.2, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <meshStandardMaterial color="#172554" metalness={0.7} />
+      </Torus>
+      <Torus args={[0.31, 0.02, 8, 24]} position={[0.2, 0.2, 0]} rotation={[0, Math.PI / 2, 0]}>
+        <meshStandardMaterial color="#172554" metalness={0.7} />
+      </Torus>
+      {/* Rotating Shaft */}
+      <Cylinder ref={shaftRef} args={[0.05, 0.05, 1.1, 12]} position={[0.1, 0.2, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <meshStandardMaterial color="#94a3b8" metalness={0.9} roughness={0.2} />
+      </Cylinder>
+      {/* Impeller / Fan Housing */}
+      <Cylinder args={[0.35, 0.35, 0.25, 16]} position={[-0.4, 0.2, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <meshStandardMaterial color="#0f172a" metalness={0.8} roughness={0.3} />
+      </Cylinder>
+      {/* Sensor Node */}
+      <Box args={[0.15, 0.15, 0.15]} position={[0, 0.525, 0]}>
+        <meshStandardMaterial color="#10b981" emissive="#059669" emissiveIntensity={1} />
+      </Box>
+    </group>
+  );
+};
+
+// 3. Drill Press M003
+const DrillPress = ({ prefersReducedMotion }: { prefersReducedMotion: boolean }) => {
+  const spindleRef = useRef<THREE.Mesh>(null);
+  
+  useFrame((state) => {
+    if (!prefersReducedMotion && spindleRef.current) {
+      spindleRef.current.rotation.y = state.clock.elapsedTime * 8;
+    }
+  });
+
+  return (
+    <group position={[0, 0.1, -1.2]}>
+      {/* Heavy Base */}
+      <Box args={[0.6, 0.1, 0.6]} position={[0, -0.4, 0]}>
+        <meshStandardMaterial color="#334155" metalness={0.7} roughness={0.4} />
+      </Box>
+      {/* Vertical Column */}
+      <Cylinder args={[0.07, 0.07, 1.2, 16]} position={[0, 0.25, -0.15]}>
+        <meshStandardMaterial color="#cbd5e1" metalness={0.9} roughness={0.2} />
+      </Cylinder>
+      {/* Working Table */}
+      <Box args={[0.45, 0.05, 0.45]} position={[0, 0.1, 0.05]}>
+        <meshStandardMaterial color="#475569" metalness={0.6} roughness={0.4} />
+      </Box>
+      {/* Drill Head Housing */}
+      <Box args={[0.3, 0.3, 0.6]} position={[0, 0.75, 0.05]}>
+        <meshStandardMaterial color="#1e293b" metalness={0.8} roughness={0.3} />
+      </Box>
+      {/* Rotating Spindle & Drill Bit */}
+      <Cylinder ref={spindleRef} args={[0.03, 0.01, 0.25, 12]} position={[0, 0.5, 0.2]}>
+        <meshStandardMaterial color="#94a3b8" metalness={1} roughness={0.1} />
+      </Cylinder>
+      {/* Sensor Node */}
+      <Box args={[0.15, 0.15, 0.15]} position={[0, 0.925, 0.05]}>
+        <meshStandardMaterial color="#10b981" emissive="#059669" emissiveIntensity={1} />
+      </Box>
+    </group>
+  );
+};
+
+// 4. Industrial Furnace M004
+const IndustrialFurnace = () => {
+  return (
+    <group position={[0, 0.1, 1.2]}>
+      {/* Main Kiln Body */}
+      <Box args={[0.8, 0.8, 0.8]}>
+        <meshStandardMaterial color="#475569" metalness={0.5} roughness={0.5} />
+      </Box>
+      {/* Glowing Chamber Interior View (Front Cavity) */}
+      <Box args={[0.6, 0.5, 0.02]} position={[0, 0, 0.401]}>
+        <meshBasicMaterial color="#ea580c" toneMapped={false} />
+      </Box>
+      {/* Exhaust Chimney Stack */}
+      <Cylinder args={[0.1, 0.1, 0.4, 16]} position={[0, 0.6, 0]}>
+        <meshStandardMaterial color="#1e293b" metalness={0.6} roughness={0.4} />
+      </Cylinder>
+      {/* Control Module */}
+      <Box args={[0.2, 0.4, 0.2]} position={[-0.51, -0.1, 0.1]}>
+        <meshStandardMaterial color="#0f172a" />
+      </Box>
+      {/* Sensor Node */}
+      <Box args={[0.15, 0.15, 0.15]} position={[0.3, 0.425, 0]}>
+        <meshStandardMaterial color="#10b981" emissive="#059669" emissiveIntensity={1} />
+      </Box>
+    </group>
+  );
+};
+
+const MachineParts = ({ prefersReducedMotion }: { prefersReducedMotion: boolean }) => {
+  const stageRef = useRef<THREE.Group>(null);
+
+  // Turntable rotation
+  useFrame((state) => {
+    if (!prefersReducedMotion && stageRef.current) {
+      stageRef.current.rotation.y = state.clock.elapsedTime * 0.15;
+    }
+  });
+
+  return (
+    <group ref={stageRef}>
+      {/* Turntable Base Stage */}
+      <Cylinder args={[2.2, 2.2, 0.15, 64]} position={[0, -0.4, 0]}>
+        <meshStandardMaterial color="#1e293b" metalness={0.8} roughness={0.3} />
       </Cylinder>
 
-      {/* Gear / Rotor */}
-      <Torus ref={gearRef} args={[0.3, 0.1, 16, 32]} position={[1.2, 0.5, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <meshStandardMaterial color="#cbd5e1" metalness={1} roughness={0.2} />
-      </Torus>
+      {/* Holographic Digital Twin Hub at the center */}
+      <group position={[0, 0.3, 0]}>
+        <Sphere args={[0.25, 32, 32]}>
+          <meshStandardMaterial color="#3b82f6" emissive="#2563eb" emissiveIntensity={2.5} transparent opacity={0.85} />
+        </Sphere>
+        <Torus args={[0.4, 0.02, 8, 32]} rotation={[Math.PI / 2, 0, 0]}>
+          <meshStandardMaterial color="#60a5fa" emissive="#3b82f6" emissiveIntensity={1.5} />
+        </Torus>
+      </group>
 
-      {/* Sensor Node */}
-      <Box ref={sensorRef} args={[0.25, 0.25, 0.25]} position={[-0.8, 0.8, 0]}>
-        <meshStandardMaterial color="#10b981" emissive="#059669" emissiveIntensity={0.8} />
-      </Box>
+      {/* The Four Project Assets */}
+      <LatheMachine prefersReducedMotion={prefersReducedMotion} />
+      <PumpMotor prefersReducedMotion={prefersReducedMotion} />
+      <DrillPress prefersReducedMotion={prefersReducedMotion} />
+      <IndustrialFurnace />
 
-      {/* Connectivity Lines / PCB board representation */}
-      <Box args={[1.5, 0.05, 0.4]} position={[-0.2, 0, 0.4]}>
-         <meshStandardMaterial color="#0f172a" />
-      </Box>
-
-      {/* Data streams (only visible when assembled or reduced motion is on) */}
-      {(assembled || prefersReducedMotion) && (
-        <>
-          <DataPoint start={[-0.8, 0.8, 0]} end={[-0.2, 0, 0.4]} speed={1} delay={0} />
-          <DataPoint start={[1.2, 0.5, 0]} end={[-0.2, 0, 0.4]} speed={1} delay={0.3} />
-          <DataPoint start={[0, 0.5, 0]} end={[-0.2, 0, 0.4]} speed={1} delay={0.6} />
-        </>
-      )}
+      {/* Data Ingestion telemetry streams connecting sensors to center hub */}
+      <DataPoint start={[-1.2, 0.325, 0]} end={[0, 0.3, 0]} speed={0.8} delay={0} />
+      <DataPoint start={[1.2, 0.425, 0]} end={[0, 0.3, 0]} speed={0.8} delay={0.25} />
+      <DataPoint start={[0, 1.025, -1.15]} end={[0, 0.3, 0]} speed={0.8} delay={0.5} />
+      <DataPoint start={[0.3, 0.525, 1.2]} end={[0, 0.3, 0]} speed={0.8} delay={0.75} />
     </group>
   );
 };

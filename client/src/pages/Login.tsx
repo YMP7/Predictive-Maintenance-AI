@@ -97,7 +97,7 @@ const Login: React.FC = () => {
         </button>
 
         <div style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '16px' }}>
-          Demo Account: demo_viewer/ix_rPBrwjyX3cnOPHSZ6gg (Read-only viewer)
+          Demo Account: demo_viewer/demo_viewer_public_pw_123 (Read-only viewer)
         </div>
         </form>
       </div>
