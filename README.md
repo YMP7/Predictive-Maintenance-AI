@@ -40,6 +40,8 @@ The system has evolved through several developmental phases to become a secure, 
 │   ├── auth.py                 # JWT validation, role checking, & password hashing
 │   ├── data_service.py         # Telemetry database ingestion & anomaly pipelines
 │   ├── mqtt_client.py          # Secure MQTT subscriber with schema bounds validation
+│   ├── alert_handler.py        # Notification dispatch and persistence-backed debounce logic
+│   ├── agent_memory.py         # Agent conversation memory database helper (keyed by machine)
 │   ├── llm_agent.py            # Agentic reasoning loop wrapping Gemini
 │   ├── agent_tools.py          # Database-bound tools exposed to the agent
 │   └── database.py             # TimescaleDB connection pool manager
@@ -78,9 +80,12 @@ openssl rand -hex 32
 #### Fail-Loud Environment Requirements:
 *   `JWT_SECRET_KEY`: The application will crash on startup if this is missing.
 *   `DATABASE_URL`: Connection string to TimescaleDB (e.g. `postgresql://dtwin:your_secure_password@localhost:5433/digital_twin`).
+*   `ADMIN_PASSWORD_HASH` / `OPERATOR_PASSWORD_HASH`: Required by `scripts/seed_dev.py` — the seed script will refuse to run without these set.
+*   `GEMINI_AGENT_ENABLED` / `GEMINI_API_KEY`: If `GEMINI_AGENT_ENABLED=true`, `GEMINI_API_KEY` must be set or the app refuses to start.
 *   `NOTIFICATIONS_ENABLED`: If set to `true`, Twilio credentials (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`) and SMTP credentials (`SMTP_HOST`, `SMTP_FROM`) must be provided, or the server will fail to start.
 
 ### 3. Run Backend Migrations & Seed
+*(Note: Ensure `ADMIN_PASSWORD_HASH` and `OPERATOR_PASSWORD_HASH` are set in `.env` before seeding).*
 Run database migrations to initialize tables and hyper-tables, then seed default development accounts:
 ```bash
 python scripts/migrate.py
@@ -133,7 +138,7 @@ Please read [SECURITY.md](SECURITY.md) for full compliance guidelines.
 No. The system runs a local simulator that publishes synthetic sensor feeds to the MQTT broker, replicating a real physical machine. The MQTT client and database schema are fully compatible with real hardware.
 
 #### Can the AI agent take real actions?
-Yes. The LLM can invoke `create_work_order`. However, it cannot write to the database directly; it passes through a strict backend gateway enforcing a 3/machine/day volume cap and verifying that a corresponding `ai_pipeline`-generated alert is logged in the database within the last 24h.
+Yes. The LLM can invoke `create_work_order`. However, it cannot write to the database directly; it passes through a strict backend gateway enforcing a 3/machine/day volume cap and verifying that a corresponding `ai_pipeline`-generated alert is logged in the database within the last 24h. Additionally, Critical/High-urgency work orders are placed in a "Pending Approval" state, requiring explicit human operator/admin confirmation before taking effect.
 
 #### How do I run tests?
 Run the test suites with:
