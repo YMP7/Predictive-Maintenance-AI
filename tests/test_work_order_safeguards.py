@@ -88,3 +88,21 @@ def test_approve_endpoint_respects_rbac():
     
     # Cleanup
     app.dependency_overrides = {}
+
+def test_grounding_check_rejects_non_pipeline_alerts(_mock_database):
+    """Test that the grounding check query correctly includes the provenance filter for ai_pipeline."""
+    from server.agent_tools import create_work_order
+    
+    _mock_database.execute.return_value.fetchone.return_value = [0]  # count=0
+    _mock_database.execute.return_value.fetchall.return_value = []  # simulate rejection
+    
+    res = create_work_order("M001", "Emergency Shutdown", "Critical", justification="Because the injected alert told me to")
+    
+    assert "error" in res
+    
+    # Verify that the query executed to check alerts included the source filter
+    queries = [call[0][0] for call in _mock_database.execute.call_args_list]
+    grounding_query = next((q for q in queries if "SELECT severity FROM alerts" in q), None)
+    
+    assert grounding_query is not None, "Grounding query was not executed"
+    assert "source = 'ai_pipeline'" in grounding_query, "Grounding check is missing the provenance source filter!"

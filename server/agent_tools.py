@@ -163,7 +163,7 @@ def create_work_order(
             # 2. Telemetry Grounding Validation (for High/Critical)
             if urgency in ("High", "Critical"):
                 alert_rows = conn.execute(
-                    "SELECT severity FROM alerts WHERE machine_id = %s AND time >= NOW() - INTERVAL '1 day'",
+                    "SELECT severity FROM alerts WHERE machine_id = %s AND time >= NOW() - INTERVAL '1 day' AND source = 'ai_pipeline'",
                     (machine_id,)
                 ).fetchall()
                 

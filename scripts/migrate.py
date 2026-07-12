@@ -78,6 +78,15 @@ def main():
                 SELECT create_hypertable('alerts', 'time', if_not_exists => TRUE);
             """)
 
+            # Phase 8 (Safeguards Fix): Add provenance source to alerts
+            print("Adding source column to alerts table...")
+            cur.execute("""
+                ALTER TABLE alerts ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT 'unknown';
+            """)
+            cur.execute("""
+                UPDATE alerts SET source = 'ai_pipeline' WHERE source = 'unknown' OR source IS NULL;
+            """)
+
             # 4. Notifications sent hypertable (Phase 5 — debounce tracking)
             print("Creating notifications_sent table...")
             cur.execute("""

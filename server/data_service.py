@@ -164,8 +164,8 @@ class DataService:
         try:
             with pool.connection() as conn:
                 conn.execute("""
-                    INSERT INTO alerts (time, machine_id, type, severity, message, fault_type)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    INSERT INTO alerts (time, machine_id, type, severity, message, fault_type, source)
+                    VALUES (%s, %s, %s, %s, %s, %s, 'ai_pipeline')
                 """, (
                     alert["timestamp"],
                     alert["machine_id"],
