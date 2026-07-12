@@ -94,6 +94,23 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
   }
 };
 
+interface PanelProps {
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+  innerStyle?: React.CSSProperties;
+  className?: string;
+}
+
+const Panel: React.FC<PanelProps> = ({ children, style, innerStyle, className }) => {
+  return (
+    <div className={`bezel-outer ${className || ''}`} style={style}>
+      <div className="bezel-inner" style={innerStyle}>
+        {children}
+      </div>
+    </div>
+  );
+};
+
 const Dashboard: React.FC = () => {
   const [selectedLang, setSelectedLang] = useState('en');
   const [selectedMachine, setSelectedMachine] = useState<string | null>('M001');
@@ -144,98 +161,100 @@ const Dashboard: React.FC = () => {
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
       
       {/* Top Header Panel */}
-      <header className="glass-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <h1 className="gradient-text" style={{ fontSize: '24px', fontWeight: 800 }}>{t.title}</h1>
-          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Enterprise Industry 4.0 Predictive Edge Analytics Gateway
-          </p>
-        </div>
-
-        {/* Global Controls & Localization */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255, 255, 255, 0.03)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            {getSystemStatusIcon()}
-            <span style={{ fontSize: '13px', fontWeight: 600 }}>
-              {t.systemStatus}: {summary?.machine_status_counts.Critical ? t.critical : summary?.machine_status_counts.Warning ? t.warning : t.normal}
-            </span>
+      <header className="bezel-outer" style={{ width: '100%' }}>
+        <div className="bezel-inner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', padding: '14px 24px' }}>
+          <div>
+            <h1 className="gradient-text" style={{ fontSize: '22px', fontWeight: 800 }}>{t.title}</h1>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+              Enterprise Industry 4.0 Predictive Edge Analytics Gateway
+            </p>
           </div>
 
-          <a href="/" style={{ color: 'var(--text-secondary)', fontSize: '13px', textDecoration: 'none' }}>← Home</a>
+          {/* Global Controls & Localization */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255, 255, 255, 0.02)', padding: '6px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+              {getSystemStatusIcon()}
+              <span style={{ fontSize: '13px', fontWeight: 600 }}>
+                {t.systemStatus}: {summary?.machine_status_counts.Critical ? t.critical : summary?.machine_status_counts.Warning ? t.warning : t.normal}
+              </span>
+            </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Languages size={18} style={{ color: 'var(--text-secondary)' }} />
-            <select 
-              value={selectedLang} 
-              onChange={(e) => setSelectedLang(e.target.value)}
+            <a href="/" style={{ color: 'var(--text-secondary)', fontSize: '13px', textDecoration: 'none' }}>← Home</a>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Languages size={18} style={{ color: 'var(--text-secondary)' }} />
+              <select 
+                value={selectedLang} 
+                onChange={(e) => setSelectedLang(e.target.value)}
+                style={{
+                  background: 'var(--bg-secondary)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '6px 10px',
+                  fontFamily: 'var(--font-mono)',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="en">English</option>
+                <option value="hi">हिंदी (Hindi)</option>
+                <option value="te">తెలుగు (Telugu)</option>
+                <option value="ta">தமிழ் (Tamil)</option>
+                <option value="mr">मराठी (Marathi)</option>
+              </select>
+            </div>
+
+            <button 
+              onClick={toggleTheme}
+              title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
               style={{
-                background: 'var(--bg-secondary)',
+                background: 'transparent',
+                border: 'none',
                 color: 'var(--text-primary)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '6px',
-                padding: '6px 10px',
-                fontFamily: 'var(--font-mono)',
-                outline: 'none',
-                cursor: 'pointer'
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '6px'
               }}
             >
-              <option value="en">English</option>
-              <option value="hi">हिंदी (Hindi)</option>
-              <option value="te">తెలుగు (Telugu)</option>
-              <option value="ta">தமிழ் (Tamil)</option>
-              <option value="mr">मराठी (Marathi)</option>
-            </select>
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+            
+            <button 
+              onClick={async () => {
+                try {
+                  await apiFetch('/api/auth/logout', { method: 'POST' });
+                } catch (e) {
+                  console.error("Logout failed", e);
+                } finally {
+                  document.cookie = "auth_status=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                  document.cookie = "user_role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                  window.location.href='/login';
+                }
+              }}
+              style={{
+                background: 'var(--bg-secondary)', color: 'var(--text-primary)', 
+                border: '1px solid var(--border-color)', padding: '6px 12px', 
+                borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '12px', fontWeight: 600
+              }}>
+              Logout
+            </button>
           </div>
-
-          <button 
-            onClick={toggleTheme}
-            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--text-primary)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '6px'
-            }}
-          >
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
-          
-          <button 
-            onClick={async () => {
-              try {
-                await apiFetch('/api/auth/logout', { method: 'POST' });
-              } catch (e) {
-                console.error("Logout failed", e);
-              } finally {
-                document.cookie = "auth_status=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-                document.cookie = "user_role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-                window.location.href='/login';
-              }
-            }}
-            style={{
-              background: 'var(--bg-secondary)', color: 'var(--text-primary)', 
-              border: '1px solid var(--border-color)', padding: '6px 12px', 
-              borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 600
-            }}>
-            Logout
-          </button>
         </div>
       </header>
 
       {summaryError && (
-        <div className="glass-panel" style={{ borderColor: 'var(--status-critical)', color: 'var(--status-critical)', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <AlertTriangle size={24} />
+        <Panel style={{ borderColor: 'rgba(239,68,68,0.3)', color: 'var(--status-critical)' }} innerStyle={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px' }}>
+          <AlertTriangle size={20} />
           <div>
-            <strong>API Connection Error:</strong> Please verify the integrated FastAPI server is running on <code style={{ fontFamily: 'var(--font-mono)' }}>localhost:8000</code>.
+            <strong>API Connection Error:</strong> Please verify the integrated FastAPI server is running on <code style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>localhost:8000</code>.
           </div>
-        </div>
+        </Panel>
       )}
 
       {/* Main Grid */}
-      <main style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '24px' }}>
+      <main className="main-dashboard-grid">
         
         {/* Left Side: Machines Grid & Alerts Panel */}
         <section style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -263,7 +282,7 @@ const Dashboard: React.FC = () => {
           
           {/* Active Machine details card */}
           {currentMachine ? (
-            <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <Panel innerStyle={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
                   <h2 style={{ fontSize: '20px', fontWeight: 700 }}>{currentMachine.machine_info.name} Digital Twin</h2>
@@ -295,7 +314,7 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 {/* Remaining Useful Life status Gauge */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255, 255, 255, 0.01)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Remaining Useful Life (RUL):</span>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
                     <span style={{ fontSize: '32px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: currentMachine.rul_days !== null && currentMachine.rul_days < 7 ? 'var(--status-critical)' : currentMachine.rul_days !== null && currentMachine.rul_days < 14 ? 'var(--status-warning)' : 'var(--status-normal)' }}>
@@ -309,8 +328,8 @@ const Dashboard: React.FC = () => {
                       <div style={{ 
                         height: '100%', 
                         width: `${Math.min(100, Math.max(0, (currentMachine.rul_days / 30) * 100))}%`, 
-                        background: currentMachine.rul_days < 7 ? 'var(--status-critical)' : currentMachine.rul_days < 14 ? 'var(--status-warning)' : 'var(--status-normal)',
-                        transition: 'width 0.5s ease-out'
+                        backgroundColor: currentMachine.rul_days < 7 ? 'var(--status-critical)' : currentMachine.rul_days < 14 ? 'var(--status-warning)' : 'var(--status-normal)',
+                        transition: 'width 0.4s var(--ease-out), background-color 0.4s var(--ease-out)'
                       }} />
                     </div>
                   )}
@@ -344,7 +363,7 @@ const Dashboard: React.FC = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
                   
                   {/* Vibration Chart */}
-                  <div className="glass-panel" style={{ padding: '16px', height: '220px' }}>
+                  <Panel style={{ height: '220px' }} innerStyle={{ padding: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                       <span style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Activity size={14} style={{ color: 'var(--accent-primary)' }} /> {t.vibrationTrend}
@@ -356,13 +375,13 @@ const Dashboard: React.FC = () => {
                         <XAxis dataKey="idx" hide />
                         <YAxis domain={[0, 'auto']} stroke="var(--text-secondary)" />
                         <Tooltip contentStyle={{ background: 'var(--bg-primary)', borderColor: 'var(--border-color)' }} />
-                        <Line type="monotone" dataKey="rms" stroke="#3b82f6" strokeWidth={2} dot={false} isAnimationActive={false} />
+                        <Line type="monotone" dataKey="rms" stroke="var(--accent-primary)" strokeWidth={2} dot={false} isAnimationActive={false} />
                       </LineChart>
                     </ResponsiveContainer>
-                  </div>
+                  </Panel>
 
                   {/* Temperature Chart */}
-                  <div className="glass-panel" style={{ padding: '16px', height: '220px' }}>
+                  <Panel style={{ height: '220px' }} innerStyle={{ padding: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                       <span style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Thermometer size={14} style={{ color: 'var(--status-warning)' }} /> {t.temperatureTrend}
@@ -374,13 +393,13 @@ const Dashboard: React.FC = () => {
                         <XAxis dataKey="idx" hide />
                         <YAxis domain={['dataMin - 5', 'auto']} stroke="var(--text-secondary)" />
                         <Tooltip contentStyle={{ background: 'var(--bg-primary)', borderColor: 'var(--border-color)' }} />
-                        <Line type="monotone" dataKey="temp" stroke="#f59e0b" strokeWidth={2} dot={false} isAnimationActive={false} />
+                        <Line type="monotone" dataKey="temp" stroke="var(--status-warning)" strokeWidth={2} dot={false} isAnimationActive={false} />
                       </LineChart>
                     </ResponsiveContainer>
-                  </div>
+                  </Panel>
 
                   {/* Current Chart */}
-                  <div className="glass-panel" style={{ padding: '16px', height: '220px' }}>
+                  <Panel style={{ height: '220px' }} innerStyle={{ padding: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                       <span style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Zap size={14} style={{ color: 'var(--status-critical)' }} /> {t.currentTrend}
@@ -392,23 +411,23 @@ const Dashboard: React.FC = () => {
                         <XAxis dataKey="idx" hide />
                         <YAxis domain={[0, 'auto']} stroke="var(--text-secondary)" />
                         <Tooltip contentStyle={{ background: 'var(--bg-primary)', borderColor: 'var(--border-color)' }} />
-                        <Line type="monotone" dataKey="curr" stroke="#ef4444" strokeWidth={2} dot={false} isAnimationActive={false} />
+                        <Line type="monotone" dataKey="curr" stroke="var(--status-critical)" strokeWidth={2} dot={false} isAnimationActive={false} />
                       </LineChart>
                     </ResponsiveContainer>
-                  </div>
+                  </Panel>
 
                 </div>
               </div>
 
-            </div>
+            </Panel>
           ) : (
-            <div className="glass-panel" style={{ display: 'flex', justifyContent: 'center', padding: '80px' }}>
+            <Panel innerStyle={{ display: 'flex', justifyContent: 'center', padding: '80px', color: 'var(--text-secondary)' }}>
               Select a physical asset from the sidebar to inspect its digital twin telemetry.
-            </div>
+            </Panel>
           )}
 
           {/* Active Alerts Log Panel */}
-          <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px' }}>
+          <Panel innerStyle={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px' }}>
             <h3 style={{ fontSize: '15px', fontWeight: 600 }}>{t.activeAlerts}</h3>
             {alertsLoading && !alerts ? (
               <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Loading alerts...</div>
@@ -417,18 +436,28 @@ const Dashboard: React.FC = () => {
                 {alerts.map((alert: any, idx: number) => (
                   <div key={alert.alert_id || idx} style={{
                     padding: '12px',
-                    background: 'rgba(255,255,255,0.02)',
-                    border: '1px solid var(--border-color)',
-                    borderLeft: `4px solid var(--status-${alert.severity.toLowerCase()})`,
-                    borderRadius: '8px',
+                    background: `var(--status-${alert.severity.toLowerCase()}-glow)`,
+                    border: `1px solid var(--status-${alert.severity.toLowerCase()})44`,
+                    borderRadius: 'var(--radius-sm)',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     gap: '12px'
                   }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600 }}>{alert.description}</span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{new Date(alert.timestamp).toLocaleString()}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          width: '6px',
+                          height: '6px',
+                          borderRadius: '50%',
+                          backgroundColor: `var(--status-${alert.severity.toLowerCase()})`
+                        }} />
+                        <span style={{ fontSize: '13px', fontWeight: 600 }}>{alert.description}</span>
+                      </div>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '14px' }}>
+                        {new Date(alert.timestamp).toLocaleString()}
+                      </span>
                     </div>
                     <span className={`badge badge-${alert.severity.toLowerCase()}`} style={{ fontSize: '11px' }}>{alert.severity}</span>
                   </div>
@@ -437,7 +466,7 @@ const Dashboard: React.FC = () => {
             ) : (
               <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No active alerts detected. All systems normal.</p>
             )}
-          </div>
+          </Panel>
 
         </section>
 

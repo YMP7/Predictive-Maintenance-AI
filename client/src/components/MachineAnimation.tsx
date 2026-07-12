@@ -19,7 +19,7 @@ const DataPoint = ({ start, end, speed = 1, delay = 0 }: { start: [number, numbe
 
   return (
     <Sphere ref={meshRef} args={[0.08, 16, 16]}>
-      <meshStandardMaterial color="#3b82f6" emissive="#3b82f6" emissiveIntensity={2} />
+      <meshStandardMaterial color="#787774" emissive="#787774" emissiveIntensity={0.5} />
     </Sphere>
   );
 };
@@ -185,11 +185,53 @@ const IndustrialFurnace = () => {
 
 const MachineParts = ({ prefersReducedMotion }: { prefersReducedMotion: boolean }) => {
   const stageRef = useRef<THREE.Group>(null);
+  const mountTime = useRef<number | null>(null);
+  const hubRef = useRef<THREE.Mesh>(null);
+  const torusRef = useRef<THREE.Mesh>(null);
 
-  // Turntable rotation
+  // Turntable and Assembly/Breathing Animations
   useFrame((state) => {
+    const elapsed = state.clock.getElapsedTime();
+
+    // 1. Turntable rotation
     if (!prefersReducedMotion && stageRef.current) {
-      stageRef.current.rotation.y = state.clock.elapsedTime * 0.15;
+      stageRef.current.rotation.y = elapsed * 0.15;
+    }
+
+    // 2. Initial mount assembly scaling using ease-out-quart curve (Emil-Design-Eng)
+    if (stageRef.current) {
+      if (prefersReducedMotion) {
+        stageRef.current.scale.set(1, 1, 1);
+        stageRef.current.position.y = 0;
+      } else {
+        if (mountTime.current === null) mountTime.current = elapsed;
+        const progress = Math.min(1, (elapsed - mountTime.current) / 1.2);
+        const easeOutQuart = 1 - Math.pow(1 - progress, 4);
+        
+        const currentScale = 0.15 + 0.85 * easeOutQuart; // Starts at 0.15 to avoid scale(0)
+        stageRef.current.scale.set(currentScale, currentScale, currentScale);
+        stageRef.current.position.y = -0.3 * (1 - easeOutQuart);
+      }
+    }
+
+    // 3. Central Hub Breathing & Torus Rotation pulse
+    if (!prefersReducedMotion) {
+      const pulse = Math.sin(elapsed * 1.5) * 0.5 + 0.5; // Slow breathing wave (15 breaths/min)
+      
+      if (hubRef.current) {
+        const scaleVal = 0.97 + pulse * 0.06;
+        hubRef.current.scale.set(scaleVal, scaleVal, scaleVal);
+        if (hubRef.current.material) {
+          (hubRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.2 + pulse * 0.45;
+        }
+      }
+
+      if (torusRef.current) {
+        torusRef.current.rotation.z = -elapsed * 0.2;
+        if (torusRef.current.material) {
+          (torusRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.08 + pulse * 0.22;
+        }
+      }
     }
   });
 
@@ -202,11 +244,11 @@ const MachineParts = ({ prefersReducedMotion }: { prefersReducedMotion: boolean 
 
       {/* Holographic Digital Twin Hub at the center */}
       <group position={[0, 0.3, 0]}>
-        <Sphere args={[0.25, 32, 32]}>
-          <meshStandardMaterial color="#3b82f6" emissive="#2563eb" emissiveIntensity={2.5} transparent opacity={0.85} />
+        <Sphere ref={hubRef} args={[0.25, 32, 32]}>
+          <meshStandardMaterial color="#ffffff" emissive="#eaeaea" emissiveIntensity={0.5} transparent opacity={0.9} />
         </Sphere>
-        <Torus args={[0.4, 0.02, 8, 32]} rotation={[Math.PI / 2, 0, 0]}>
-          <meshStandardMaterial color="#60a5fa" emissive="#3b82f6" emissiveIntensity={1.5} />
+        <Torus ref={torusRef} args={[0.4, 0.02, 8, 32]} rotation={[Math.PI / 2, 0, 0]}>
+          <meshStandardMaterial color="#787774" emissive="#787774" emissiveIntensity={0.2} />
         </Torus>
       </group>
 
