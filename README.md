@@ -1,248 +1,142 @@
-# Run and Deployment Guide
-## AI-Powered Digital Twin & Predictive Maintenance System
+# AI-Powered Digital Twin & Predictive Maintenance System
+> An AI-powered digital twin for predictive maintenance, designed to help MSMEs monitor assets, ingest telemetry securely, and triage mechanical failures using an agentic AI assistant with strict security safeguards.
 
-This guide provides step-by-step instructions on how to run the Predictive Maintenance Digital Twin system locally and deploy it securely to the internet.
-
-### Project Structure
-- `client/` - React SPA Frontend
-- `server/` - Python FastAPI Backend
-- `docs/` - Project documentation
-- `scripts/` - Verification and utility scripts
-
----
-
-### 1. How to Run Locally
-
-There are two primary methods to run the unified application (FastAPI backend + React frontend) on your local machine.
-
-#### Option A: Direct Python and Node.js Execution (Recommended for Development)
-
-##### Prerequisites:
-- Python 3.8 or later
-- Node.js 18 or later
-- npm or pnpm package manager
-
-##### Steps:
-1. **Clone/Navigate to the Repository**:
-   ```bash
-   cd /path/to/AI-Powered-Digital-Twin-Predictive-Maintenance
-   ```
-
-2. **Set up the Backend**:
-   - Create and activate a Python virtual environment:
-     ```bash
-     python -m venv venv
-     # On Windows:
-     .\venv\Scripts\activate
-     # On macOS/Linux:
-     source venv/bin/activate
-     ```
-   - Install the Python dependencies:
-     ```bash
-     pip install -r requirements.txt
-     ```
-    - Initialize environment variables:
-      ```bash
-      cp .env.example .env # Create .env from the template
-      ```
-    - **Important:** Edit `.env` and generate a secure `JWT_SECRET_KEY`:
-      ```bash
-      openssl rand -hex 32
-      ```
-      The backend will fail to start if this is not set.
-
-3. **Build the Frontend Client**:
-   - Navigate to the client directory and install npm packages:
-     ```bash
-     cd client
-     npm install
-     ```
-   - Build the production assets of the React single-page app:
-     ```bash
-     npm run build
-     ```
-4. **Mosquitto MQTT Broker (Optional for IoT Ingestion)**:
-   - If you want to use the MQTT ingestion feature, start the Mosquitto broker using Docker:
-     ```bash
-     docker-compose up -d mosquitto-init mosquitto
-     ```
-   - This sets up Eclipse Mosquitto on port `1883` with password authentication.
-
-5. **TimescaleDB (Required for Data Persistence)**:
-   - Start the TimescaleDB container:
-     ```bash
-     # Set the password (use a strong password in production)
-     export TSDB_PASSWORD=your_secure_password
-     docker-compose up -d timescaledb
-     ```
-   - Run the schema migration:
-     ```bash
-     python scripts/migrate.py
-     ```
-   - Seed development accounts (dev/CI only — **never run in production**):
-     ```bash
-     python scripts/seed_dev.py
-     ```
-   - Add `DATABASE_URL` to your `.env`:
-     ```
-     DATABASE_URL=postgresql://dtwin:your_secure_password@localhost:5432/digital_twin
-     ```
-   - Return to the root directory:
-     ```bash
-     cd ..
-     ```
-
-4. **Launch the Unified Integrated Server**:
-   - The integrated server hosts both the React build (SPA) and the REST API on a single port:
-     ```bash
-     python server/integrated_server.py
-     ```
-   - Open your web browser and navigate to `http://localhost:8000`.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![CI Status](https://github.com/YMP7/Predictive-Maintenance-AI/actions/workflows/main.yml/badge.svg)](https://github.com/YMP7/Predictive-Maintenance-AI/actions)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.109.0-009688.svg?style=flat&logo=FastAPI&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-18.2.0-20232a.svg?style=flat&logo=React)](https://react.dev/)
+[![TimescaleDB](https://img.shields.io/badge/TimescaleDB-2.13.0-00b0f0.svg?style=flat&logo=PostgreSQL&logoColor=white)](https://www.timescale.com/)
+[![MQTT](https://img.shields.io/badge/MQTT-Mosquitto-3c5280.svg?style=flat&logo=EclipseMosquitto)](https://mosquitto.org/)
 
 ---
 
-#### Option B: Docker Compose Execution (Recommended for Testing & Production)
+## What's New & Evolution
 
-##### Prerequisites:
-- Docker and Docker Compose installed on your host machine.
+The system has evolved through several developmental phases to become a secure, production-hardened platform:
 
-##### Steps:
-1. **Navigate to the Project Root**:
-   ```bash
-   cd /path/to/AI-Powered-Digital-Twin-Predictive-Maintenance
-   ```
-
-2. **Configure Environment Variables**:
-   - Ensure you have a `.env` file present in the root directory.
-
-3. **Build and Run the Containers**:
-   ```bash
-   docker-compose up --build -d
-   ```
-
-4. **Verify Deployment**:
-   - Check the container status:
-     ```bash
-     docker-compose ps
-     ```
-   - Ensure the health status transitions to `healthy`.
-   - Access the dashboard at `http://localhost:8000`.
-   - To stop the services:
-     ```bash
-     docker-compose down
-     ```
+*   **Auth & RBAC Hardening (Phase 6):** Upgraded session token storage from vulnerable `localStorage` to secure, HttpOnly, SameSite, and Secure cookies. Introduced custom request-header verification to mitigate CSRF, and rate-limited auth endpoints (`slowapi`) against brute-force attacks.
+*   **MQTT Ingestion Security (Phase 5):** Reconfigured the Mosquitto broker to disable anonymous access. Enforced per-device ACLs restricting edge machines to write-only topics (`factory/{machine_id}/telemetry`). Telemetry payloads undergo strict schema boundaries and sanitation checks.
+*   **TimescaleDB & Persistence (Phase 5):** Migrated the database layer to TimescaleDB for high-throughput time-series telemetry storage and persistent debounce tracking.
+*   **Multi-Channel Notifications (Phase 5):** Persistent notification debouncing to prevent alert storms. Supports SMS, Voice (Twilio), and Email (SMTP) with fail-loud validation checks on startup.
+*   **3D Landing Overhaul (Phase 7):** Rewrote the dashboard landing experience to include a 3D digital twin rendering of assets utilizing React Three Fiber, indicating physical health and anomaly states dynamically.
+*   **Agentic AI Safeguards (Phase 8):** Implemented an LLM-based troubleshooting agent using Gemini. Hardened the tool execution layer against prompt injections by requiring telemetry-grounding validation (matching severity and recency in DB), a hard volume cap (3 work orders per machine/day), and a **provenance isolation check** restricting valid grounding alerts to those generated solely by the internal `ai_pipeline`.
 
 ---
 
-### 2. How to Deploy to the Internet
+## What's Inside
 
-For production internet deployment, you must move from local/ephemeral configurations to persistent, secure cloud environments. 
-
-#### Option A: Deployment on a Cloud Virtual Machine (AWS EC2, DigitalOcean, GCP)
-
-This is the standard approach using a virtual machine running Linux (e.g. Ubuntu 20.04/22.04 LTS).
-
-##### 1. Provision VM and Install Docker:
-- SSH into your cloud server and install Docker & Docker Compose:
-  ```bash
-  sudo apt-get update
-  sudo apt-get install -y docker.io docker-compose
-  ```
-
-##### 2. Deploy Project Files:
-- Clone your repository to the `/opt/ai-digital-twin` folder and create your `.env` file. Ensure `JWT_SECRET_KEY` is configured to secure the authentication system.
-
-##### 3. Run the Container Stack:
-- Start the server on localhost inside the Docker network:
-  ```bash
-  docker-compose up -d
-  ```
-
-##### 4. Set up Nginx as a Reverse Proxy & SSL (HTTPS):
-- Install Nginx:
-  ```bash
-  sudo apt-get install -y nginx
-  ```
-- Configure Nginx to forward public traffic on ports 80 and 443 to the internal port 8000. Create `/etc/nginx/sites-available/digitaltwin` with the following configuration:
-  ```nginx
-  server {
-      listen 80;
-      server_name yourdomain.com;
-
-      location / {
-          proxy_pass http://127.0.0.1:8000;
-          proxy_set_header Host $host;
-          proxy_set_header X-Real-IP $remote_addr;
-          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-          proxy_set_header X-Forwarded-Proto $scheme;
-      }
-  }
-  ```
-- Enable the configuration and restart Nginx:
-  ```bash
-  sudo ln -s /etc/nginx/sites-available/digitaltwin /etc/nginx/sites-enabled/
-  sudo nginx -t
-  sudo systemctl restart nginx
-  ```
-- Secure with Let's Encrypt SSL/TLS certificates:
-  ```bash
-  sudo apt-get install -y certbot python3-certbot-nginx
-  sudo certbot --nginx -d yourdomain.com
-  ```
+```
+.
+├── client/                     # React Single-Page Application (SPA)
+│   ├── src/
+│   │   ├── components/
+│   │   │   └── MachineAnimation.tsx # 3D digital twin animation (normal/anomalous)
+│   │   └── pages/
+│   │       ├── Dashboard.tsx   # Live telemetry telemetry charts & AI chat panel
+│   │       └── Login.tsx       # Rate-limited auth panel utilizing HttpOnly JWT cookies
+│   └── package.json            # Frontend dependency definitions
+├── server/                     # Python FastAPI Backend
+│   ├── backend_api.py          # Main REST endpoints, router, and CORS configuration
+│   ├── auth.py                 # JWT validation, role checking, & password hashing
+│   ├── data_service.py         # Telemetry database ingestion & anomaly pipelines
+│   ├── mqtt_client.py          # Secure MQTT subscriber with schema bounds validation
+│   ├── llm_agent.py            # Agentic reasoning loop wrapping Gemini
+│   ├── agent_tools.py          # Database-bound tools exposed to the agent
+│   └── database.py             # TimescaleDB connection pool manager
+├── tests/                      # Testing suites
+│   ├── test_api.py             # REST API tests (RBAC validation, rate limiting)
+│   ├── test_mqtt.py            # MQTT schema boundaries & TLS connection tests
+│   └── test_work_order_safeguards.py # Grounding checks, daily cap, and provenance tests
+├── scripts/                    # Management scripts
+│   ├── migrate.py              # TimescaleDB schema initialization
+│   └── seed_dev.py             # Development database seed utility
+├── docker-compose.yml          # TimescaleDB and Mosquitto orchestrator
+└── requirements.txt            # Python backend dependency definitions
+```
 
 ---
 
-#### Option B: Deploying on Container Platforms (Google Cloud Run, AWS ECS)
+## Quick Start
 
-Container platforms provide serverless scaling, automatic SSL termination, and high availability.
+### 1. Provision Infrastructure
+Start the TimescaleDB and Mosquitto broker services:
+```bash
+docker-compose up -d
+```
 
-##### 1. Switch Database from SQLite to Cloud PostgreSQL:
-SQLite is a local file-based database. Container platforms use ephemeral file systems, meaning your database will be wiped on restarts.
-- Modify `data_service.py` or enable environment overrides to connect to a persistent managed cloud database (e.g., AWS RDS PostgreSQL or Neon DB).
-- Set `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD` in your container environment variables.
+### 2. Configure Environment
+Copy `.env.example` to `.env` and fill in the required parameters:
+```bash
+cp .env.example .env
+```
+Ensure you generate a secure 32-byte JWT secret:
+```bash
+# On macOS/Linux/Git Bash
+openssl rand -hex 32
+```
 
-##### 2. Build and Push the Docker Image:
-- Build your image locally or via cloud build systems:
-  ```bash
-  docker build -t gcr.io/your-project-id/ai-digital-twin:latest .
-  ```
-- Push it to the container registry:
-  ```bash
-  docker push gcr.io/your-project-id/ai-digital-twin:latest
-  ```
+#### Fail-Loud Environment Requirements:
+*   `JWT_SECRET_KEY`: The application will crash on startup if this is missing.
+*   `DATABASE_URL`: Connection string to TimescaleDB (e.g. `postgresql://dtwin:your_secure_password@localhost:5433/digital_twin`).
+*   `NOTIFICATIONS_ENABLED`: If set to `true`, Twilio credentials (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`) and SMTP credentials (`SMTP_HOST`, `SMTP_FROM`) must be provided, or the server will fail to start.
 
-##### 3. Deploy the Container (e.g. Google Cloud Run):
-- Deploy the container and expose port 8000:
-  ```bash
-  gcloud run deploy ai-digital-twin \
-      --image gcr.io/your-project-id/ai-digital-twin:latest \
-      --platform managed \
-      --port 8000 \
-      --allow-unauthenticated \
-      --set-env-vars="JWT_SECRET_KEY=your_secure_generated_key,LOG_LEVEL=INFO"
-  ```
-- Cloud Run will automatically generate an HTTPS URL (e.g. `https://ai-digital-twin-xyz.a.run.app`) for internet access.
+### 3. Run Backend Migrations & Seed
+Run database migrations to initialize tables and hyper-tables, then seed default development accounts:
+```bash
+python scripts/migrate.py
+python scripts/seed_dev.py
+```
+
+### 4. Run the Integrated Server
+Install Python dependencies and start the backend:
+```bash
+pip install -r requirements.txt
+$env:PYTHONPATH="." # On Windows PowerShell
+python server/integrated_server.py
+```
+
+### 5. Start the Frontend
+Install Node packages and run the React frontend dev server:
+```bash
+cd client
+npm install
+npm run dev
+```
 
 ---
 
-### 3. Production Hardening Checklist
+## Component Reference
 
-Before exposing the application to the internet, verify that the following security policies are in place:
+| I want to... | Use this | Notes |
+| :--- | :--- | :--- |
+| **Monitor live status** | [Dashboard](http://localhost:3000/dashboard) | Displays real-time charts & 3D digital twin states. |
+| **Receive critical alerts** | Notification System | Relies on Twilio & SMTP; stateful debounce is active. |
+| **Triage and query machines** | Agent Chat | Chat sidebar on the dashboard page. |
+| **Inject test anomaly** | Fault Endpoint | `POST /api/machines/{id}/fault` (Requires **Admin** role). |
 
-1. **JWT Secret Key**: 
-   - A secure, 32-byte hexadecimal string MUST be set in the `JWT_SECRET_KEY` environment variable (`openssl rand -hex 32`). This is used to sign authentication tokens. The app will refuse to start in production without it.
-2. **Role-Based Access Control (RBAC)**:
-   - Control endpoints (like `/api/machines/{machine_id}/fault` and `/api/simulation/start`) are protected and require an authentication token from an account with the `admin` role. Ensure production passwords for admin accounts are strong and securely stored.
-3. **Disable Simulation (Optional)**:
-   - In production, set `SIMULATION_ENABLED=false` to stop simulated sensor generation, and hook up physical sensors to the `DataService` telemetry pipeline instead.
-4. **Secure Secrets**:
-   - Never commit your `.env` file containing passwords or JWT secrets to Git. Use environment secrets managers in AWS, GCP, or GitHub Actions.
-5. **CORS Configuration**:
-   - Set `CORS_ORIGINS` to your domain URL (e.g., `https://yourdomain.com`) to restrict dashboard queries to authorized domains only. It defaults to local dev URLs if unset.
-6. **Notification Integration** (Phase 5):
-   - Set `NOTIFICATIONS_ENABLED=true` in `.env` to enable SMS, email, and voice call alerts.
-   - **Twilio** (SMS + Voice): Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` in `.env`. Sign up at [twilio.com](https://www.twilio.com/).
-   - **SMTP** (Email): Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` in `.env`.
-   - **Fail-loud**: If `NOTIFICATIONS_ENABLED=true` but required credentials are missing, the server will refuse to start.
-   - **Recipients**: Add `email` and `phone` columns to admin user accounts in the `users` table. Notifications fan out to all admin-role users with contact info.
-   - **Debounce**: Duplicate alerts for the same machine+fault are suppressed within a configurable window (`ALERT_COOLDOWN`, default 300 seconds). Debounce state is persisted in TimescaleDB (`notifications_sent` table) and survives server restarts.
+---
+
+## Security & Limitations
+
+Please read [SECURITY.md](SECURITY.md) for full compliance guidelines.
+
+### Known Limitations:
+1.  **Untested End-to-End SMS**: Twilio notification delivery has only been verified against the Twilio API sandbox.
+2.  **No Deployed HTTPS**: Local execution relies on localhost. Production deployment requires Nginx + Let's Encrypt configurations.
+3.  **No UI Resolve Flow**: While work orders are securely created and stored in the database, operators cannot currently transition them to "Closed" or "Resolved" via the UI dashboard.
+
+---
+
+## FAQ
+
+#### Is this using real IoT hardware?
+No. The system runs a local simulator that publishes synthetic sensor feeds to the MQTT broker, replicating a real physical machine. The MQTT client and database schema are fully compatible with real hardware.
+
+#### Can the AI agent take real actions?
+Yes. The LLM can invoke `create_work_order`. However, it cannot write to the database directly; it passes through a strict backend gateway enforcing a 3/machine/day volume cap and verifying that a corresponding `ai_pipeline`-generated alert is logged in the database within the last 24h.
+
+#### How do I run tests?
+Run the test suites with:
+```bash
+$env:PYTHONPATH="."; pytest -v
+```

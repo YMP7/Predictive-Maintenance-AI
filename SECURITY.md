@@ -20,49 +20,49 @@ The following environment variables **must** be configured before starting the a
 
 ## Security Hardening Applied
 
-### JWT Authentication
-- All control endpoints (`/api/simulation/*`, `/api/machines/*/fault`) require a valid JWT Bearer token with `admin` role.
-- Read-only dashboard endpoints (`/api/dashboard/summary`, `/api/machines/*/telemetry`) are public to allow the dashboard to display data without login.
+### JWT Authentication & XSS Mitigation (Phase 6)
+- JWT session tokens are now stored exclusively in secure, HttpOnly, and SameSite (`Lax`) cookies rather than `localStorage`. This prevents token extraction via Cross-Site Scripting (XSS) attacks.
+- A custom header (`X-API-Request: true`) is strictly required on all state-modifying requests, forcing CORS preflight checks and preventing Cross-Site Request Forgery (CSRF).
 - Tokens expire after 24 hours (`ACCESS_TOKEN_EXPIRE_MINUTES = 1440`).
-- The app crashes on startup if `JWT_SECRET_KEY` is not set — there is no insecure fallback.
+- The application crashes on startup if `JWT_SECRET_KEY` is not set — there is no insecure fallback.
+
+### Role-Based Access Control (RBAC)
+- All control endpoints (such as `/api/simulation/*` and `/api/machines/*/fault`) require a valid JWT with the `admin` role.
+- Operator actions (e.g. manual work order creation) are restricted to accounts with the `operator` or `admin` role.
+- Read-only dashboard endpoints (telemetry streams) are public for seamless visualization.
 
 ### CORS Policy
-- CORS no longer defaults to wildcard `*`.
-- When `CORS_ORIGINS` is not set, the server only accepts requests from `http://localhost:3000` and logs a warning.
-- In production, set `CORS_ORIGINS` to the exact URL of your deployed frontend.
+- CORS does not default to a wildcard `*` wildcard.
+- If `CORS_ORIGINS` is unset, it restricts access to local dev URLs and logs a warning.
 
-### MQTT Ingestion Security
-- **Authentication**: Mosquitto runs with `allow_anonymous false`. A `pwfile` is strictly enforced.
-- **Access Control (ACL)**: Edge devices use per-device credentials (e.g., `device_M001`) and are strictly restricted via `mosquitto.acl` to only write to their own topic (`factory/M001/telemetry`). They cannot read data.
-- **Payload Validation**: All incoming MQTT payloads are treated as entirely untrusted. They are deserialized and sanitized through strict Pydantic bounds (e.g. preventing negative temperatures, malformed JSON injections, and unknown machine IDs) before they ever touch the internal `DataService`. Malformed packets are logged and dropped without crashing the ingestion loop.
+### MQTT Ingestion Security (Phase 5)
+- **Authentication**: Mosquitto runs with `allow_anonymous false` and strictly enforces encrypted passwords (`pwfile`).
+- **Access Control (ACL)**: Edge devices use unique, per-device credentials and are strictly limited via `mosquitto.acl` to publish to `factory/{machine_id}/telemetry`. Devices cannot subscribe or read other machines' telemetry.
+- **Payload Validation**: Incoming telemetry payloads are fully sanitized and validated against strict schema boundaries (e.g. blocking negative temperatures, missing columns, or SQL injection payloads) at the API gateway level before database writing.
 
 ### Password Storage
-- All user passwords are hashed with **bcrypt** and stored in the `users` table in TimescaleDB.
-- No plaintext passwords are stored at rest — the `hashed_password` column contains only bcrypt `$2b$` hashes.
-- User accounts are managed via `scripts/seed_dev.py` (development) or direct SQL (production).
-- **Note on Test Accounts**: The credentials for `test_admin`, `test_operator`, and `demo_viewer` are intentionally public for CI/CD and local testing purposes. Their plaintext passwords can be found in `scripts/seed_dev.py` and `tests/test_api.py`. This is by design and not a security oversight.
+- User passwords are encrypted using **bcrypt** and stored in TimescaleDB. Plaintext passwords are never stored at rest.
+
+### Telemetry Grounding & Provenance Safeguards (Phase 8)
+To prevent adversarial instructions or injected telemetry from executing unauthorized actions via the Agentic AI:
+- **Telemetry Grounding Validation**: The agent's `create_work_order` tool verifies that a matching Critical/High alert was logged in the database within the last 24 hours before authorizing a work order.
+- **Provenance Isolation**: A `source` column on the `alerts` table restricts valid grounding alerts strictly to those with `source = 'ai_pipeline'` (inserted only by the internal telemetry processing loop). Injected alerts (written manually or via compromised devices) default to `source = 'unknown'` and will fail validation.
+- **Daily Volume Cap**: Limits autonomous work order creation requests to a maximum of 3 work orders per day per machine, preventing resource exhaustion.
+- **Audit Logging**: All validation results, rejections, and raw data snapshots are logged to `work_order_audit_log` for compliance auditing.
 
 ### Notification Credentials (Phase 5)
-- **Fail-loud at startup**: If `NOTIFICATIONS_ENABLED=true` but any required Twilio or SMTP credential is missing, the `AlertHandler` raises a `RuntimeError` at initialization — same pattern as `JWT_SECRET_KEY` and `DATABASE_URL`.
-- **No external calls when disabled**: When `NOTIFICATIONS_ENABLED` is unset or `false`, the system runs with dashboard/log-only alerting. No Twilio or SMTP connections are attempted, and no external credentials are required.
-- **Debounce persistence**: Notification cooldown state is stored in the `notifications_sent` TimescaleDB hypertable, surviving server restarts. This prevents alert storms from spamming recipients after a reboot.
-- **Recipient fan-out**: SMS and email alerts are sent to all `admin`-role users who have `phone` or `email` set in the `users` table. This avoids hardcoding a single recipient in `.env`.
-- **Error isolation**: A failure in any notification channel (Twilio API down, SMTP timeout) is logged but never crashes or blocks the telemetry ingestion pipeline.
+- **Fail-loud at startup**: The backend raises a `RuntimeError` on startup if `NOTIFICATIONS_ENABLED=true` but required SMTP/Twilio credentials are missing.
+- **Debounce persistence**: Cooldown states are stored in the database (`notifications_sent` hypertable) to prevent alert storm cascades after system reboots.
 
 ## Known Limitations
 
-> These are tracked as future work in the Implementation Plan and do not represent vulnerabilities in the current prototype scope.
-
-1. ~~**localStorage Token Storage**~~: ✅ **RESOLVED (Phase 6)** — JWT tokens are now stored exclusively in `HttpOnly` cookies (`SameSite=Lax`, `Secure`), mitigating XSS token theft. A custom `X-API-Request: true` header is strictly required on backend routes to trigger CORS preflight and mitigate CSRF.
-2. ~~**In-Memory User Store**~~: ✅ **RESOLVED** — User accounts are now stored in TimescaleDB's `users` table, replacing the old `fake_users_db` in-memory dict.
-3. ~~**Weak Default Passwords**~~: ✅ **RESOLVED** — Demo passwords have been rotated to cryptographically generated 16-character secrets.
-4. ~~**No Rate Limiting**~~: ✅ **RESOLVED** — The `/api/auth/login` endpoint is now rate-limited to 5 attempts per minute per IP via `slowapi`. Exceeding the limit returns HTTP 429 with a `Retry-After` header.
+1. **Untested Twilio Delivery**: Twilio notifications have only been verified against the Twilio Sandbox.
+2. **No Deployed HTTPS**: Deployed environments must use Nginx as a reverse proxy with Let's Encrypt SSL configuration.
+3. **No UI Resolution Flow**: Operators must manually close/resolve work orders via raw DB queries since a front-end closure workflow is not yet implemented.
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in this project, please report it responsibly:
-
-1. **Do not** open a public GitHub issue.
-2. Email the maintainer directly at the address listed in the repository profile.
-3. Include a description of the vulnerability, steps to reproduce, and potential impact.
-4. You will receive an acknowledgment within 48 hours and a fix timeline within 7 days.
+If you discover a security vulnerability, please report it responsibly:
+1. Do not open a public GitHub issue.
+2. Email the maintainer directly.
+3. We will respond within 48 hours and coordinate a fix.
