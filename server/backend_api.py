@@ -438,6 +438,102 @@ async def resolve_work_order(order_id: str):
         raise HTTPException(status_code=500, detail="Failed to resolve work order")
 
 
+# ---------------------------------------------------------------------------
+# ATLAS v5 — Domain Cognition Endpoints
+# ---------------------------------------------------------------------------
+
+from server.atlas.domain_service import get_domain_service as _get_atlas
+
+
+@app.get("/api/atlas/domains")
+async def atlas_list_domains():
+    """List all registered ATLAS domains and their adapter status."""
+    svc = _get_atlas()
+    return JSONResponse(content={"domains": svc.get_all_domain_status()})
+
+
+@app.get("/api/atlas/domain/{domain}/status")
+async def atlas_domain_status(domain: str):
+    """All machine snapshots for a single domain."""
+    svc = _get_atlas()
+    snapshots = svc.get_domain_snapshots(domain)
+    if not snapshots:
+        raise HTTPException(status_code=404, detail=f"Domain '{domain}' not found or has no data yet")
+    return JSONResponse(content={"domain": domain, "machines": snapshots, "count": len(snapshots)})
+
+
+@app.get("/api/atlas/domain/{domain}/machine/{machine_id}")
+async def atlas_machine_snapshot(domain: str, machine_id: str):
+    """Latest snapshot for a specific machine in a domain."""
+    svc = _get_atlas()
+    snap = svc.get_snapshot(domain, machine_id)
+    if snap is None:
+        raise HTTPException(status_code=404, detail=f"No snapshot for {domain}/{machine_id}")
+    return JSONResponse(content=snap)
+
+
+@app.get("/api/atlas/cross-domain/comparison")
+async def atlas_cross_domain_comparison():
+    """
+    All domains' latest snapshots side-by-side.
+    Primary data source for the Cross-Domain Comparison Dashboard.
+    """
+    svc = _get_atlas()
+    return JSONResponse(content={"comparison": svc.get_cross_domain_comparison()})
+
+
+@app.get("/api/atlas/models/status")
+async def atlas_model_status():
+    """
+    Report which domains have trained WorldModel checkpoints and which
+    are using the EMA fallback.
+    """
+    from pathlib import Path
+    models_dir = Path("data/models")
+    model_files = list(models_dir.glob("*_world_model.pt")) if models_dir.exists() else []
+    trained_domains = [f.stem.replace("_world_model", "") for f in model_files]
+
+    metrics = {}
+    for domain in trained_domains:
+        metrics_path = models_dir / f"{domain}_metrics.json"
+        if metrics_path.exists():
+            import json as _json
+            with open(str(metrics_path)) as f:
+                metrics[domain] = _json.load(f)
+
+    svc = _get_atlas()
+    engines = {
+        domain: {
+            "using_lstm": engine.using_lstm,
+            "domain": engine.domain,
+        }
+        for domain, engine in svc._engines.items()
+    }
+
+    return JSONResponse(content={
+        "trained_domains": trained_domains,
+        "active_engines": engines,
+        "metrics": metrics,
+        "training_command": "python server/atlas/train_rul.py --domain cmapss",
+    })
+
+
+@app.post("/api/atlas/models/reload", dependencies=[Depends(require_admin)])
+async def atlas_reload_model(domain: str = Query(..., description="Domain to reload model for")):
+    """
+    Hot-reload a trained WorldModel after retraining (admin only).
+    Returns whether the reload found a new checkpoint.
+    """
+    svc = _get_atlas()
+    engine = svc.get_engine(domain)
+    if engine is None:
+        raise HTTPException(status_code=404, detail=f"No active engine for domain '{domain}'")
+    success = engine.reload_model()
+    return JSONResponse(content={"domain": domain, "reloaded": success, "using_lstm": engine.using_lstm})
+
+
+# ---------------------------------------------------------------------------
+
 if __name__ == "__main__":
     import uvicorn
     service.start_simulation(interval=int(os.environ.get("SIMULATION_INTERVAL", 1)))
@@ -447,3 +543,4 @@ if __name__ == "__main__":
         port=int(os.environ.get("API_PORT", 8000)),
         log_level=os.environ.get("LOG_LEVEL", "info").lower(),
     )
+

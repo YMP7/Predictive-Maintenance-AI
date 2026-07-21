@@ -19,3 +19,24 @@ httpx
 
 # Phase 8: Agentic AI
 google-generativeai>=0.8,<1.0
+
+# -----------------------------------------------------------------------
+# ATLAS v5 Extensions (Month 1+)
+# -----------------------------------------------------------------------
+
+scikit-learn>=1.4,<2.0
+pandas>=2.0,<3.0
+matplotlib>=3.8,<4.0
+
+faiss-cpu>=1.8,<2.0
+pgvector>=0.2,<1.0
+paramiko>=3.4,<4.0   # SSH transport for ServerAdapter (Month 6)
+
+# -----------------------------------------------------------------------
+# NOTE: torch is intentionally NOT listed here.
+# Install separately (CPU-only, ~200MB instead of multi-GB CUDA default):
+#
+#   pip install torch>=2.2,<3.0 --index-url https://download.pytorch.org/whl/cpu
+#
+# Or just use requirements-ml.txt, which handles this correctly.
+# -----------------------------------------------------------------------

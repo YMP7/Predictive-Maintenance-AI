@@ -1,0 +1,11 @@
+Epoch   1/50 | Train MSE: 8613.0861 | Val MSE: 6724.1592 | Val PHM: 8280152.5 | Elapsed: 2.3s
+Epoch   5/50 | Train MSE: 1840.3971 | Val MSE: 1753.3826 | Val PHM: 1439586.5 | Elapsed: 11.6s
+Epoch  10/50 | Train MSE: 478.9629 | Val MSE: 324.8218 | Val PHM: 34971.3 | Elapsed: 23.1s
+Epoch  15/50 | Train MSE: 333.6078 | Val MSE: 227.2719 | Val PHM: 12328.0 | Elapsed: 35.2s
+Epoch  20/50 | Train MSE: 318.8342 | Val MSE: 212.3141 | Val PHM: 11019.3 | Elapsed: 54.1s
+Epoch  25/50 | Train MSE: 291.6185 | Val MSE: 174.5861 | Val PHM: 9841.8 | Elapsed: 116.7s
+Epoch  30/50 | Train MSE: 281.7320 | Val MSE: 145.9196 | Val PHM: 9655.7 | Elapsed: 138.0s
+Epoch  35/50 | Train MSE: 276.4103 | Val MSE: 157.1775 | Val PHM: 8631.2 | Elapsed: 151.4s
+Epoch  40/50 | Train MSE: 267.7294 | Val MSE: 142.4393 | Val PHM: 9446.5 | Elapsed: 164.7s
+Epoch  45/50 | Train MSE: 270.9157 | Val MSE: 149.9807 | Val PHM: 11248.5 | Elapsed: 198.1s
+Epoch  50/50 | Train MSE: 264.0783 | Val MSE: 144.5335 | Val PHM: 8672.5 | Elapsed: 254.4s

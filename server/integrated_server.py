@@ -17,9 +17,11 @@ load_dotenv()
 
 from server.data_service import get_data_service
 from server.backend_api import app
+from server.atlas.domain_service import get_domain_service
 
 logger = logging.getLogger("DigitalTwin")
 service = get_data_service()
+atlas_service = get_domain_service()
 client_dist = project_root / "client" / "dist"
 
 
@@ -41,10 +43,17 @@ async def lifespan(_app):
     }
     if simulation_enabled:
         service.start_simulation(interval=_env_int("SIMULATION_INTERVAL", 1))
+
+    # ATLAS: register C-MAPSS adapter and start domain streaming
+    # (silently skips if dataset files are not yet downloaded)
+    atlas_service.register_cmapss(subset="FD001", max_units=20)
+    atlas_service.start()
+
     try:
         yield
     finally:
         service.stop_simulation()
+        atlas_service.stop()
 
 
 # Add lifecycle management to the shared backend app without starting work at import time.
