@@ -124,9 +124,9 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 ## 6. Current Status
 *(Update this section whenever real progress is made — this is the handoff source of truth)*
 
-**Current phase:** Month 2 — AMKB + Machine DNA
-*(Month 1: C-MAPSS Pipeline + World Model is fully verified and closed)*
-*(Week 3 fully verified and closed — see Architecture Decisions Log below for the ReLU fix)*
+- **Current phase:** Month 4 (Explainability Engine)
+- **Immediate Task:** Begin designing and integrating the Explainability Engine, which surfaces AMKB nearest-neighbor logic (and Machine DNA) to make RUL predictions transparent to end users.
+
 **Sequencing decision in effect:** AI core built first on C-MAPSS (Months 1–5); adapters for Laptop/Mobile/Server come in Month 6, not before.
 
 **Completed so far (agent-built scaffolding):**
@@ -176,10 +176,54 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 
 **Next immediate step:** Month 2 — AMKB + Machine DNA.
 
+**Weekly checklist (Month 2):**
+- [ ] **Week 1 — Plumbing complete, semantic validation pending Week 3:** AMKB core module built and verified against live pgvector DB.
+  - `server/atlas/amkb.py`: `store_experience`, `retrieve_similar` (cosine distance via `<=>`), `get_unit_history`, `get_experience`, `count`
+  - ⭐ **true_rul / predicted_rul separation**: `true_rul` (ground-truth C-MAPSS label) and `predicted_rul` (model estimate) are stored as independent nullable fields.
+  - `ml/preprocessing.py`: `make_windows` and both pipeline methods now return `(X, y, unit_ids)` — closes the unit_id gap needed for AMKB population.
+  - `tests/test_amkb.py`: 17 tests — 11 unit (no DB) + 6 integration (live pgvector) all pass under correct conda environment.
+  - ⚠️ **Pending Week 3:** Full real-data population pass (run WorldModel over all C-MAPSS training windows) + `TestNearFailureRetrieval` full verification.
+- [x] **Week 2 — DONE:** Machine DNA Engine (`server/atlas/machine_dna.py`) built and tested.
+  - ⭐ 16-dim structure mapping: Health Pattern (Dims 0-2), Thermal Profile (Dims 3-5), Power Signature (Dims 6-7), Failure Signature (Dims 8-15).
+  - ⭐ Unclipped `life_fraction_health` used for whole-life pattern dimensions to avoid length-of-life confounding.
+  - ⭐ `z-score` normalization built transparently into storage and retrieval to enforce cross-dimensional numeric parity.
+- [x] **Week 3 — DONE:** Full AMKB population pass + near-failure retrieval sanity check.
+  - ⭐ Run `scripts/populate_amkb.py` on all 100 C-MAPSS training units.
+  - ⭐ Test `TestNearFailureRetrieval` passes on real data (Healthy vectors retrieve >70 RUL; Near-Failure vectors retrieve <30 RUL).
+- [x] **Week 4 — DONE:** Adaptive Context Engine integration + API endpoints (`server/atlas/adaptive_context.py` & `server/api.py`).
+
+**Weekly checklist (Month 3 - Prediction Engine):**
+- [x] **Week 1 — DONE:** Architecture Refactor. Replaced static `Linear` head with `TemporalAttention` over LSTM. Re-wired API/routing payloads to accept a unified `PredictionOutput` format.
+- [x] **Week 2 — DONE:** Single-seed Training & Sanity Check. Ran Attention-LSTM on `seed=42`, confirmed smooth loss curves, inspected non-degenerate attention weights, and firmly restored `strict=True` checkpoint loading safety.
+- [x] **Week 3 — DONE:** Multi-Seed Apples-to-Apples Evaluation. Executed `evaluate_multiseed.py` across 5 seeds. Proven PHM standard deviation plummeted from 19.6% to 5.8%. Architecture definitively clears the <400 mean PHM validation gate (375.00 ± 21.93). Re-populated AMKB to align embeddings and cleared semantic test skips.
+- [x] **Week 4 — DONE:** Decision & Documentation. Locked in Attention-LSTM as final Prediction Engine. Updated Project Context with the architectural arc log and citations.
+
+**Next immediate step:** Month 4 — Explainability Engine.
+
 ---
 
 ## 6b. Architecture Decisions Log
 *(One entry per non-obvious decision or bug fix — so future agents and the thesis writeup don't rediscover these from scratch)*
+
+- **Architecture Verification:** Cross-unit generalization tests definitively prove that embeddings for both healthy units and near-failure units accurately cluster and retrieve logically consistent nearest neighbors *across different physical engines* (avg ~123 RUL for healthy; ~4 RUL for near-failure queries).
+
+### RUL-Scale Canonical Policy (Decisions Log)
+Across Month 2, the handling of RUL limits encountered structural contradictions between World Model training, semantic retrieval, and long-term health metrics. The finalized canonical policy is:
+1. **Model Output / Training Constraint:** The World Model is strictly trained against a **clipped RUL (max 125)** to stabilize early-life variance. All predictions (`predicted_rul`) inherently sit on this ~0-125 scale.
+2. **AMKB Storage:** `amkb_experiences.rul_cycles` stores the **clipped RUL** (max 125). This ensures ACE neighbor aggregations share identical semantics with `predicted_rul`.
+3. **Machine DNA Computation:** `amkb_experiences.metadata['raw_rul']` stores the true physical unclipped RUL. `MachineDNAEngine` prioritizes fetching this `raw_rul` during its health-pattern slope computation, guaranteeing that early-life variance isn't artificially flattened by the clipping artifact.
+
+### Healthy vs. Near-Failure Generalization Asymmetry
+Cross-unit semantic retrieval exhibits an expected asymmetry:
+- **Near-Failure Clustering**: Retrieves multiple diverse units clustering tightly around 0-7 RUL (distances ~0.0001). This is strong, demanding evidence that the vector space successfully maps unit-independent degradation signatures.
+- **Healthy-State Clustering**: Also retrieves logically healthy neighbors across multiple units, but with extremely small cosine distances (e.g., 2.18e-07). This is because early-life windows (e.g., cycle 30) for brand new engines operating under identical conditions (FD001) are naturally homogeneous. The lack of unit-specific degradation at start-of-life makes their embeddings nearly identical. Both work, but the near-failure result is the true citable proof of semantic generalization.
+
+### Month 3 Architecture Arc (LSTM vs. Attention-LSTM)
+During Month 3, the temporary linear RUL head (bolted on at the end of Month 1) was subjected to a rigorous 5-seed multi-seed evaluation. This revealed severe structural instability:
+- **Baseline (LSTM+Linear):** Mean PHM 426.07 ± 83.55 (failed the strict <400 target; Std was 19.6% of mean).
+- **Decision:** The basic LSTM was rejected due to this unacceptable run-to-run variability.
+- **Replacement:** A standard Temporal Attention mechanism was integrated over the LSTM outputs (validated by Chen et al., 2020 and Ma et al., 2021). Rather than just relying on the final hidden state, the network dynamically pools degradation signals across the entire 30-cycle window.
+- **Final Locked-in Results (Attention-LSTM):** RMSE 15.2152 ± 0.3074 | **PHM 375.00 ± 21.93**. The PHM standard deviation plummeted to 5.8% of the mean, and the architecture definitively cleared the <400 validation gate. This Attention-LSTM is now the permanently locked-in Prediction Engine.
 
 | Date | File | Decision | Reason |
 |---|---|---|---|
