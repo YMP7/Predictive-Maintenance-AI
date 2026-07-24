@@ -135,6 +135,7 @@ def train(
     num_layers: int = 2,
     dropout: float = 0.2,
     quick: bool = False,
+    seed: int = 42,
 ) -> Dict:
     """
     Full training run. Returns a metrics dict.
@@ -145,9 +146,9 @@ def train(
         from torch.utils.data import DataLoader, TensorDataset
         
         import random
-        random.seed(42)
-        np.random.seed(42)
-        torch.manual_seed(42)
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
     except ImportError:
         logger.error(
             "PyTorch is required for training. Install:\n"
@@ -170,8 +171,8 @@ def train(
 
     import random
     all_train_ids = sorted(train_adapter.machine_ids)
-    # Fixed seed for reproducible 80/20 split
-    random.Random(42).shuffle(all_train_ids)
+    # Seeded for reproducible 80/20 split
+    random.Random(seed).shuffle(all_train_ids)
     split_idx = int(len(all_train_ids) * 0.8)
     train_ids = all_train_ids[:split_idx]
     val_ids = all_train_ids[split_idx:]
@@ -236,7 +237,8 @@ def train(
 
         for X_batch, y_batch in loader:
             optimizer.zero_grad()
-            rul_pred, _ = model(X_batch)
+            out = model(X_batch)
+            rul_pred = out.rul_pred
             loss = criterion(rul_pred, y_batch)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -250,18 +252,20 @@ def train(
         # Validation
         model.eval()
         with torch.no_grad():
-            val_preds, _ = model(X_val_t)
+            val_out = model(X_val_t)
+            val_preds = val_out.rul_pred
             v_loss = criterion(val_preds, y_val_t).item()
             # Compute PHM on val set (cap predictions to prevent negative numbers)
             val_phm = CMAPSSAdapter.phm_score(y_val, np.maximum(0, val_preds.numpy().flatten()))
             
         val_loss_history.append(v_loss)
         val_phm_history.append(val_phm)
-        
         if v_loss < best_val_loss:
             best_val_loss = v_loss
             best_epoch = epoch
-            torch.save(model.state_dict(), MODELS_DIR / "best_model.pt")
+            # Save in WorldModel.save() config-wrapped format — loadable by
+            # WorldModel.load() without reconstructing config separately.
+            model.save(MODELS_DIR / "best_model.pt")
 
         scheduler.step(v_loss)
 
@@ -275,8 +279,11 @@ def train(
     logger.info(f"Training complete in {total_time:.1f}s")
     logger.info(f"Early stopping selected epoch {best_epoch} as best checkpoint (Val MSE: {best_val_loss:.4f})")
     
-    # Load best checkpoint for final evaluation
-    model.load_state_dict(torch.load(MODELS_DIR / "best_model.pt", weights_only=True))
+    # Load best checkpoint for final evaluation using WorldModel.load().
+    # This uses the config-wrapped format saved above — identical to how
+    # the AMKB population script and near-failure tests load the model.
+    model = WorldModel.load(MODELS_DIR / "best_model.pt")
+    model.eval()
 
     # ---- Evaluation on test set ----
     logger.info("Evaluating final model strictly on held-out test set...")
@@ -296,7 +303,8 @@ def train(
             window = prepare_window(window_buffer, seq_len, len(INFORMATIVE_SENSORS))
             X_test = torch.tensor(window, dtype=torch.float32).unsqueeze(0)
 
-            rul_pred_t, _ = model(X_test)
+            test_out = model(X_test)
+            rul_pred_t = test_out.rul_pred
             y_pred_list.append(float(rul_pred_t.item()))
             # Ground truth from the last reading's rul_label
             y_true_list.append(float(readings[-1].rul_label or 0.0))

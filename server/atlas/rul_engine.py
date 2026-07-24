@@ -285,7 +285,9 @@ class RULEngine:
             seq_len=self._config.seq_len,
             feature_dim=self._config.feature_dim,
         )
-        rul_cycles, state_vector = self._model.predict(window)
+        out = self._model.predict(window)
+        rul_cycles = out.rul_pred
+        state_vector = out.state_vector
         rul_days = rul_cycles * self.cycles_per_day
 
         # Cross-check with EMA for uncertainty estimate

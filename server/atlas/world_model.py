@@ -71,8 +71,21 @@ MODELS_DIR = _PROJECT_ROOT / "data" / "models"
 
 
 # ---------------------------------------------------------------------------
-# Configuration dataclass
+# Configuration & Output Dataclasses
 # ---------------------------------------------------------------------------
+
+from typing import Any
+
+@dataclass
+class PredictionOutput:
+    """
+    Standardized return type for WorldModel forward() and predict().
+    Using a dataclass ensures that downstream subsystems (AMKB, Machine DNA, ACE)
+    do not break when new outputs (like attention weights) are added.
+    """
+    rul_pred: Any
+    state_vector: Any
+    attn_weights: Optional[Any] = None
 
 @dataclass
 class WorldModelConfig:
@@ -110,14 +123,36 @@ class WorldModelConfig:
 
 if _TORCH_AVAILABLE:
 
+    class TemporalAttention(nn.Module):
+        """
+        Computes a soft attention weighting over the sequence of LSTM hidden states.
+        Replaces the naive 'take the final timestep' approach with a learned
+        aggregation of the entire window.
+        """
+        def __init__(self, hidden_size: int):
+            super().__init__()
+            self.attention = nn.Sequential(
+                nn.Linear(hidden_size, hidden_size),
+                nn.Tanh(),
+                nn.Linear(hidden_size, 1, bias=False)
+            )
+
+        def forward(self, lstm_out: "torch.Tensor") -> Tuple["torch.Tensor", "torch.Tensor"]:
+            # lstm_out: (batch, seq_len, hidden_size)
+            scores = self.attention(lstm_out)           # (batch, seq_len, 1)
+            weights = torch.softmax(scores, dim=1)      # (batch, seq_len, 1)
+            context = torch.sum(weights * lstm_out, dim=1) # (batch, hidden_size)
+            return context, weights.squeeze(-1)         # context: (batch, hidden), weights: (batch, seq_len)
+
     class WorldModel(nn.Module):
         """
-        2-layer LSTM encoder with a linear projection to a 32-dim state vector
-        and a separate RUL prediction head.
+        2-layer LSTM encoder with temporal attention, a linear projection to a 
+        32-dim state vector, and a separate RUL prediction head.
 
         Canonical architecture (from ATLAS_PROJECT_CONTEXT.md §3):
             Input:        (batch, seq_len, feature_dim)
             LSTM:         hidden_size=64, 2 layers
+            Attention:    Temporal pooling over seq_len → (batch, 64)
             to_state:     Linear(64 → state_dim=32)
             state_vector: (batch, 32)  ← primary output for AMKB + Machine DNA
             rul_head:     Linear(32→16) → ReLU → Dropout → Linear(16→1)  [no final activation]
@@ -140,7 +175,10 @@ if _TORCH_AVAILABLE:
                 dropout=config.dropout if config.num_layers > 1 else 0.0,
             )
 
-            # Project LSTM hidden state (64) → canonical state vector (32)
+            # Temporal attention over all seq_len outputs
+            self.attention = TemporalAttention(config.hidden_size)
+
+            # Project attention context (64) → canonical state vector (32)
             self.to_state = nn.Linear(config.hidden_size, config.state_dim)
 
             # RUL prediction head on top of the 32-dim state vector.
@@ -162,20 +200,29 @@ if _TORCH_AVAILABLE:
 
         def forward(
             self, x: "torch.Tensor"
-        ) -> Tuple["torch.Tensor", "torch.Tensor"]:
+        ) -> PredictionOutput:
             # x: (batch, seq_len, feature_dim)
-            _, (h_n, _) = self.lstm(x)
-            # h_n: (num_layers, batch, hidden_size) — take last layer
-            state_vector = self.to_state(h_n[-1])   # (batch, state_dim=32)
+            lstm_out, _ = self.lstm(x)
+            
+            # lstm_out: (batch, seq_len, hidden_size)
+            context, attn_weights = self.attention(lstm_out)
+            
+            # context: (batch, hidden_size)
+            state_vector = self.to_state(context)    # (batch, state_dim=32)
             rul_pred = self.rul_head(state_vector)   # (batch, 1)
-            return rul_pred, state_vector
+            
+            return PredictionOutput(
+                rul_pred=rul_pred,
+                state_vector=state_vector,
+                attn_weights=attn_weights
+            )
 
         # ------------------------------------------------------------------
 
         def predict(
             self,
             window: np.ndarray,
-        ) -> Tuple[float, np.ndarray]:
+        ) -> PredictionOutput:
             """
             Convenience: run one window through the model.
 
@@ -186,17 +233,27 @@ if _TORCH_AVAILABLE:
 
             Returns
             -------
-            rul_pred    : float — predicted RUL in cycles (capped at max_rul)
-            state_vector: np.ndarray, shape (state_dim=32,)
+            PredictionOutput containing:
+              rul_pred    : float — predicted RUL in cycles (capped at max_rul)
+              state_vector: np.ndarray, shape (state_dim=32,)
+              attn_weights: np.ndarray, shape (seq_len,)
             """
             self.eval()
             with torch.no_grad():
                 x = torch.tensor(window, dtype=torch.float32).unsqueeze(0)  # (1, T, F)
-                rul_t, sv_t = self(x)
-                rul = float(rul_t.squeeze().item())
-                sv = sv_t.squeeze().numpy()   # shape (32,)
-            rul = float(np.clip(rul, 0.0, self.config.max_rul))
-            return rul, sv
+                out = self(x)
+                
+                rul = out.rul_pred.item()
+                # Enforce non-negativity and max cap at inference time
+                rul = max(0.0, min(float(rul), self.config.max_rul))
+                sv = out.state_vector.squeeze(0).cpu().numpy()
+                attn = out.attn_weights.squeeze(0).cpu().numpy()
+                
+            return PredictionOutput(
+                rul_pred=rul,
+                state_vector=sv,
+                attn_weights=attn
+            )
 
         # ------------------------------------------------------------------
 
@@ -227,7 +284,7 @@ if _TORCH_AVAILABLE:
             checkpoint = torch.load(str(path), map_location="cpu", weights_only=True)
             cfg = WorldModelConfig(**checkpoint["config"])
             model = cls(cfg)
-            model.load_state_dict(checkpoint["model_state_dict"])
+            model.load_state_dict(checkpoint["model_state_dict"], strict=True)
             model.eval()
             logger.info(f"WorldModel loaded from {path}")
             return model
