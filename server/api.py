@@ -3,33 +3,44 @@ from typing import List, Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 import numpy as np
+from pathlib import Path
 
 from server.atlas.amkb import AMKB
 from server.atlas.machine_dna import MachineDNAEngine
 from server.atlas.world_model import WorldModel
 from server.atlas.adaptive_context import AdaptiveContextEngine, AdaptiveContext
+from server.atlas.explain import ExplanationEngine
 
 app = FastAPI(title="ATLAS Adaptive Context API")
+
+MODELS_DIR = Path(__file__).parent.parent / "data" / "models"
 
 # Initialize shared components
 _amkb: Optional[AMKB] = None
 _dna_engine: Optional[MachineDNAEngine] = None
 _world_model: Optional[WorldModel] = None
 _ace: Optional[AdaptiveContextEngine] = None
+_explain_engine: Optional[ExplanationEngine] = None
 
 @app.on_event("startup")
 def startup_event():
-    global _amkb, _dna_engine, _world_model, _ace
+    global _amkb, _dna_engine, _world_model, _ace, _explain_engine
+    
+    # 1. Connect AMKB (Vector DB)
     _amkb = AMKB()
-    _dna_engine = MachineDNAEngine(pool=_amkb._get_pool())
+    _amkb.connect()
     
-    # Load world model
-    model_path = os.path.join(os.path.dirname(__file__), "..", "data", "models", "cmapss_world_model.pt")
-    if not os.path.exists(model_path):
+    # 2. Init Machine DNA
+    _dna_engine = MachineDNAEngine(_amkb)
+    
+    # 3. Load WorldModel
+    model_path = MODELS_DIR / "cmapss_world_model.pt"
+    if not model_path.exists():
         raise RuntimeError(f"WorldModel not found at {model_path}")
-    
+        
     _world_model = WorldModel.load(model_path)
     _ace = AdaptiveContextEngine(_amkb, _dna_engine, _world_model)
+    _explain_engine = ExplanationEngine()
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -73,6 +84,29 @@ def get_context(req: ContextQueryRequest):
             k=req.k
         )
         return context
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.post("/api/explain")
+def post_explain(req: ContextQueryRequest):
+    if _ace is None or _explain_engine is None:
+        raise HTTPException(status_code=503, detail="Atlas engines not initialized")
+        
+    try:
+        np_window = np.array(req.window, dtype=np.float32)
+        context = _ace.build_context(
+            domain=req.domain,
+            machine_id=req.machine_id,
+            current_cycle=req.cycle,
+            current_window=np_window,
+            k=req.k
+        )
+        report = _explain_engine.explain(context)
+        return report.to_dict()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
