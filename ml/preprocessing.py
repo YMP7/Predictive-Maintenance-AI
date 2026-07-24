@@ -248,11 +248,13 @@ class CMAPSSPreprocessor:
 
         Returns
         -------
-        X : np.ndarray, shape (n_windows, seq_len, n_features)
-        y : np.ndarray, shape (n_windows,) — RUL values (or empty array if rul_col is None)
+        X        : np.ndarray, shape (n_windows, seq_len, n_features)
+        y        : np.ndarray, shape (n_windows,) — RUL values (or empty if rul_col is None)
+        unit_ids : np.ndarray, shape (n_windows,) — integer unit ID for each window
         """
         X_list: List[np.ndarray] = []
         y_list: List[float] = []
+        unit_id_list: List[int] = []
 
         n_feat = features.shape[1]
         units = df["unit"].unique()
@@ -268,12 +270,14 @@ class CMAPSSPreprocessor:
                 chunk = unit_features[start:i + 1]
                 window[-len(chunk):] = chunk
                 X_list.append(window)
+                unit_id_list.append(int(uid))
                 if unit_rul is not None:
                     y_list.append(float(unit_rul[i]))
 
         X = np.stack(X_list, axis=0)
         y = np.array(y_list, dtype=np.float32) if y_list else np.array([])
-        return X, y
+        unit_ids = np.array(unit_id_list, dtype=np.int32)
+        return X, y, unit_ids
 
     # ------------------------------------------------------------------
     # Convenience: full pipeline in two calls
@@ -293,6 +297,8 @@ class CMAPSSPreprocessor:
         self.fit_normalizer(df)
         features = self.transform_features(df)
         return self.make_windows(df, features, rul_col="rul")
+        # Returns (X, y, unit_ids) — unpack as:
+        #   X, y, unit_ids = prep.get_train_windows()
 
     def get_test_windows(self) -> Tuple[np.ndarray, np.ndarray]:
         """
@@ -325,7 +331,12 @@ class CMAPSSPreprocessor:
             X_list.append(window)
             y_list.append(float(rul_labels[i]))
 
-        return np.stack(X_list), np.array(y_list, dtype=np.float32)
+        X = np.stack(X_list)
+        y = np.array(y_list, dtype=np.float32)
+        unit_ids = np.array(sorted(df["unit"].unique()), dtype=np.int32)
+        return X, y, unit_ids
+        # Returns (X, y, unit_ids) — unpack as:
+        #   X, y, unit_ids = prep.get_test_windows()
 
     # ------------------------------------------------------------------
     # EDA helpers (Week 1 deliverables)

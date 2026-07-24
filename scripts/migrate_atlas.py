@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS machine_dna (
     computed_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     domain          TEXT        NOT NULL,
     machine_id      TEXT        NOT NULL,
-    dna_embedding   vector(32)  NOT NULL,   -- 32-dim compressed fingerprint
+    dna_embedding   vector(16)  NOT NULL,   -- 16-dim compressed fingerprint
     components      JSONB       NOT NULL DEFAULT '{}',  -- health/thermal/power/failure components
     n_cycles_used   INTEGER     NOT NULL DEFAULT 0,
     UNIQUE (domain, machine_id)   -- one current DNA per unit (UPSERTED)
