@@ -31,6 +31,15 @@ def startup_event():
     _world_model = WorldModel.load(model_path)
     _ace = AdaptiveContextEngine(_amkb, _dna_engine, _world_model)
 
+@app.on_event("shutdown")
+def shutdown_event():
+    global _amkb
+    if _amkb is not None:
+        try:
+            _amkb._get_pool().close()
+        except Exception:
+            pass
+
 class ContextQueryRequest(BaseModel):
     domain: str
     machine_id: str
