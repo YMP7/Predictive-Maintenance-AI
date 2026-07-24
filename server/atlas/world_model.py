@@ -310,7 +310,7 @@ else:
             self.config = config
             logger.warning("WorldModel operating in STUB mode (PyTorch not installed).")
 
-        def predict(self, window: np.ndarray) -> Tuple[float, np.ndarray]:
+        def predict(self, window: np.ndarray) -> PredictionOutput:
             # Return a naive linear-trend estimate as fallback
             if window.shape[0] > 1:
                 health_col = window[:, 0]
@@ -319,7 +319,7 @@ else:
                 rul_estimate = float(self.config.max_rul * 0.5)
             # state_vector is 32-dim zeros (matches canonical AMKB embedding dim)
             state = np.zeros(self.config.state_dim)
-            return rul_estimate, state
+            return PredictionOutput(rul_pred=rul_estimate, state_vector=state, attn_weights=None)
 
         def save(self, path=None) -> None:
             logger.warning("WorldModel.save() is a no-op in STUB mode.")
