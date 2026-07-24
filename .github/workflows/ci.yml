@@ -48,8 +48,13 @@ jobs:
       run: |
         export ADMIN_PASSWORD_HASH=$(python -c "from server.auth import get_password_hash; print(get_password_hash('ci_admin_test_pw_not_real'))")
         export OPERATOR_PASSWORD_HASH=$(python -c "from server.auth import get_password_hash; print(get_password_hash('ci_operator_test_pw_not_real'))")
-        python scripts/migrate.py
-        python scripts/seed_dev.py
+        python scripts/migrate.py || { echo "Core migration failed"; exit 1; }
+        python scripts/migrate_atlas.py || { echo "ATLAS migration failed"; exit 1; }
+        python scripts/seed_dev.py || { echo "Seeding failed"; exit 1; }
+        
+    - name: Verify Database Schema
+      run: |
+        docker exec timescaledb psql -U dtwin -d digital_twin -c "\dt"
         
     - name: Run Pytest Test Suite
       env:
