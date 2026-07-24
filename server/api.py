@@ -69,14 +69,18 @@ def get_context(req: ContextQueryRequest):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Internal Server Error: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/api/dna/{domain}/{machine_id}")
 def get_dna(domain: str, machine_id: str):
     if _dna_engine is None:
         raise HTTPException(status_code=503, detail="DNA Engine not initialized")
         
-    dna = _dna_engine.get_dna(domain, machine_id)
+    try:
+        dna = _dna_engine.get_dna(domain, machine_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
+        
     if dna is None:
         raise HTTPException(status_code=404, detail="Machine DNA not found")
         

@@ -74,6 +74,19 @@ def main():
                 """, (username, hashed_pw, role, email, phone))
                 print(f"  Seeded user: {username} (role={role}, email={email or '-'}, phone={phone or '-'})")
         conn.commit()
+
+    # Seed Machine DNA for tests
+    print("Seeding test Machine DNA...")
+    import json
+    sample_dna = [0.0] * 16
+    with psycopg.connect(db_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO machine_dna (domain, machine_id, dna_embedding)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (domain, machine_id) DO NOTHING;
+            """, ("cmapss", "unit_1", json.dumps(sample_dna)))
+        conn.commit()
     print("Seeding complete.")
 
 if __name__ == "__main__":
