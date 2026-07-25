@@ -10,6 +10,9 @@ from server.atlas.machine_dna import MachineDNAEngine
 from server.atlas.world_model import WorldModel
 from server.atlas.adaptive_context import AdaptiveContextEngine, AdaptiveContext
 from server.atlas.explain import ExplanationEngine
+from server.atlas.simulation import SimulationEngine
+from server.atlas.decision import DecisionGraph
+import dataclasses
 
 app = FastAPI(title="ATLAS Adaptive Context API")
 
@@ -21,14 +24,16 @@ _dna_engine: Optional[MachineDNAEngine] = None
 _world_model: Optional[WorldModel] = None
 _ace: Optional[AdaptiveContextEngine] = None
 _explain_engine: Optional[ExplanationEngine] = None
+_simulation_engine: Optional[SimulationEngine] = None
+_decision_graph: Optional[DecisionGraph] = None
 
 @app.on_event("startup")
 def startup_event():
     global _amkb, _dna_engine, _world_model, _ace, _explain_engine
+    global _simulation_engine, _decision_graph
     
     # 1. Connect AMKB (Vector DB)
     _amkb = AMKB()
-    _amkb.connect()
     
     # 2. Init Machine DNA
     _dna_engine = MachineDNAEngine(_amkb)
@@ -41,6 +46,8 @@ def startup_event():
     _world_model = WorldModel.load(model_path)
     _ace = AdaptiveContextEngine(_amkb, _dna_engine, _world_model)
     _explain_engine = ExplanationEngine()
+    _simulation_engine = SimulationEngine()
+    _decision_graph = DecisionGraph()
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -107,6 +114,55 @@ def post_explain(req: ContextQueryRequest):
         )
         report = _explain_engine.explain(context, window=np_window, ace=_ace)
         return report.to_dict()
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.post("/api/decide")
+def post_decide(req: ContextQueryRequest):
+    if _ace is None or _explain_engine is None or _simulation_engine is None or _decision_graph is None:
+        raise HTTPException(status_code=503, detail="Atlas engines not initialized")
+        
+    try:
+        np_window = np.array(req.window, dtype=np.float32)
+        
+        # 1. Get Context (including predicted RUL and neighbors)
+        context = _ace.build_context(
+            domain=req.domain,
+            machine_id=req.machine_id,
+            current_cycle=req.cycle,
+            current_window=np_window,
+            k=req.k
+        )
+        
+        # 2. Compute Explainability
+        explanation = _explain_engine.explain(context, window=np_window, ace=_ace)
+        
+        # 3. Calculate Variance for Uncertainty
+        if not context.neighbors:
+            variance = 0.0
+        else:
+            variance = float(np.var([n.rul for n in context.neighbors]))
+            
+        # 4. Simulate Action Outcomes
+        sim_results = _simulation_engine.simulate_actions(
+            predicted_rul=context.predicted_rul,
+            neighbor_variance=variance
+        )
+        
+        # 5. Build Decision Graph Recommendation
+        decision = _decision_graph.decide(
+            simulation_results=sim_results,
+            explanation=explanation,
+            predicted_rul=context.predicted_rul,
+            neighbor_variance=variance
+        )
+        
+        return dataclasses.asdict(decision)
+        
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
