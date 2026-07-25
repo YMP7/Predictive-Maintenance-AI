@@ -46,9 +46,9 @@ def test_explain_zero_variance(engine):
     
     report = engine.explain(context)
     # Variance is 0. 1 / (1 + 0) = 1.0. 
-    # Similarity is 0.9. Confidence should be ~0.9.
+    # Distance is 0.9. Similarity is 1 / 1.9 ≈ 0.5263. Confidence should be ~0.5263.
     assert "variance of 0.0" in report.primary_justification
-    assert abs(report.confidence_score - 0.9) < 1e-5
+    assert abs(report.confidence_score - (1.0 / 1.9)) < 1e-3
     assert report.confidence_level == "High"
 
 def test_explain_zero_neighbors(engine):

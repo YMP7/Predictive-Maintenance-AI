@@ -25,6 +25,17 @@ class ExplanationReport:
         }
 
 class ExplanationEngine:
+    """
+    Constructs a structured explanation string from a template to ground predictions
+    in historical AMKB data. This relies on template-based string construction, not
+    generative NLG/LLMs.
+    
+    FUTURE DECISION (Month 6): When live domains begin returning experiences where
+    `true_rul` is `None` (because failure hasn't occurred yet), this engine will
+    filter out those neighbors prior to computation (silently reducing k). If all
+    retrieved neighbors are filtered, it will degrade gracefully to the zero-neighbor
+    fallback. It will not hard-crash the API.
+    """
     def __init__(self):
         pass
 
@@ -46,11 +57,14 @@ class ExplanationEngine:
         similarities = []
         for n in neighbors:
             if getattr(n, "rul", None) is None:
+                # Enforce the true_rul guarantee. (Month 6 note: this raises for now, 
+                # but will be changed to a filter when live domains launch).
                 raise ValueError("Neighbors must contain true RUL for citations, not predicted RUL.")
-            # Verify it's explicitly the true_rul (type check/assertion)
             true_ruls.append(n.rul)
-            # In AdaptiveContextEngine, dist is actually similarity from AMKB
-            similarities.append(n.distance)
+            # n.distance from pgvector is cosine distance [0, 2], where 0 is identical.
+            # We map this to a similarity score [0, 1] where 1 is identical.
+            sim = 1.0 / (1.0 + n.distance)
+            similarities.append(sim)
             
         true_ruls_arr = np.array(true_ruls)
         similarities_arr = np.array(similarities)
@@ -88,7 +102,9 @@ class ExplanationEngine:
         # Construct citations
         citations = []
         for n in neighbors:
-            citations.append(f"Unit {n.machine_id} at cycle {n.cycle} (True RUL: {n.rul:.1f}, similarity: {n.distance:.4f})")
+            # Map cosine distance back to similarity for human readability, or just show distance
+            sim = 1.0 / (1.0 + n.distance)
+            citations.append(f"Unit {n.machine_id} at cycle {n.cycle} (True RUL: {n.rul:.1f}, similarity: {sim:.4f})")
             
         return ExplanationReport(
             confidence_score=float(confidence_score),
