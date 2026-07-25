@@ -69,11 +69,26 @@ _RAW_COLS = (
     + [f"s{i}" for i in range(1, 22)]
 )
 
-# Sensors that are constant across all conditions (zero variance) — dropped
-_CONSTANT_SENSORS = {"s1", "s5", "s6", "s10", "s16", "s18", "s19"}
+from ml.preprocessing import CONSTANT_SENSORS_FD001 as _CONSTANT_SENSORS
+from ml.preprocessing import INFORMATIVE_SENSORS_FD001 as INFORMATIVE_SENSORS
 
-# The 14 informative sensors used as features
-INFORMATIVE_SENSORS = [s for s in [f"s{i}" for i in range(1, 22)] if s not in _CONSTANT_SENSORS]
+# Sensor physical descriptions (C-MAPSS standard)
+SENSOR_DESCRIPTIONS = {
+    "s2": "T24 (Total temperature at LPC outlet)",
+    "s3": "T30 (Total temperature at HPC outlet)",
+    "s4": "T50 (Total temperature at LPT outlet)",
+    "s7": "P50 (Total pressure at LPT outlet)",
+    "s8": "Np (Physical fan speed)",
+    "s9": "Nc (Physical core speed)",
+    "s11": "Ps30 (Static pressure at HPC outlet)",
+    "s12": "phi (Ratio of fuel flow to Ps30)",
+    "s13": "NRf (Corrected fan speed)",
+    "s14": "NRc (Corrected core speed)",
+    "s15": "BPR (Bypass Ratio)",
+    "s17": "htBleed (Bleed Enthalpy)",
+    "s20": "W31 (HPT coolant bleed)",
+    "s21": "W32 (LPT coolant bleed)"
+}
 
 # Operational settings used as operational context
 OP_SETTINGS = ["op_set_1", "op_set_2", "op_set_3"]

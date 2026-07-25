@@ -124,8 +124,8 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 ## 6. Current Status
 *(Update this section whenever real progress is made — this is the handoff source of truth)*
 
-- **Current phase:** Month 4 (Explainability Engine)
-- **Immediate Task:** Begin designing and integrating the Explainability Engine, which surfaces AMKB nearest-neighbor logic (and Machine DNA) to make RUL predictions transparent to end users.
+- **Current phase:** Month 5 (Learning Engine)
+- **Immediate Task:** Begin designing and integrating the Learning Engine, transitioning from pre-trained static WorldModels to continuous active learning / domain adaptation based on newly streamed experiences.
 
 **Sequencing decision in effect:** AI core built first on C-MAPSS (Months 1–5); adapters for Laptop/Mobile/Server come in Month 6, not before.
 
@@ -142,6 +142,10 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 - [x] `tests/test_adapters.py` — 29 passed, 1 skipped (integration gate on dataset presence)
 - [x] `ml/preprocessing.py` — standalone preprocessing pipeline (windowing, normalization, RUL labeling)
 - [x] `notebooks/week1_eda.ipynb` — exploratory data analysis scaffold
+
+  - **Month 4 — DONE:** Explainability Engine fully built in two phases:
+    - Phase 1: AMKB-grounded historical citations with bounded confidence scores `(avg_sim * (1 / (1 + variance)))` and strict `true_rul` citation enforcement.
+    - Phase 2: Feature Attribution using 30-timestep column occlusion (baseline `0.0` population mean) to capture signed degradation metrics mapped to actual C-MAPSS physical sensor names.
 
 **Pending user actions (blocking):**
 - [ ] Download C-MAPSS dataset → place `.txt` files in `data/cmapss/`
@@ -224,6 +228,11 @@ During Month 3, the temporary linear RUL head (bolted on at the end of Month 1) 
 - **Decision:** The basic LSTM was rejected due to this unacceptable run-to-run variability.
 - **Replacement:** A standard Temporal Attention mechanism was integrated over the LSTM outputs (validated by Chen et al., 2020 and Ma et al., 2021). Rather than just relying on the final hidden state, the network dynamically pools degradation signals across the entire 30-cycle window.
 - **Final Locked-in Results (Attention-LSTM):** RMSE 15.2152 ± 0.3074 | **PHM 375.00 ± 21.93**. The PHM standard deviation plummeted to 5.8% of the mean, and the architecture definitively cleared the <400 validation gate. This Attention-LSTM is now the permanently locked-in Prediction Engine.
+
+### Month 4 Explainability Arc (Confidence & Feature Attribution)
+During Month 4, the Explainability Engine was built and verified in two major phases to interpret the outputs of the Adaptive Context Engine and the Attention-LSTM World Model.
+- **Phase 1 (Confidence & Citations):** We finalized the similarity-to-confidence formula explicitly to prevent division-by-zero, bounding confidence by trajectory variance: `confidence = (1 / (1 + distance)) * (1 / (1 + variance))`. We also rigorously enforced the `true_rul` separation rule, explicitly asserting that AMKB citations never circularly depend on `predicted_rul`.
+- **Phase 2 (Feature Attribution):** We selected an Occlusion Sensitivity approach over gradient-based methods (like Captum) to ensure compatibility with both PyTorch and STUB fallbacks. The baseline was specifically set to `0.0` to respect the population mean of our z-score normalization. Granularity was kept coarse (whole 30-cycle columns per sensor) to directly map back to Machine DNA structures. Finally, we mapped `sensor_index` directly to actual physical C-MAPSS naming strings (e.g. "s3 (T30 (Total temperature at HPC outlet))") to prevent interpretability disconnects when analyzing outputs against Machine DNA sub-signatures.
 
 | Date | File | Decision | Reason |
 |---|---|---|---|

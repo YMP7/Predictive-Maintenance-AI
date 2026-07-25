@@ -105,7 +105,7 @@ def post_explain(req: ContextQueryRequest):
             current_window=np_window,
             k=req.k
         )
-        report = _explain_engine.explain(context)
+        report = _explain_engine.explain(context, window=np_window, ace=_ace)
         return report.to_dict()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import List
+from dataclasses import dataclass, field
+from typing import List, Dict, Optional
 import numpy as np
 import logging
 
@@ -14,6 +14,8 @@ class ExplanationReport:
     primary_justification: str
     citations: List[str]
     note: str = ""
+    sensor_attributions: List[Dict[str, float]] = field(default_factory=list)
+    top_contributors: List[str] = field(default_factory=list)
     
     def to_dict(self):
         return {
@@ -21,7 +23,9 @@ class ExplanationReport:
             "confidence_level": self.confidence_level,
             "primary_justification": self.primary_justification,
             "citations": self.citations,
-            "note": self.note
+            "note": self.note,
+            "sensor_attributions": self.sensor_attributions,
+            "top_contributors": self.top_contributors
         }
 
 class ExplanationEngine:
@@ -29,6 +33,15 @@ class ExplanationEngine:
     Constructs a structured explanation string from a template to ground predictions
     in historical AMKB data. This relies on template-based string construction, not
     generative NLG/LLMs.
+    
+    CONFIDENCE FORMULA:
+    Confidence is mathematically bounded using a combination of similarity and true_rul variance:
+      confidence = avg_similarity * (1.0 / (1.0 + variance))
+    where:
+      similarity = 1.0 / (1.0 + cosine_distance)
+      variance = np.var(true_ruls)
+    This prevents division-by-zero crashes (via the +1.0 epsilon) and gracefully penalizes 
+    high-variance historical trajectories.
     
     FUTURE DECISION (Month 6): When live domains begin returning experiences where
     `true_rul` is `None` (because failure hasn't occurred yet), this engine will
@@ -39,7 +52,7 @@ class ExplanationEngine:
     def __init__(self):
         pass
 
-    def explain(self, context: AdaptiveContext) -> ExplanationReport:
+    def explain(self, context: AdaptiveContext, window: Optional[np.ndarray] = None, ace=None) -> ExplanationReport:
         neighbors = context.neighbors
         
         # Guard against zero neighbors
@@ -91,13 +104,34 @@ class ExplanationEngine:
         if len(neighbors) < 10:
             note = "Confidence scores derived from small neighbor counts should be interpreted as indicative, not precise."
             
+        # Feature Attribution
+        attributions = []
+        top_contributors = []
+        attribution_text = ""
+        
+        if window is not None and ace is not None:
+            attributions = self.calculate_feature_attribution(window, ace, context.predicted_rul)
+            
+            # Get top K contributors (e.g., top 3)
+            top_k = attributions[:3]
+            top_contributors = [attr["sensor_name"] for attr in top_k]
+            
+            if attributions:
+                top_sensor = attributions[0]
+                if top_sensor["signed_delta"] > 0:
+                    attribution_text = f" {top_sensor['sensor_name']} readings are actively driving this prediction toward a shorter RUL estimate."
+                elif top_sensor["signed_delta"] < 0:
+                    attribution_text = f" {top_sensor['sensor_name']} readings are supporting a healthier (longer) RUL estimate."
+                else:
+                    attribution_text = f" {top_sensor['sensor_name']} is the most influential factor in this prediction."
+            
         # 3. Construct structured explanation string from a template
         avg_true_rul = float(np.mean(true_ruls_arr))
         primary_justification = (
             f"Prediction is grounded in {len(neighbors)} historically similar engine trajectories "
             f"with an average true RUL of {avg_true_rul:.1f} cycles. "
             f"The matching units exhibited a variance of {variance:.1f} cycles."
-        )
+        ) + attribution_text
         
         # Construct citations
         citations = []
@@ -111,5 +145,64 @@ class ExplanationEngine:
             confidence_level=level,
             primary_justification=primary_justification,
             citations=citations,
-            note=note
+            note=note,
+            sensor_attributions=attributions,
+            top_contributors=top_contributors
         )
+
+    def calculate_feature_attribution(self, window: np.ndarray, ace, baseline_rul: float) -> List[Dict[str, float]]:
+        """
+        Calculates Occlusion Sensitivity for the 14 sensors.
+        
+        GRANULARITY: Occlusion is performed at the coarse, per-sensor level
+        (zeroing the entire sensor column across all 30 timesteps at once). This
+        matches the project's established per-sensor analysis granularity and is
+        far cheaper than cell-by-cell (14 extra forward passes vs 420).
+        
+        BASELINE VALUE: We use `0.0` to occlude the features. Since the operational
+        data is already z-score normalized on the population (via Month 2's fit_normalizer),
+        `0.0` intrinsically represents the population-average value. Using the window
+        mean would improperly erase within-window degradation trends.
+        """
+        if window.shape != (30, 14):
+            return []
+            
+        attributions = []
+        from server.atlas.world_model import prepare_window
+        
+        from server.adapters.cmapss_adapter import INFORMATIVE_SENSORS, SENSOR_DESCRIPTIONS
+        
+        for sensor_idx in range(14):
+            # Map the 0-13 index to the actual C-MAPSS sensor string (e.g., 's3')
+            # and then to its physical description.
+            sensor_code = INFORMATIVE_SENSORS[sensor_idx]
+            physical_desc = SENSOR_DESCRIPTIONS.get(sensor_code, sensor_code)
+            sensor_name = f"{sensor_code} ({physical_desc})"
+            
+            # 1. Copy window
+            occluded_window = np.copy(window)
+            
+            # 2. Coarse occlusion: zero out entire column using population mean baseline (0.0)
+            occluded_window[:, sensor_idx] = 0.0
+            
+            # 3. Predict RUL
+            occ_tensor = prepare_window(occluded_window, seq_len=30, feature_dim=14)
+            occ_out = ace.world_model.predict(occ_tensor)
+            occ_rul = occ_out.rul_pred
+            
+            # 4. Calculate signed delta and magnitude
+            # If removing sensor increases RUL, the sensor's real values were dragging RUL DOWN (degradation signal)
+            signed_delta = occ_rul - baseline_rul
+            magnitude = abs(signed_delta)
+            
+            attributions.append({
+                "sensor_index": sensor_idx,
+                "sensor_name": sensor_name,
+                "magnitude": float(magnitude),
+                "signed_delta": float(signed_delta)
+            })
+            
+        # 5. Sort by magnitude descending
+        # To ensure stable sort for ties, sort by sensor_index ascending secondarily
+        attributions.sort(key=lambda x: (-x["magnitude"], x["sensor_index"]))
+        return attributions
