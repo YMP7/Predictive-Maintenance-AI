@@ -94,6 +94,91 @@ class DomainService:
             )
             return False
 
+    def register_laptop(self) -> bool:
+        """
+        Register the Laptop adapter for live telemetry streaming.
+        Uses EMA fallback (no trained WorldModel for the laptop domain yet).
+        Polling interval is controlled by POLL_INTERVAL_S (default 0.5s for the
+        streaming loop, but the laptop adapter itself is designed for 5s granularity
+        which the caller can control externally).
+        """
+        try:
+            from server.adapters.laptop_adapter import LaptopAdapter
+            adapter = LaptopAdapter()
+            adapter.connect()
+            engine = RULEngine(domain="laptop", cycles_per_day=0.14)
+            with self._lock:
+                self._adapters["laptop"] = adapter
+                self._engines["laptop"] = engine
+            logger.info(
+                f"Laptop adapter registered: {adapter.machine_ids} (EMA fallback, no trained model)"
+            )
+            return True
+        except Exception as e:
+            logger.warning(f"Laptop adapter not registered: {e}")
+            return False
+
+    def register_mobile(self, endpoint_url: Optional[str] = None) -> bool:
+        """
+        Register the Mobile (Android / Termux) adapter for telemetry streaming.
+        Uses EMA fallback (no trained WorldModel for mobile yet).
+        Connects to live Termux:API bridge if reachable; falls back to simulation.
+        """
+        try:
+            from server.adapters.mobile_adapter import MobileAdapter
+            adapter = MobileAdapter(endpoint_url=endpoint_url)
+            adapter.connect()
+            engine = RULEngine(domain="mobile", cycles_per_day=0.14)
+            with self._lock:
+                self._adapters["mobile"] = adapter
+                self._engines["mobile"] = engine
+            logger.info(
+                f"Mobile adapter registered: {adapter.machine_ids} "
+                f"({'LIVE' if adapter._is_live else 'SIMULATION'})"
+            )
+            return True
+        except Exception as e:
+            logger.warning(f"Mobile adapter not registered: {e}")
+            return False
+
+    def register_server(
+        self,
+        host: Optional[str] = None,
+        port: int = 22,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        key_filename: Optional[str] = None,
+        has_gpu: bool = False,
+    ) -> bool:
+        """
+        Register the Server (Linux Cloud VM / Enterprise Server) adapter for telemetry streaming.
+        Uses EMA fallback (no trained WorldModel for server yet).
+        Connects via SSH if credentials provided; falls back to simulation.
+        """
+        try:
+            from server.adapters.server_adapter import ServerAdapter
+            adapter = ServerAdapter(
+                host=host,
+                port=port,
+                username=username,
+                password=password,
+                key_filename=key_filename,
+                has_gpu=has_gpu,
+            )
+            adapter.connect()
+            engine = RULEngine(domain="server", cycles_per_day=0.14)
+            with self._lock:
+                self._adapters["server"] = adapter
+                self._engines["server"] = engine
+            logger.info(
+                f"Server adapter registered: {adapter.machine_ids} "
+                f"({'LIVE' if adapter._is_live else 'SIMULATION'})"
+            )
+            return True
+        except Exception as e:
+            logger.warning(f"Server adapter not registered: {e}")
+            return False
+
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
