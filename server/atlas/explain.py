@@ -16,6 +16,7 @@ class ExplanationReport:
     note: str = ""
     sensor_attributions: List[Dict[str, float]] = field(default_factory=list)
     top_contributors: List[str] = field(default_factory=list)
+    attribution_unavailable_reason: Optional[str] = None
     
     def to_dict(self):
         return {
@@ -25,7 +26,8 @@ class ExplanationReport:
             "citations": self.citations,
             "note": self.note,
             "sensor_attributions": self.sensor_attributions,
-            "top_contributors": self.top_contributors
+            "top_contributors": self.top_contributors,
+            "attribution_unavailable_reason": self.attribution_unavailable_reason
         }
 
 class ExplanationEngine:
@@ -70,14 +72,27 @@ class ExplanationEngine:
         similarities = []
         for n in neighbors:
             if getattr(n, "rul", None) is None:
-                # Enforce the true_rul guarantee. (Month 6 note: this raises for now, 
-                # but will be changed to a filter when live domains launch).
-                raise ValueError("Neighbors must contain true RUL for citations, not predicted RUL.")
+                if context.domain == "cmapss":
+                    raise ValueError("Neighbors must contain true RUL for citations, not predicted RUL")
+                # Month 6 Update: Filter out live-domain neighbors (e.g. laptop)
+                # that have no known failure time, ensuring we only cite 
+                # historical fully-failed experiences.
+                continue
             true_ruls.append(n.rul)
             # n.distance from pgvector is cosine distance [0, 2], where 0 is identical.
             # We map this to a similarity score [0, 1] where 1 is identical.
             sim = 1.0 / (1.0 + n.distance)
             similarities.append(sim)
+            
+        if not true_ruls:
+            # If ALL neighbors were filtered out, fallback safely
+            logger.warning("No neighbors with true_rul found. Cannot generate confident citations.")
+            return ExplanationReport(
+                confidence_score=0.5,
+                confidence_level="Low",
+                primary_justification="Insufficient historical failure data for confident citation.",
+                citations=[]
+            )
             
         true_ruls_arr = np.array(true_ruls)
         similarities_arr = np.array(similarities)
@@ -109,8 +124,10 @@ class ExplanationEngine:
         top_contributors = []
         attribution_text = ""
         
+        attribution_unavailable_reason = None
+        
         if window is not None and ace is not None:
-            attributions = self.calculate_feature_attribution(window, ace, context.predicted_rul)
+            attributions, attribution_unavailable_reason = self.calculate_feature_attribution(window, ace, context.predicted_rul)
             
             # Get top K contributors (e.g., top 3)
             top_k = attributions[:3]
@@ -136,6 +153,8 @@ class ExplanationEngine:
         # Construct citations
         citations = []
         for n in neighbors:
+            if getattr(n, "rul", None) is None:
+                continue
             # Map cosine distance back to similarity for human readability, or just show distance
             sim = 1.0 / (1.0 + n.distance)
             citations.append(f"Unit {n.machine_id} at cycle {n.cycle} (True RUL: {n.rul:.1f}, similarity: {sim:.4f})")
@@ -147,7 +166,8 @@ class ExplanationEngine:
             citations=citations,
             note=note,
             sensor_attributions=attributions,
-            top_contributors=top_contributors
+            top_contributors=top_contributors,
+            attribution_unavailable_reason=attribution_unavailable_reason
         )
 
     def calculate_feature_attribution(self, window: np.ndarray, ace, baseline_rul: float) -> List[Dict[str, float]]:
@@ -165,7 +185,7 @@ class ExplanationEngine:
         mean would improperly erase within-window degradation trends.
         """
         if window.shape != (30, 14):
-            return []
+            return [], "Feature attribution not yet implemented for domains with feature_dim != 14 (got shape {}).".format(window.shape)
             
         attributions = []
         from server.atlas.world_model import prepare_window
@@ -205,4 +225,4 @@ class ExplanationEngine:
         # 5. Sort by magnitude descending
         # To ensure stable sort for ties, sort by sensor_index ascending secondarily
         attributions.sort(key=lambda x: (-x["magnitude"], x["sensor_index"]))
-        return attributions
+        return attributions, None

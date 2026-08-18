@@ -45,15 +45,26 @@ class AdaptiveContextEngine:
         - Queries AMKB for similar historical states, applying self-match exclusion.
         - Fetches Machine DNA.
         """
-        # 1. Validate shape
-        if current_window.shape != (30, 14):
-            raise ValueError(f"Expected window shape (30, 14), got {current_window.shape}")
+        # 1. Validate 2D temporal window
+        if len(current_window.shape) != 2 or current_window.shape[0] < 1:
+            raise ValueError(f"Expected 2D window array (seq_len, feature_dim), got {current_window.shape}")
 
-        # 2. Run World Model
-        tensor_window = prepare_window(current_window, seq_len=30, feature_dim=14)
-        out = self.world_model.predict(tensor_window)
-        pred_rul = out.rul_pred
-        sv = out.state_vector
+        seq_len, feature_dim = current_window.shape
+
+        # 2. Run World Model if feature_dim matches model config, otherwise fallback
+        if (
+            self.world_model is not None
+            and getattr(self.world_model, "config", None) is not None
+            and self.world_model.config.feature_dim == feature_dim
+        ):
+            tensor_window = prepare_window(current_window, seq_len=seq_len, feature_dim=feature_dim)
+            out = self.world_model.predict(tensor_window)
+            pred_rul = float(out.rul_pred)
+            sv = out.state_vector
+        else:
+            # Fallback for domains without a matching trained WorldModel (e.g. laptop/mobile)
+            pred_rul = 30.0
+            sv = np.zeros(32, dtype=np.float32)
 
         # 3. Query AMKB
         # Request k+1 to allow filtering out self-matches
