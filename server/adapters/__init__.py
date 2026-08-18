@@ -21,6 +21,9 @@ from server.adapters.base_adapter import (
     AdapterConnectionError,
 )
 from server.adapters.cmapss_adapter import CMAPSSAdapter
+from server.adapters.laptop_adapter import LaptopAdapter
+from server.adapters.mobile_adapter import MobileAdapter
+from server.adapters.server_adapter import ServerAdapter
 
 __all__ = [
     "NormalizedReading",
@@ -29,4 +32,7 @@ __all__ = [
     "DatasetNotFoundError",
     "AdapterConnectionError",
     "CMAPSSAdapter",
+    "LaptopAdapter",
+    "MobileAdapter",
+    "ServerAdapter",
 ]

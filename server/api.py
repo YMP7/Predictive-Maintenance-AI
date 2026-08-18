@@ -12,6 +12,7 @@ from server.atlas.adaptive_context import AdaptiveContextEngine, AdaptiveContext
 from server.atlas.explain import ExplanationEngine
 from server.atlas.simulation import SimulationEngine
 from server.atlas.decision import DecisionGraph
+from server.atlas.learning_engine import LearningEngine, LearningResult
 import dataclasses
 
 app = FastAPI(title="ATLAS Adaptive Context API")
@@ -26,11 +27,12 @@ _ace: Optional[AdaptiveContextEngine] = None
 _explain_engine: Optional[ExplanationEngine] = None
 _simulation_engine: Optional[SimulationEngine] = None
 _decision_graph: Optional[DecisionGraph] = None
+_learning_engine: Optional[LearningEngine] = None
 
 @app.on_event("startup")
 def startup_event():
     global _amkb, _dna_engine, _world_model, _ace, _explain_engine
-    global _simulation_engine, _decision_graph
+    global _simulation_engine, _decision_graph, _learning_engine
     
     # 1. Connect AMKB (Vector DB)
     _amkb = AMKB()
@@ -48,6 +50,7 @@ def startup_event():
     _explain_engine = ExplanationEngine()
     _simulation_engine = SimulationEngine()
     _decision_graph = DecisionGraph()
+    _learning_engine = LearningEngine()
 
 @app.on_event("shutdown")
 def shutdown_event():
@@ -58,13 +61,27 @@ def shutdown_event():
         except Exception:
             pass
 
+def _validate_window(window: List[List[float]]) -> np.ndarray:
+    if not window or len(window) == 0:
+        raise HTTPException(status_code=400, detail="Window cannot be empty.")
+    expected_cols = len(window[0])
+    if expected_cols == 0:
+        raise HTTPException(status_code=400, detail="Window rows cannot be empty.")
+    for idx, row in enumerate(window):
+        if len(row) != expected_cols:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Inconsistent window dimensions at step {idx}: expected {expected_cols}, got {len(row)}."
+            )
+    return np.array(window, dtype=np.float32)
+
 class ContextQueryRequest(BaseModel):
     domain: str
     machine_id: str
     cycle: int
     window: List[List[float]] = Field(
         ...,
-        description="A 30x14 array of float values representing the current operational window."
+        description="A 2D array (seq_len x feature_dim) of float values representing the operational window."
     )
     k: int = Field(10, description="Number of neighbors to retrieve")
 
@@ -73,14 +90,7 @@ def get_context(req: ContextQueryRequest):
     if _ace is None:
         raise HTTPException(status_code=503, detail="ACE not initialized")
     
-    # Validate exactly 30x14
-    if len(req.window) != 30:
-        raise HTTPException(status_code=400, detail="Window must have exactly 30 time steps.")
-    for row in req.window:
-        if len(row) != 14:
-            raise HTTPException(status_code=400, detail="Each time step must have exactly 14 sensors.")
-            
-    np_window = np.array(req.window, dtype=np.float32)
+    np_window = _validate_window(req.window)
     
     try:
         context = _ace.build_context(
@@ -104,7 +114,7 @@ def post_explain(req: ContextQueryRequest):
         raise HTTPException(status_code=503, detail="Atlas engines not initialized")
         
     try:
-        np_window = np.array(req.window, dtype=np.float32)
+        np_window = _validate_window(req.window)
         context = _ace.build_context(
             domain=req.domain,
             machine_id=req.machine_id,
@@ -127,7 +137,7 @@ def post_decide(req: ContextQueryRequest):
         raise HTTPException(status_code=503, detail="Atlas engines not initialized")
         
     try:
-        np_window = np.array(req.window, dtype=np.float32)
+        np_window = _validate_window(req.window)
         
         # 1. Get Context (including predicted RUL and neighbors)
         context = _ace.build_context(
@@ -169,6 +179,49 @@ def post_decide(req: ContextQueryRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+class RetrainRequest(BaseModel):
+    domain: str = "cmapss"
+    trigger_reason: str = "manual"
+    epochs: int = 5
+    batch_size: int = 128
+    lr: float = 1e-3
+
+
+@app.post("/api/learn/retrain")
+def retrain_model(req: RetrainRequest):
+    """Triggers a controlled batch retraining run with Candidate-vs-Active validation gating."""
+    if _learning_engine is None:
+        raise HTTPException(status_code=503, detail="Learning Engine not initialized")
+
+    try:
+        result = _learning_engine.retrain_domain(
+            domain=req.domain,
+            trigger_reason=req.trigger_reason,
+            epochs=req.epochs,
+            batch_size=req.batch_size,
+            lr=req.lr,
+        )
+        return result.to_dict()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/learn/history")
+def get_learning_history(domain: str = "cmapss", limit: int = 20):
+    """Fetches learning event audit logs from the database."""
+    if _learning_engine is None:
+        raise HTTPException(status_code=503, detail="Learning Engine not initialized")
+
+    try:
+        history = _learning_engine.get_learning_history(domain=domain, limit=limit)
+        return {"domain": domain, "history": history}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/dna/{domain}/{machine_id}")
 def get_dna(domain: str, machine_id: str):

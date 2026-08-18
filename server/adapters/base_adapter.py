@@ -81,8 +81,15 @@ class NormalizedReading:
     domain          : Which adapter produced this reading (DomainType value)
     machine_id      : Unique ID within the domain  (e.g., "unit_1", "laptop_local")
     timestamp       : UTC ISO-8601 string
-    health_index    : Normalised degradation in [0.0, 1.0]. 0 = fresh, 1 = failed.
-                      The adapter is responsible for computing this from domain signals.
+    health_index    : Normalized health indicator in [0.0, 1.0].
+                      CANONICAL TAXONOMY:
+                      - Category A (Benchmark Ground Truth, e.g. C-MAPSS):
+                        Physical wear/degradation toward failure (0.0 = fresh, 1.0 = failed).
+                      - Category B (Live Heterogeneous Hardware, e.g. Laptop, Mobile, Server):
+                        Instantaneous Operational Stress / Saturation Index (composite score
+                        measuring workload intensity, thermal strain, and resource saturation).
+                        Continuous live systems lack fixed failure timestamps; health_index
+                        tracks real-time operational load rather than irreversible structural wear.
     cycle           : For time-series datasets: the current cycle / step index.
                       For live adapters: total uptime seconds (or 0 if unavailable).
     rul_label       : Ground-truth RUL (cycles/days) if known (C-MAPSS training set).

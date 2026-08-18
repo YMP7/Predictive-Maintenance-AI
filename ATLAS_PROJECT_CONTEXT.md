@@ -118,34 +118,45 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 - **4 patent candidates** (labeled candidates for post-implementation evaluation, NOT filed claims): (1) simulation-coupled cost-weighted Decision Graph, (2) Machine DNA representation (pending prior-art search), (3) AMKB-grounded explainability method, (4) adapter-based cross-domain cognition pipeline.
 - **Open-source release:** the ATLAS Cross-Domain Benchmark (normalized data from all 4 domains + eval scripts) as a standalone citable artifact.
 - **Ablations planned (final list, 4):** RUL-alone vs. full pipeline · AMKB-grounded vs. ungrounded explainability · cost-weighted vs. naive-threshold Decision Graph · single-domain vs. cross-domain-informed World Model.
+- **Academic Grounding & Literature Mapping:** All 36 core literature papers (Attention-LSTM RUL, AMKB dynamic memory, Monte Carlo decision optimization, XAI/digital twins, and domain adaptation) are formally mapped to codebase modules and thesis chapters in [`docs/LITERATURE_MAPPING.md`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/LITERATURE_MAPPING.md).
 
 ---
 
 ## 6. Current Status
 *(Update this section whenever real progress is made — this is the handoff source of truth)*
 
-- **Current phase:** Month 5 (Learning Engine)
-- **Immediate Task:** Begin designing and integrating the Learning Engine, transitioning from pre-trained static WorldModels to continuous active learning / domain adaptation based on newly streamed experiences.
+- **Current phase:** Month 7 (Learning Engine & Full Pipeline Integration)
+- **Immediate Task:** Begin designing and integrating the Learning Engine (`LearningEngine`), enabling batch/periodic retraining on logged operational outcomes and domain adaptation over newly streamed experiences across the 4 adapters.
 
-**Sequencing decision in effect:** AI core built first on C-MAPSS (Months 1–5); adapters for Laptop/Mobile/Server come in Month 6, not before.
+**Sequencing decision in effect:** AI core built first on C-MAPSS (Months 1–5); adapters for Laptop/Mobile/Server built and verified in Month 6.
 
 **Completed so far (agent-built scaffolding):**
-- [x] `server/adapters/base_adapter.py` — `NormalizedReading` schema + `MachineAdapter` ABC
+- [x] `server/adapters/base_adapter.py` — `NormalizedReading` schema + `MachineAdapter` ABC with canonical Category A/B health index taxonomy
 - [x] `server/adapters/cmapss_adapter.py` — full C-MAPSS streamer, PHM scoring function
-- [x] `server/atlas/world_model.py` — LSTM encoder (hidden=64 → `to_state` Linear → state_dim=32), save/load, stub fallback
-- [x] `server/atlas/rul_engine.py` — LSTM primary path + EMA fallback, thread-safe
+- [x] `server/adapters/laptop_adapter.py` — live host telemetry via `psutil` + Instantaneous Stress Score
+- [x] `server/adapters/mobile_adapter.py` — Android device via Termux:API + simulation fallback
+- [x] `server/adapters/server_adapter.py` — Linux enterprise server via Paramiko SSH + simulation fallback
+- [x] `server/atlas/world_model.py` — Attention-LSTM encoder (hidden=64 → `TemporalAttention` → `to_state` Linear → state_dim=32), save/load, stub fallback
+- [x] `server/atlas/rul_engine.py` — Attention-LSTM primary path + calibrated `_EMAFallback` (median filter window=5, alpha=0.15), thread-safe
 - [x] `server/atlas/train_rul.py` — training script with benchmarking + `--quick` mode
-- [x] `server/atlas/domain_service.py` — background streaming + snapshot cache
+- [x] `server/atlas/domain_service.py` — background multi-domain streaming + snapshot cache (`register_cmapss`, `register_laptop`, `register_mobile`, `register_server`)
 - [x] `scripts/migrate_atlas.py` — pgvector + AMKB (vector(32)) + DNA + snapshots + learning_events tables
-- [x] ATLAS API endpoints added to `server/backend_api.py`
+- [x] ATLAS API endpoints parameterized for multi-domain queries in `server/api.py`
 - [x] `server/integrated_server.py` wired with ATLAS `DomainService`
-- [x] `tests/test_adapters.py` — 29 passed, 1 skipped (integration gate on dataset presence)
 - [x] `ml/preprocessing.py` — standalone preprocessing pipeline (windowing, normalization, RUL labeling)
-- [x] `notebooks/week1_eda.ipynb` — exploratory data analysis scaffold
+- [x] `docs/LITERATURE_MAPPING.md` — formal academic mapping of all 36 research papers across codebase modules and thesis chapters
 
-  - **Month 4 — DONE:** Explainability Engine fully built in two phases:
+  - **Month 4 — DONE:** Explainability Engine fully built:
     - Phase 1: AMKB-grounded historical citations with bounded confidence scores `(avg_sim * (1 / (1 + variance)))` and strict `true_rul` citation enforcement.
-    - Phase 2: Feature Attribution using 30-timestep column occlusion (baseline `0.0` population mean) to capture signed degradation metrics mapped to actual C-MAPSS physical sensor names.
+    - Phase 2: Feature Attribution using 30-timestep column occlusion (baseline `0.0` population mean) with explicit `attribution_unavailable_reason` reporting for non-14 feature domains.
+  - **Month 5 — DONE:** Simulation Engine & Decision Graph:
+    - Monte Carlo rollout over prognostic uncertainty with `ACTION_LEAD_TIME` risk-exposure modeling.
+    - Deterministic tie-breaking (`expected_cost → p_failure → cost_std → action_name`) and strict confidence reuse from `ExplanationReport`.
+  - **Month 6 — DONE:** Heterogeneous Machine Adapters & Multi-Domain Generalization:
+    - Built all 4 domain adapters (`cmapss`, `laptop`, `mobile`, `server`).
+    - Consolidated canonical health index taxonomy (Category A: physical wear vs. Category B: operational stress).
+    - Fully parameterized `AdaptiveContextEngine` and `api.py` for arbitrary 2D window shapes.
+    - Verified AMKB domain isolation (17,731 C-MAPSS rows untouched under multi-domain writes).
 
 **Pending user actions (blocking):**
 - [ ] Download C-MAPSS dataset → place `.txt` files in `data/cmapss/`
@@ -240,8 +251,21 @@ During Month 5, we integrated Monte Carlo Simulation with a Decision Graph to ma
 - **Tie-Breaker Bug:** The initial tie-breaker logic silently favored alphabetical sorting (`CONTINUE_OPERATION` > `SCHEDULE...`), creating a dangerous default to inaction. We corrected this to firmly prioritize stringently safer actions: `expected_cost → p_failure_before_action → cost_std → action_name`. 
 - **Confidence Reuse Architecture Rule:** We mandated that `DecisionGraph` confidence must be exclusively fetched from the `ExplanationReport` (`confidence_score`). It is structurally forbidden to recompute confidence independently inside the decision layer to prevent metric drift.
 
+### Month 6 Heterogeneous Machine Adapters & Cross-Domain Taxonomy Arc
+During Month 6, we expanded the Machine Adapter Layer to 4 distinct hardware tiers and generalized the query/decision pipeline across multi-dimensional operational spaces.
+- **Canonical Health Index Taxonomy:** We formalized a clean two-tier taxonomy in `base_adapter.py`:
+  1. *Category A (Benchmark Ground Truth, C-MAPSS):* Physical structural degradation toward failure ($[0.0, 1.0]$ where $0.0 = \text{fresh}$, $1.0 = \text{failed}$).
+  2. *Category B (Live Heterogeneous Hardware: Laptop, Mobile, Server):* Instantaneous Operational Stress / Saturation Index ($[0.0, 1.0]$ composite load score). Live continuous machines lack fixed failure points; `health_index` represents real-time workload intensity rather than structural degradation.
+- **Dual-Mode Connection & Resilience:** Built non-blocking fault tolerance into `MobileAdapter` (Termux:API) and `ServerAdapter` (Paramiko SSH). If endpoints are offline, credentials unconfigured, or SSH drops mid-poll, the adapter cleanly auto-transitions to `SIMULATION` fallback without throwing exceptions or halting background polling threads.
+- **High-End Server Tier Honesty Framing:** The `ServerAdapter` runs in high-fidelity Linux enterprise server simulation by default. While real Paramiko SSH transport is implemented and contract-tested, it is explicitly documented as provisional/simulated until live cloud VM credentials (e.g. GitHub Student Pack / GCP) are configured.
+- **Query-Time Pipeline Parameterization:** We parameterized `AdaptiveContextEngine`, `server/api.py`, and `server/atlas/explain.py` to handle arbitrary 2D window dimensions (e.g. `(30, 5)` for laptop/mobile/server alongside `(30, 14)` for C-MAPSS). When non-14 feature windows are passed, `explain.py` returns a machine-readable `attribution_unavailable_reason` field to prevent silent capability gaps.
+
 | Date | File | Decision | Reason |
 |---|---|---|---|
+| Month 6 W1 | `server/adapters/laptop_adapter.py` | `health_index` defined as Instantaneous Stress Score (`0.7*cpu + 0.3*mem`) | Laptops lack labeled failure points; load is a stress proxy, not structural failure |
+| Month 6 W2 | `server/atlas/domain_service.py` | Standalone polling loop streams laptop readings into AMKB (`true_rul=None`) | Partitions live experiences into `domain='laptop'` without contaminating C-MAPSS rows |
+| Month 6 W3 | `server/atlas/adaptive_context.py` | Relaxed hardcoded `(30, 14)` check; dynamic shape handling with zero-shot fallback | Enables `/api/context`, `/api/explain`, and `/api/decide` to serve non-CMAPSS domains |
+| Month 6 W4 | `server/adapters/server_adapter.py` | Mathematical weight verification for GPU (`0.35/0.25/0.20/0.10/0.10`) & No-GPU (`0.45/0.35/0.10/0.10`) | Guarantees stress formulas strictly sum to 1.0 under all hardware configurations |
 | Month 1 W1 | `server/adapters/base_adapter.py` | State vector dimension fixed at **32** throughout (AMKB, DNA, WorldModel `to_state` output all `vector(32)`) | Canonical dimension must be consistent across all three subsystems simultaneously — do not change one without the others |
 | Month 1 W2 | `ml/preprocessing.py` | Added `sort_values(["unit","cycle"]).reset_index(drop=True)` at the top of `compute_train_rul` | Without this, windowed features are correct in shape but silently wrong in ordering if the raw file has out-of-order rows — shape checks don't catch this |
 | Month 1 W3 | `server/atlas/world_model.py` | **Removed terminal `nn.ReLU()` from `rul_head`** — non-negativity enforced at inference via `torch.clamp(min=0)` in `predict()` instead | Terminal ReLU on output layer causes init-dependent dead outputs: when random init produces negative `Linear(16→1)` outputs (~50% of seeds), ReLU collapses every prediction to exactly `0.0` identically — zero std, zero gradient, training appears stuck with no error. Fix: remove the ReLU so MSE loss can push raw outputs toward the correct sign via unblocked gradient; non-negativity is then enforced separately at inference via `clamp(min=0)`. MSE does not enforce non-negativity — it just stops being blocked from doing its job. |
@@ -379,3 +403,21 @@ class TempRULHead(nn.Module):
 This is **not the final RUL model** — that's Month 3. This is purely a sanity check.
 
 **Week 4 deliverable:** training script + loss curve + scatter plot of predicted vs. actual RUL on a validation split. **Keep this plot — it's your first real result and belongs in the thesis.**
+
+---
+
+## Pending Actions — Known Hardcoded C-MAPSS Assumptions
+
+**Context:** Audited during Month 6 Week 2 planning. These four locations assume the C-MAPSS domain's specific dimensions. They do NOT block storing laptop data into AMKB (storage is fully domain-parameterized). They MUST be resolved before the laptop domain can be *queried* through the API or context engines.
+
+| # | File | Line(s) | What's hardcoded | Severity |
+|---|------|---------|-------------------|----------|
+| 1 | `server/api.py` | 42 | Single hardcoded WorldModel path (`cmapss_world_model.pt`). No laptop model loaded at startup. | 🔴 Blocks `/api/context`, `/api/decide` for laptop |
+| 2 | `server/api.py` | 77–81 | Window validation hardcoded to `len(row) != 14`. Laptop's 5-feature window rejected with HTTP 400. | 🔴 Blocks laptop API queries |
+| 3 | `server/atlas/adaptive_context.py` | 49 | `if current_window.shape != (30, 14): raise ValueError` inside `build_context()`. | 🔴 Blocks laptop context building |
+| 4 | `server/atlas/explain.py` | 180–202 | `calculate_feature_attribution` imports `INFORMATIVE_SENSORS` from `cmapss_adapter`, loops `range(14)`. Returns `[]` for non-(30,14) windows with no indication this is a known limitation. | 🟡 Non-fatal but silently returns empty attributions |
+
+**Status:** Not blocking Month 6 Week 2 (storage-only polling loop). **MUST resolve before Week 3/4 laptop query support.**
+
+**Fix approach:** Make `AdaptiveContextEngine` read `feature_dim` and `seq_len` from the domain's `WorldModelConfig` instead of hardcoding `(30, 14)`. For explain.py, add domain-aware sensor name lookup or return an explicit `attribution_unavailable_reason` field.
+
