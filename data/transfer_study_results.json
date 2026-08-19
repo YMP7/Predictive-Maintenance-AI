@@ -1,0 +1,101 @@
+{
+  "domains": [
+    "cmapss",
+    "laptop",
+    "mobile",
+    "server"
+  ],
+  "cosine_similarity_matrix": {
+    "cmapss": {
+      "cmapss": 1.0,
+      "laptop": 0.180858,
+      "mobile": -0.08621,
+      "server": 0.161789
+    },
+    "laptop": {
+      "cmapss": 0.180858,
+      "laptop": 1.0,
+      "mobile": -0.040571,
+      "server": -0.034097
+    },
+    "mobile": {
+      "cmapss": -0.08621,
+      "laptop": -0.040571,
+      "mobile": 1.0,
+      "server": 0.151418
+    },
+    "server": {
+      "cmapss": 0.161789,
+      "laptop": -0.034097,
+      "mobile": 0.151418,
+      "server": 1.0
+    }
+  },
+  "mmd_divergence_matrix": {
+    "cmapss": {
+      "cmapss": 0.0,
+      "laptop": 1.228644,
+      "mobile": 1.23268,
+      "server": 1.228485
+    },
+    "laptop": {
+      "cmapss": 1.228644,
+      "laptop": 0.0,
+      "mobile": 0.876159,
+      "server": 0.739155
+    },
+    "mobile": {
+      "cmapss": 1.23268,
+      "laptop": 0.876159,
+      "mobile": 0.0,
+      "server": 0.82517
+    },
+    "server": {
+      "cmapss": 1.228485,
+      "laptop": 0.739155,
+      "mobile": 0.82517,
+      "server": 0.0
+    }
+  },
+  "negative_transfer_indices": {
+    "laptop": 0.048718,
+    "mobile": 20.933783,
+    "server": 6.240547
+  },
+  "provenance": {
+    "cmapss": {
+      "domain": "cmapss",
+      "is_trained": true,
+      "checkpoint_name": "best_model.pt",
+      "n_samples": 250,
+      "data_source_type": "benchmark_ground_truth",
+      "notes": "NASA C-MAPSS FD001 benchmark test set (100 turbofan units)"
+    },
+    "laptop": {
+      "domain": "laptop",
+      "is_trained": true,
+      "checkpoint_name": "laptop_world_model.pt",
+      "n_samples": 250,
+      "data_source_type": "simulation_profile",
+      "notes": "Operational workload profile calibrated to psutil telemetry"
+    },
+    "mobile": {
+      "domain": "mobile",
+      "is_trained": true,
+      "checkpoint_name": "mobile_world_model.pt",
+      "n_samples": 250,
+      "data_source_type": "simulation_profile",
+      "notes": "Thermal and discharge workload profile calibrated to Termux:API"
+    },
+    "server": {
+      "domain": "server",
+      "is_trained": true,
+      "checkpoint_name": "server_world_model.pt",
+      "n_samples": 250,
+      "data_source_type": "simulation_profile",
+      "notes": "Multi-core and GPU saturation profile calibrated to SSH telemetry"
+    }
+  },
+  "timestamp": "2026-08-19T10:52:35Z",
+  "methodology_notes": "Passive MMD and Centroid Cosine representation discrepancy diagnostics"
+}

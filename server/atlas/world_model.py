@@ -240,7 +240,9 @@ if _TORCH_AVAILABLE:
             """
             self.eval()
             with torch.no_grad():
-                x = torch.tensor(window, dtype=torch.float32).unsqueeze(0)  # (1, T, F)
+                x = torch.tensor(window, dtype=torch.float32)
+                if x.ndim == 2:
+                    x = x.unsqueeze(0)  # (1, T, F)
                 out = self(x)
                 
                 rul = out.rul_pred.item()
@@ -257,10 +259,10 @@ if _TORCH_AVAILABLE:
 
         # ------------------------------------------------------------------
 
-        def save(self, path: Optional[Path] = None) -> Path:
+        def save(self, path: Optional[Path | str] = None) -> Path:
             """Save model weights + config to disk."""
             import json
-            target = path or self.config.model_path
+            target = Path(path) if path else self.config.model_path
             target.parent.mkdir(parents=True, exist_ok=True)
             torch.save({
                 "model_state_dict": self.state_dict(),
