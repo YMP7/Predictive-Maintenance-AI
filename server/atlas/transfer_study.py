@@ -46,12 +46,25 @@ class DomainProvenance:
 
 
 @dataclass
+class SemanticRetrievalTransferResult:
+    """Quantitative measurement of AMKB cross-domain memory retrieval transfer."""
+    domain: str
+    within_rmse: float
+    cross_rmse: float
+    error_inflation_ratio: float
+    mean_latent_dist_within: float
+    mean_latent_dist_cross: float
+    negative_transfer_index: float
+
+
+@dataclass
 class TransferStudyResult:
     """Aggregated results of the cross-domain representation discrepancy study."""
     domains: List[str]
     cosine_similarity_matrix: Dict[str, Dict[str, float]]
     mmd_divergence_matrix: Dict[str, Dict[str, float]]
     negative_transfer_indices: Dict[str, float]
+    retrieval_transfer_diagnostics: Dict[str, SemanticRetrievalTransferResult]
     provenance: Dict[str, DomainProvenance]
     timestamp: str
     methodology_notes: str = ""
@@ -248,6 +261,52 @@ class TransferStudyEngine:
 
         nti = (cross_var - within_var) / (within_var + 1.0)
         return float(round(nti, 6))
+
+    @classmethod
+    def compute_retrieval_transfer_diagnostics(
+        cls,
+        domain: str,
+        z_query: np.ndarray,
+        y_query_true: np.ndarray,
+        z_within_mem: np.ndarray,
+        y_within_mem: np.ndarray,
+        z_cmapss_mem: np.ndarray,
+        y_cmapss_mem: np.ndarray,
+        k: int = 5,
+    ) -> SemanticRetrievalTransferResult:
+        """
+        Evaluates cross-domain latent memory retrieval without domain adaptation.
+        Compares:
+          1. Within-domain k-NN retrieval on shared 32-dim latent space
+          2. Cross-domain k-NN retrieval against C-MAPSS degradation memory bank
+        """
+        # Within-domain k-NN retrieval
+        dists_within = cdist(z_query, z_within_mem, metric="euclidean")
+        nn_within_idx = np.argsort(dists_within, axis=1)[:, :k]
+        preds_within = np.mean(y_within_mem[nn_within_idx], axis=1)
+        mean_dist_within = float(np.mean(np.take_along_axis(dists_within, nn_within_idx, axis=1)))
+
+        # Cross-domain k-NN retrieval against C-MAPSS memory bank
+        dists_cross = cdist(z_query, z_cmapss_mem, metric="euclidean")
+        nn_cross_idx = np.argsort(dists_cross, axis=1)[:, :k]
+        preds_cross = np.mean(y_cmapss_mem[nn_cross_idx], axis=1)
+        mean_dist_cross = float(np.mean(np.take_along_axis(dists_cross, nn_cross_idx, axis=1)))
+
+        within_rmse = float(np.sqrt(np.mean((preds_within - y_query_true) ** 2)))
+        cross_rmse = float(np.sqrt(np.mean((preds_cross - y_query_true) ** 2)))
+
+        ratio = (cross_rmse / within_rmse) if within_rmse > 0 else 1.0
+        nti = cls.compute_negative_transfer_index(preds_within, preds_cross)
+
+        return SemanticRetrievalTransferResult(
+            domain=domain,
+            within_rmse=round(within_rmse, 4),
+            cross_rmse=round(cross_rmse, 4),
+            error_inflation_ratio=round(ratio, 2),
+            mean_latent_dist_within=round(mean_dist_within, 4),
+            mean_latent_dist_cross=round(mean_dist_cross, 4),
+            negative_transfer_index=nti,
+        )
 
     def check_domain_training_status(self, domain: str) -> bool:
         """

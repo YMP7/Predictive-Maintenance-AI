@@ -8,59 +8,88 @@
   "cosine_similarity_matrix": {
     "cmapss": {
       "cmapss": 1.0,
-      "laptop": 0.180858,
-      "mobile": -0.08621,
-      "server": 0.161789
+      "laptop": 0.140048,
+      "mobile": 0.154323,
+      "server": 0.080045
     },
     "laptop": {
-      "cmapss": 0.180858,
+      "cmapss": 0.140048,
       "laptop": 1.0,
-      "mobile": -0.040571,
-      "server": -0.034097
+      "mobile": -0.109655,
+      "server": -0.216945
     },
     "mobile": {
-      "cmapss": -0.08621,
-      "laptop": -0.040571,
+      "cmapss": 0.154323,
+      "laptop": -0.109655,
       "mobile": 1.0,
-      "server": 0.151418
+      "server": 0.07288
     },
     "server": {
-      "cmapss": 0.161789,
-      "laptop": -0.034097,
-      "mobile": 0.151418,
+      "cmapss": 0.080045,
+      "laptop": -0.216945,
+      "mobile": 0.07288,
       "server": 1.0
     }
   },
   "mmd_divergence_matrix": {
     "cmapss": {
       "cmapss": 0.0,
-      "laptop": 1.228644,
-      "mobile": 1.23268,
-      "server": 1.228485
+      "laptop": 1.229945,
+      "mobile": 1.227893,
+      "server": 1.228964
     },
     "laptop": {
-      "cmapss": 1.228644,
+      "cmapss": 1.229945,
       "laptop": 0.0,
-      "mobile": 0.876159,
-      "server": 0.739155
+      "mobile": 0.929953,
+      "server": 0.899572
     },
     "mobile": {
-      "cmapss": 1.23268,
-      "laptop": 0.876159,
+      "cmapss": 1.227893,
+      "laptop": 0.929953,
       "mobile": 0.0,
-      "server": 0.82517
+      "server": 0.914664
     },
     "server": {
-      "cmapss": 1.228485,
-      "laptop": 0.739155,
-      "mobile": 0.82517,
+      "cmapss": 1.228964,
+      "laptop": 0.899572,
+      "mobile": 0.914664,
       "server": 0.0
     }
   },
   "negative_transfer_indices": {
-    "laptop": 0.048718,
-    "mobile": 20.933783,
-    "server": 6.240547
+    "laptop": -0.002007,
+    "mobile": -0.005951,
+    "server": -0.007431
+  },
+  "retrieval_transfer_diagnostics": {
+    "laptop": {
+      "domain": "laptop",
+      "within_rmse": 0.0961,
+      "cross_rmse": 0.0858,
+      "error_inflation_ratio": 0.89,
+      "mean_latent_dist_within": 0.2834,
+      "mean_latent_dist_cross": 10.8235,
+      "negative_transfer_index": -0.002007
+    },
+    "mobile": {
+      "domain": "mobile",
+      "within_rmse": 0.0301,
+      "cross_rmse": 0.2495,
+      "error_inflation_ratio": 8.3,
+      "mean_latent_dist_within": 0.3022,
+      "mean_latent_dist_cross": 10.8024,
+      "negative_transfer_index": -0.005951
+    },
+    "server": {
+      "domain": "server",
+      "within_rmse": 0.0404,
+      "cross_rmse": 0.2868,
+      "error_inflation_ratio": 7.1,
+      "mean_latent_dist_within": 0.0683,
+      "mean_latent_dist_cross": 10.9709,
+      "negative_transfer_index": -0.007431
+    }
   },
   "provenance": {
     "cmapss": {
@@ -77,7 +106,7 @@
       "checkpoint_name": "laptop_world_model.pt",
       "n_samples": 250,
       "data_source_type": "simulation_profile",
-      "notes": "Operational workload profile calibrated to psutil telemetry"
+      "notes": "Operational workload profile calibrated to psutil telemetry (seed=101)"
     },
     "mobile": {
       "domain": "mobile",
@@ -85,7 +114,7 @@
       "checkpoint_name": "mobile_world_model.pt",
       "n_samples": 250,
       "data_source_type": "simulation_profile",
-      "notes": "Thermal and discharge workload profile calibrated to Termux:API"
+      "notes": "Thermal and discharge workload profile calibrated to Termux:API (seed=102)"
     },
     "server": {
       "domain": "server",
@@ -93,9 +122,9 @@
       "checkpoint_name": "server_world_model.pt",
       "n_samples": 250,
       "data_source_type": "simulation_profile",
-      "notes": "Multi-core and GPU saturation profile calibrated to SSH telemetry"
+      "notes": "Multi-core and GPU saturation profile calibrated to SSH telemetry (seed=103)"
     }
   },
-  "timestamp": "2026-08-19T10:52:35Z",
-  "methodology_notes": "Passive MMD and Centroid Cosine representation discrepancy diagnostics"
+  "timestamp": "2026-08-19T11:23:36Z",
+  "methodology_notes": "Passive MMD and Centroid Cosine representation discrepancy diagnostics with AMKB k-NN latent retrieval transfer"
 }

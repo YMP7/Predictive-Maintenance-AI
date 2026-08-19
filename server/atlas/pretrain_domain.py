@@ -252,7 +252,15 @@ class DomainPretrainer:
         Executes pretraining over 80/20 train/held-out split.
         Returns training metrics and metadata dictionary.
         """
-        logger.info(f"Generating standardized operational profiles for domain '{self.domain}'...")
+        import random
+        # Explicit deterministic seeding per domain for reproducible training dynamics
+        domain_seeds = {"laptop": 101, "mobile": 102, "server": 103}
+        seed = domain_seeds.get(self.domain, 42)
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+
+        logger.info(f"Generating standardized operational profiles for domain '{self.domain}' (seed={seed})...")
         X, Y_next, Y_stress = DomainDatasetGenerator.get_dataset(self.domain, n_windows=1250)
 
         # 80/20 split: 1000 train, 250 held-out val

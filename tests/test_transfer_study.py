@@ -190,3 +190,42 @@ def test_hard_training_status_guard_passes_when_all_trained(tmp_path):
 
     # CLI guard passes without exception
     enforce_all_domains_trained_guard(["cmapss", "laptop", "mobile", "server"], tmp_path)
+
+
+def test_semantic_retrieval_transfer_diagnostics():
+    """
+    Tests AMKB semantic retrieval transfer evaluation math:
+    1. Within-domain retrieval on nearby synthetic latent states
+    2. Cross-domain retrieval against distant memory bank
+    3. Asserts error inflation ratio and latent distance gap
+    """
+    np.random.seed(42)
+    # Query: 50 points around origin with small noise
+    z_query = np.random.randn(50, 32) * 0.1
+    y_query = np.linspace(0.1, 0.9, 50)
+
+    # Within memory: nearby points (around origin) with same target function
+    z_within = np.random.randn(200, 32) * 0.1
+    y_within = np.linspace(0.1, 0.9, 200)
+
+    # Cross memory: distant cluster (mean=10.0) with discordant labels
+    z_cross = np.random.randn(200, 32) * 0.1 + 10.0
+    y_cross = np.ones(200) * 0.5
+
+    diag = TransferStudyEngine.compute_retrieval_transfer_diagnostics(
+        domain="test_domain",
+        z_query=z_query,
+        y_query_true=y_query,
+        z_within_mem=z_within,
+        y_within_mem=y_within,
+        z_cmapss_mem=z_cross,
+        y_cmapss_mem=y_cross,
+        k=5,
+    )
+
+    assert diag.domain == "test_domain"
+    assert diag.within_rmse >= 0.0
+    assert diag.cross_rmse >= 0.0
+    assert diag.mean_latent_dist_within < diag.mean_latent_dist_cross
+    assert diag.mean_latent_dist_cross > 5.0
+    assert diag.error_inflation_ratio >= 1.0
