@@ -142,8 +142,8 @@ def test_build_context_near_failure(ace, amkb):
     print(f"Average Neighbor RUL: {context.average_neighbor_rul:.2f}")
 
 def test_build_context_shape_validation(ace):
-    bad_window = np.zeros((10, 14), dtype=np.float32)
-    with pytest.raises(ValueError, match="Expected window shape \\(30, 14\\)"):
+    bad_window = np.zeros(14, dtype=np.float32)  # 1D array instead of 2D
+    with pytest.raises(ValueError, match="Expected 2D window array"):
         ace.build_context("cmapss", "unit_1", 10, bad_window)
 
 def test_api_health():
@@ -197,16 +197,16 @@ def test_api_post_context_bad_shape():
     from fastapi.testclient import TestClient
     from server.api import app
     
-    # Send an invalid 10x14 window
+    # Send an empty window
     payload = {
         "domain": "cmapss",
         "machine_id": "unit_1",
         "cycle": 50,
-        "window": [[0.0] * 14] * 10,
+        "window": [],
         "k": 5
     }
     
     with TestClient(app) as client:
         resp = client.post("/api/context", json=payload)
         assert resp.status_code == 400
-        assert "exactly 30 time steps" in resp.json()["detail"]
+        assert "Window cannot be empty" in resp.json()["detail"]

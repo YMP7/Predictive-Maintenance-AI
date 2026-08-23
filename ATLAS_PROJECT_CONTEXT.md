@@ -235,22 +235,30 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 - [x] **Week 3 — DONE:** Full Cognition Pipeline Comprehensive Ablation Suite (`ABLATION_STUDY_RESULTS.md`), deterministic seeding (`seed=42`), and dual-axis evaluation.
 - [x] **Week 4 — DONE:** System Audit, Immutable DB Annotation, Cross-Domain Dynamic Model Routing, and Evaluation Suite Consolidation.
 
-**Next immediate step:** Month 8 — End-to-End System Benchmark (`docs/ATLAS_BENCHMARK.md`) & Thesis Synthesis.
+**Weekly checklist (Month 8 - System Benchmarking, Resource Profiling & Thesis Synthesis):**
+- [x] **Week 1 — DONE:** End-to-End Latency & Throughput Benchmark (`docs/ATLAS_BENCHMARK.md`), stage-sum residual reconciliation, and transport characterization.
+- [ ] **Week 2 — Next immediate step:** Resource Profiling, Memory Footprint & API Load Testing under Concurrent Clients.
+- [ ] **Week 3:** Open-Source Benchmark Release Package & Standalone Evaluation Harness.
+- [ ] **Week 4:** Final Thesis Chapter Synthesis (Sections A, B, and C Compilation).
+
+**Next immediate step:** Month 8 Week 2 — Resource Profiling, Memory Footprint & API Concurrent Load Testing.
 
 ---
 
 ## 6b. Architecture Decisions Log
 *(One entry per non-obvious decision or bug fix — so future agents and the thesis writeup don't rediscover these from scratch)*
 
-- **Week 4: System Audit, Cross-Domain Model Routing & Standalone Script Isolation:**
-  - *Encoder Routing Discrepancy Found and Fixed:* Discovered that while Week 2 trained encoders (`laptop_world_model.pt`, etc.) existed on disk, `AdaptiveContextEngine` and `server/api.py` were still using the single-model Month 6 fallback for 5-channel queries. Upgraded `AdaptiveContextEngine` with a multi-model registry (`domain_models: Dict[str, WorldModel]`) and dynamic disk resolution (`get_world_model(domain, feature_dim)`), restoring real Attention-LSTM stress evaluation and 32-dim latent representations across all 4 domains.
-  - *Standalone-Script Evaluation Isolation Confirmed:* Verified that `scripts/run_transfer_study.py` and `scripts/run_ablations.py` load checkpoints directly via `WorldModel.load()`, bypassing `AdaptiveContextEngine` and `server/api.py` entirely, ensuring all Month 7 Week 2/3 research numbers were always computed on genuine trained models and unaffected by the API-layer routing bug.
-  - *Stress Sensitivity & Non-Collapse Verified:* Confirmed on canonical idle (0.10) vs stress (0.90) windows that all compute domain encoders respond dynamically (e.g. Laptop stress moves from 0.1633 to 1.0000) and satisfy strict directional ($\text{Cosine Dist} \ge 0.20$) and magnitude ($\text{Euclidean Dist} \ge 0.50$) non-collapse bounds.
-  - *Immutable DB Audit Annotation:* Annotated row #1 in `learning_events` in PostgreSQL, documenting that the 48.7839 baseline was an initial all-window measurement-protocol smoke-test artifact, maintaining immutable audit trail integrity without obscuring history.
-  - *MachineDNAEngine Connection Bug Fixed:* Fixed `MachineDNAEngine` initialization in `server/api.py` where passing `_amkb` directly broke `.connection()` calls on DNA retrieval.
+- **Month 8 Week 1: Performance Benchmarking, Transport Bounds & Residual Reconciliation:**
+  - *Hardware & Runtime Disclosure:* Standardized all benchmark profiling with explicit hardware context (10 cores / 16 threads, 15.7 GB RAM, CPU backend, single-process execution) and 100 trials per stage with warm-up cycles.
+  - *Stage-Sum vs End-to-End Reconciliation:* Documented that the isolated micro-benchmark sum (~25.2 ms) vs end-to-end latency (37.76 ms) on C-MAPSS has a ~12.5 ms delta caused by dual DB connection pool checkouts (`AMKB` and `MachineDNAEngine`), 15 tensor copy/prepare cycles (`prepare_window`), and dataclass instantiation.
+  - *Code-Path Throughput vs Transport Bounds:* Explicitly separated in-memory parsing throughput (20k–198k readings/sec) from physical I/O limits (OS kernel polling at ~11.8k Hz, Termux HTTP at ~5–20 Hz, SSH TCP at ~3–10 Hz) with an explicit warning box in `docs/ATLAS_BENCHMARK.md`.
+  - *Edge Feasibility Scope Qualifier:* Explicitly noted that sub-100ms cycle feasibility (<35ms on C-MAPSS, ~11ms on compute) applies to single-request quiescent execution, forward-referencing Month 8 Week 2 for multi-client concurrent load characteristics.
 
 | Date | File | Decision | Reason |
 |---|---|---|---|
+| Month 8 W1 | `scripts/benchmark_system.py` | Automated multi-stage latency and throughput benchmarking harness + JSON/MD export | Provides reproducible empirical latency profiling ($p_{50}, p_{95}, p_{99}$) across full pipeline |
+| Month 8 W1 | `docs/ATLAS_BENCHMARK.md` | Dual-table latency reporting with stage-sum reconciliation and transport caveats | Delivers rigorous thesis-ready benchmarking document with honest hardware & network qualifiers |
+| Month 8 W1 | `server/mqtt_client.py` | Graceful warning fallback if local MQTT broker (1883) is offline | Prevents offline unit tests and dev scripts from crashing on import |
 | Month 7 W4 | `server/atlas/adaptive_context.py` | Multi-domain WorldModel registry + dynamic `get_world_model` disk resolution | Connects live API queries across laptop/mobile/server to real pretrained Attention-LSTM encoders |
 | Month 7 W4 | `server/database.py` | Added `load_dotenv()` on module import | Automatically loads `.env` connection pool settings for scripts and database utilities |
 | Month 7 W4 | `server/atlas/explain.py` | Feature attribution and reason code computed on zero-neighbor queries | Ensures consistent machine-readable attribution reasons on live devices with no historical failures |

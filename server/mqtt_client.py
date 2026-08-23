@@ -62,8 +62,7 @@ class MQTTClientManager:
             self.client.connect(self.broker, self.port, 60)
             self.client.loop_start()
         except Exception as e:
-            logger.error(f"Failed to connect to MQTT broker: {e}")
-            raise
+            logger.warning(f"MQTT broker at {self.broker}:{self.port} unavailable ({e}). Running in offline mode.")
             
     def stop(self):
         self.client.loop_stop()
