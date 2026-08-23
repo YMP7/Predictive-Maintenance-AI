@@ -45,16 +45,53 @@ class ExplanationEngine:
     This prevents division-by-zero crashes (via the +1.0 epsilon) and gracefully penalizes 
     high-variance historical trajectories.
     
+    UNGROUNDED BASELINE (grounding_enabled=False):
+    When grounding is disabled, AMKB citation construction is bypassed entirely.
+    Confidence defaults to a constant 0.50, representing maximal uncertainty in the
+    absence of empirical historical grounding — the natural uninformative prior when
+    no historical evidence is consulted.
+    
     FUTURE DECISION (Month 6): When live domains begin returning experiences where
     `true_rul` is `None` (because failure hasn't occurred yet), this engine will
     filter out those neighbors prior to computation (silently reducing k). If all
     retrieved neighbors are filtered, it will degrade gracefully to the zero-neighbor
     fallback. It will not hard-crash the API.
     """
-    def __init__(self):
-        pass
+    def __init__(self, grounding_enabled: bool = True):
+        self.grounding_enabled = grounding_enabled
 
     def explain(self, context: AdaptiveContext, window: Optional[np.ndarray] = None, ace=None) -> ExplanationReport:
+        # Check if grounding is explicitly disabled
+        if not self.grounding_enabled:
+            attributions = []
+            top_contributors = []
+            attribution_text = ""
+            attribution_unavailable_reason = None
+
+            if window is not None and ace is not None:
+                attributions, attribution_unavailable_reason = self.calculate_feature_attribution(window, ace, context.predicted_rul)
+                top_k = attributions[:3]
+                top_contributors = [attr["sensor_name"] for attr in top_k]
+                if attributions:
+                    top_sensor = attributions[0]
+                    if top_sensor["signed_delta"] > 0:
+                        attribution_text = f" {top_sensor['sensor_name']} readings are actively driving this prediction toward a shorter RUL estimate."
+                    elif top_sensor["signed_delta"] < 0:
+                        attribution_text = f" {top_sensor['sensor_name']} readings are supporting a healthier (longer) RUL estimate."
+                    else:
+                        attribution_text = f" {top_sensor['sensor_name']} is the most influential factor in this prediction."
+
+            return ExplanationReport(
+                confidence_score=0.50,
+                confidence_level="Moderate",
+                primary_justification="Ungrounded prediction: historical AMKB episodic memory retrieval disabled." + attribution_text,
+                citations=[],
+                note="Ungrounded baseline mode: confidence fixed at 0.50 maximal uncertainty prior.",
+                sensor_attributions=attributions,
+                top_contributors=top_contributors,
+                attribution_unavailable_reason=attribution_unavailable_reason,
+            )
+
         neighbors = context.neighbors
         
         # Guard against zero neighbors

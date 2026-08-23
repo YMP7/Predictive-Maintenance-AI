@@ -21,7 +21,7 @@ Partial repairs, component-specific interventions, alternate operating-mode reco
 """
 
 from dataclasses import dataclass
-from typing import List
+from typing import List, Optional
 import numpy as np
 
 # 1. Action Space (frozen, 4 actions)
@@ -89,11 +89,13 @@ class SimulationResult:
     p_failure_before_action: float  # fraction of samples where RUL <= 0 before the action's assumed lead time
 
 class SimulationEngine:
-    def __init__(self, num_samples: int = 1000):
+    def __init__(self, num_samples: int = 1000, seed: Optional[int] = None):
         self.num_samples = num_samples
         self.rul_cap = 125.0
+        self.seed = seed
+        self._rng = np.random.default_rng(seed) if seed is not None else None
         
-    def simulate_actions(self, predicted_rul: float, neighbor_variance: float) -> List[SimulationResult]:
+    def simulate_actions(self, predicted_rul: float, neighbor_variance: float, seed: Optional[int] = None) -> List[SimulationResult]:
         """
         Runs Monte Carlo sampling over the RUL prediction's uncertainty.
         Returns expected costs and risk profiles for all discrete actions.
@@ -103,8 +105,14 @@ class SimulationEngine:
         if std_dev < 1e-3:
             std_dev = 1e-3
             
-        # Draw N=1000 samples
-        sampled_ruls = np.random.normal(loc=predicted_rul, scale=std_dev, size=self.num_samples)
+        # Draw N=1000 samples using deterministic RNG if configured
+        if seed is not None:
+            rng = np.random.default_rng(seed)
+            sampled_ruls = rng.normal(loc=predicted_rul, scale=std_dev, size=self.num_samples)
+        elif self._rng is not None:
+            sampled_ruls = self._rng.normal(loc=predicted_rul, scale=std_dev, size=self.num_samples)
+        else:
+            sampled_ruls = np.random.normal(loc=predicted_rul, scale=std_dev, size=self.num_samples)
         
         # Clip strictly to [0, rul_cap] matching our model bounds
         sampled_ruls = np.clip(sampled_ruls, 0.0, self.rul_cap)

@@ -1,0 +1,113 @@
+{
+  "ablation_1": {
+    "total_cost_pipeline_a": 3440.0,
+    "total_cost_pipeline_b": 1817.5,
+    "cost_reduction_percent": 47.17,
+    "premature_waste_cycles_a": 0.0,
+    "premature_waste_cycles_b": 281.0,
+    "missed_failures_a": 0,
+    "missed_failures_b": 0,
+    "action_counts_a": {
+      "CONTINUE_OPERATION": 76,
+      "SCHEDULE_MAINTENANCE_SOON": 0,
+      "SCHEDULE_MAINTENANCE_NOW": 0,
+      "REPLACE_IMMEDIATELY": 24
+    },
+    "action_counts_b": {
+      "CONTINUE_OPERATION": 68,
+      "SCHEDULE_MAINTENANCE_SOON": 14,
+      "SCHEDULE_MAINTENANCE_NOW": 13,
+      "REPLACE_IMMEDIATELY": 5
+    },
+    "cost_model_caveat": "Cost figures use the illustrative, non-fitted cost model established in Month 5 (unplanned failure penalty=1000, maintenance base=50, downtime per cycle=5); absolute numbers are for relative policy comparison under consistent assumptions."
+  },
+  "ablation_2": {
+    "grounded_confidence_mean": 0.0351,
+    "grounded_confidence_std": 0.0778,
+    "ungrounded_confidence_mean": 0.5,
+    "ungrounded_confidence_std": 0.0,
+    "grounded_spearman_rho": -0.509,
+    "grounded_spearman_p": null,
+    "ungrounded_spearman_rho": null,
+    "ungrounded_spearman_note": "Undefined (Zero Variance) \u2014 constant 0.50 maximal uncertainty prior across all units. Confirms that AMKB episodic memory retrieval is required for dynamic confidence calibration.",
+    "grounded_citation_coverage_pct": 100.0,
+    "ungrounded_citation_coverage_pct": 0.0
+  },
+  "ablation_3": {
+    "policy_agreement_rate": 70.0,
+    "near_failure_urgent_rate_naive": 100.0,
+    "near_failure_urgent_rate_atlas": 90.0,
+    "n_near_failure_units": 10,
+    "avg_mc_sample_cost_std": 54.34,
+    "disagreement_count": 30,
+    "disagreement_cost_naive": 1530.0,
+    "disagreement_cost_atlas": 1370.0,
+    "disagreement_cost_reduction_percent": 10.46,
+    "naive_heavy_replacement_count": 20,
+    "atlas_graduated_scheduling_count": 26,
+    "safety_parity_note": "Both policies safely intervene before failure on near-failure units (true RUL <= 15). The Decision Graph's primary advantage is economic precision and action graduation on disputed decisions.",
+    "naive_rule_definition": "if pred_rul < 30: REPLACE_IMMEDIATELY, elif pred_rul < 60: SCHEDULE_MAINTENANCE_SOON, else: CONTINUE_OPERATION"
+  },
+  "ablation_4": {
+    "within_vs_cmapss_transfer": {
+      "laptop": {
+        "within_rmse": 0.0961,
+        "cross_cmapss_rmse": 0.0858,
+        "error_inflation_ratio": 0.89,
+        "within_latent_dist": 0.2834,
+        "cross_cmapss_latent_dist": 10.8235
+      },
+      "mobile": {
+        "within_rmse": 0.0301,
+        "cross_cmapss_rmse": 0.2495,
+        "error_inflation_ratio": 8.3,
+        "within_latent_dist": 0.3022,
+        "cross_cmapss_latent_dist": 10.8024
+      },
+      "server": {
+        "within_rmse": 0.0404,
+        "cross_cmapss_rmse": 0.2868,
+        "error_inflation_ratio": 7.1,
+        "within_latent_dist": 0.0683,
+        "cross_cmapss_latent_dist": 10.9709
+      }
+    },
+    "cross_compute_matrix": {
+      "laptop": {
+        "laptop": 0.0961,
+        "mobile": 0.2472,
+        "server": 0.3723
+      },
+      "mobile": {
+        "laptop": 0.348,
+        "mobile": 0.0301,
+        "server": 0.08
+      },
+      "server": {
+        "laptop": 0.1768,
+        "mobile": 0.1132,
+        "server": 0.0404
+      }
+    },
+    "cross_compute_inflation_matrix": {
+      "laptop": {
+        "laptop": 1.0,
+        "mobile": 2.57,
+        "server": 3.87
+      },
+      "mobile": {
+        "laptop": 11.56,
+        "mobile": 1.0,
+        "server": 2.66
+      },
+      "server": {
+        "laptop": 4.38,
+        "mobile": 2.8,
+        "server": 1.0
+      }
+    },
+    "laptop_asymmetry_analysis": "Laptop's within-domain retrieval RMSE (0.0961) is ~2.4\u20133.2x higher than Server (0.0404) and Mobile (0.0301) due to multi-modal operational regime transitions. Cross-domain C-MAPSS queries land on a distant out-of-distribution boundary (~10.82 distance) where retrieved normalized labels cluster near the global mean (~0.55), which coincidentally matches Laptop's validation target mean (~0.52). This lower cross RMSE is a boundary-mean regression artifact rather than successful semantic transfer."
+  },
+  "n_test_units": 100,
+  "timestamp": "2026-08-23 06:42:01Z"
+}

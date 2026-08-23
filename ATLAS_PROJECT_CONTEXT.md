@@ -125,10 +125,10 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 ## 6. Current Status
 *(Update this section whenever real progress is made — this is the handoff source of truth)*
 
-- **Current phase:** Month 7 (Learning Engine & Full Pipeline Integration)
-- **Immediate Task:** Begin designing and integrating the Learning Engine (`LearningEngine`), enabling batch/periodic retraining on logged operational outcomes and domain adaptation over newly streamed experiences across the 4 adapters.
+- **Current phase:** Month 7 (Learning Engine, Cross-Domain Transfer Study, and Full Pipeline Ablations)
+- **Immediate Task:** Begin Month 7 Week 3: Full Pipeline Ablation Study & Empirical Evaluation Framework (`scripts/run_ablations.py`).
 
-**Sequencing decision in effect:** AI core built first on C-MAPSS (Months 1–5); adapters for Laptop/Mobile/Server built and verified in Month 6.
+**Sequencing decision in effect:** AI core built first on C-MAPSS (Months 1–5); adapters for Laptop/Mobile/Server built and verified in Month 6; adaptive learning and cross-domain transfer verified in Month 7.
 
 **Completed so far (agent-built scaffolding):**
 - [x] `server/adapters/base_adapter.py` — `NormalizedReading` schema + `MachineAdapter` ABC with canonical Category A/B health index taxonomy
@@ -157,11 +157,12 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
     - Consolidated canonical health index taxonomy (Category A: physical wear vs. Category B: operational stress).
     - Fully parameterized `AdaptiveContextEngine` and `api.py` for arbitrary 2D window shapes.
     - Verified AMKB domain isolation (17,731 C-MAPSS rows untouched under multi-domain writes).
-
-**Pending user actions (blocking):**
-- [ ] Download C-MAPSS dataset → place `.txt` files in `data/cmapss/`
-- [ ] Run: `python server/atlas/train_rul.py --quick` (smoke test after download)
-- [ ] Run full training: `python server/atlas/train_rul.py --epochs 50`
+  - **Month 7 Week 1 — DONE:** Learning Engine & Batch Retraining:
+    - Built `LearningEngine` (`server/atlas/learning_engine.py`) with 3% epsilon promotion gate, rollback invariance, standard benchmark evaluation (15.42 cycles), and DB audit logging.
+  - **Month 7 Week 2 — DONE:** Cross-Domain Transfer Study & Domain Pre-Training:
+    - Built domain pre-training engine (`server/atlas/pretrain_domain.py`) with deterministic seeds (101, 102, 103) and strict non-collapse guards.
+    - Built transfer diagnostics engine (`server/atlas/transfer_study.py`) and CLI runner (`scripts/run_transfer_study.py`).
+    - Empirically validated 4x4 MMD divergence (~1.23 separation), latent orthogonality (cosine -0.22 to 0.15), and AMKB semantic retrieval negative transfer (7.1-8.3x RMSE inflation). Published `docs/TRANSFER_STUDY_RESULTS.md` and `data/transfer_study_results.json`.
 
 **Weekly checklist (Month 1):**
 - [x] **Week 1 — DONE:** FD001 downloaded, loaded, columns assigned, exploratory plots done, non-informative sensors identified
@@ -207,13 +208,31 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
   - ⭐ Test `TestNearFailureRetrieval` passes on real data (Healthy vectors retrieve >70 RUL; Near-Failure vectors retrieve <30 RUL).
 - [x] **Week 4 — DONE:** Adaptive Context Engine integration + API endpoints (`server/atlas/adaptive_context.py` & `server/api.py`).
 
-**Weekly checklist (Month 3 - Prediction Engine):**
-- [x] **Week 1 — DONE:** Architecture Refactor. Replaced static `Linear` head with `TemporalAttention` over LSTM. Re-wired API/routing payloads to accept a unified `PredictionOutput` format.
-- [x] **Week 2 — DONE:** Single-seed Training & Sanity Check. Ran Attention-LSTM on `seed=42`, confirmed smooth loss curves, inspected non-degenerate attention weights, and firmly restored `strict=True` checkpoint loading safety.
-- [x] **Week 3 — DONE:** Multi-Seed Apples-to-Apples Evaluation. Executed `evaluate_multiseed.py` across 5 seeds. Proven PHM standard deviation plummeted from 19.6% to 5.8%. Architecture definitively clears the <400 mean PHM validation gate (375.00 ± 21.93). Re-populated AMKB to align embeddings and cleared semantic test skips.
-- [x] **Week 4 — DONE:** Decision & Documentation. Locked in Attention-LSTM as final Prediction Engine. Updated Project Context with the architectural arc log and citations.
+**Weekly checklist (Month 4 - Explainability Engine):**
+- [x] **Week 1 — DONE:** Confidence Calibration & AMKB Epistemic Grounding (`server/atlas/explain.py`).
+- [x] **Week 2 — DONE:** Occlusion Sensitivity & Feature Attribution per C-MAPSS sensor.
+- [x] **Week 3 — DONE:** API Integration & Frontend Attribution payloads (`/api/explain`).
+- [x] **Week 4 — DONE:** Grounding Verification & Citations sanity testing.
 
-**Next immediate step:** Month 4 — Explainability Engine.
+**Weekly checklist (Month 5 - Simulation Engine & Decision Graph):**
+- [x] **Week 1 — DONE:** Decision Graph action ranking with lead-time modeling (`ACTION_LEAD_TIME`).
+- [x] **Week 2 — DONE:** Monte Carlo uncertainty propagation via `SimulationEngine` (`server/atlas/simulation.py`).
+- [x] **Week 3 — DONE:** API Endpoints (`/api/decide`, `/api/simulate`) and policy safety verification.
+- [x] **Week 4 — DONE:** Cost model evaluation and safe tie-breaker integration.
+
+**Weekly checklist (Month 6 - Heterogeneous Machine Adapters):**
+- [x] **Week 1 — DONE:** Base Adapter schema & Laptop Adapter (`server/adapters/laptop_adapter.py`).
+- [x] **Week 2 — DONE:** Mobile Android Adapter with Termux:API (`server/adapters/mobile_adapter.py`).
+- [x] **Week 3 — DONE:** High-fidelity Linux Enterprise Server Adapter (`server/adapters/server_adapter.py`).
+- [x] **Week 4 — DONE:** Heterogeneous streaming service & cross-domain background telemetry loop (`server/atlas/domain_service.py`).
+
+**Weekly checklist (Month 7 - Continuous Learning, Cross-Domain Transfer & Ablations):**
+- [x] **Week 1 — DONE:** `LearningEngine` periodic batch retraining pipeline with 3% epsilon promotion gate and PostgreSQL audit logging.
+- [x] **Week 2 — DONE:** Cross-Domain Representation Discrepancy & Transfer Study (`TRANSFER_STUDY_RESULTS.md`) with non-collapse guards and AMKB latent retrieval transfer.
+- [x] **Week 3 — DONE:** Full Cognition Pipeline Comprehensive Ablation Suite (`ABLATION_STUDY_RESULTS.md`), deterministic seeding (`seed=42`), and dual-axis evaluation.
+- [ ] **Week 4 — Next immediate step:** Month 7 Wrap-up / Month 8 Preparation.
+
+**Next immediate step:** Month 7 Week 4 / Month 8 — End-to-End System Benchmark & Thesis Synthesis.
 
 ---
 
@@ -260,8 +279,34 @@ During Month 6, we expanded the Machine Adapter Layer to 4 distinct hardware tie
 - **High-End Server Tier Honesty Framing:** The `ServerAdapter` runs in high-fidelity Linux enterprise server simulation by default. While real Paramiko SSH transport is implemented and contract-tested, it is explicitly documented as provisional/simulated until live cloud VM credentials (e.g. GitHub Student Pack / GCP) are configured.
 - **Query-Time Pipeline Parameterization:** We parameterized `AdaptiveContextEngine`, `server/api.py`, and `server/atlas/explain.py` to handle arbitrary 2D window dimensions (e.g. `(30, 5)` for laptop/mobile/server alongside `(30, 14)` for C-MAPSS). When non-14 feature windows are passed, `explain.py` returns a machine-readable `attribution_unavailable_reason` field to prevent silent capability gaps.
 
+### Month 7 Learning Engine, Cross-Domain Transfer & Representation Discrepancy Arc
+During Month 7, we built the periodic batch retraining pipeline (`LearningEngine`) and executed the headline **Cross-Domain Representation Discrepancy & Transfer Study** across all four hardware domains.
+- **Week 1: Learning Engine & 3% Promotion Gate:**
+  - Built `LearningEngine` (`server/atlas/learning_engine.py`) to periodically retrain the World Model against newly logged operational outcomes stored in PostgreSQL/TimescaleDB.
+  - Formulated a strict 3% epsilon promotion gate: candidate models are promoted to production if and only if $\text{RMSE}_{\text{candidate}} \le \text{RMSE}_{\text{active}} \times 0.97$. If the candidate fails or regresses, the active model is restored untouched (rollback invariance) and an immutable audit record is logged to the `learning_events` table.
+  - Aligned baseline evaluation protocol to standard last-window-per-unit benchmarking (15.42 cycles), ensuring retraining decisions are judged against the validated C-MAPSS benchmark range.
+- **Week 2: Step 1 Domain Pre-Training & Non-Collapse Sanity Guards:**
+  - *Hard Structural Guard:* Added code-level guards refusing to execute transfer studies on untrained zero-shot projections. Each compute domain (`laptop`, `mobile`, `server`) was trained with self-supervised Attention-LSTM autoregression and operational stress mapping.
+  - *Collapse Discovery & Multi-Modal Generation:* Identified that early synthetic laptop generation had static channels (`disk ~0.58`, `mem ~0.60`), allowing reconstruction loss to ignore dynamic CPU bursts and yielding near-zero directional separation (`Cosine Dist = 0.0670 < 0.20`). Refactored `generate_laptop_windows` into four realistic multi-modal regimes (idle, office, burst, compile) and established strict non-collapse guards (`Cosine Dist >= 0.20`, `Euclidean Dist >= 0.50`), reinforced by decoupled hardcoded regression testing.
+  - *Deterministic PRNG Seeding:* Isolated domain training with explicit seeds (`laptop`: 101, `mobile`: 102, `server`: 103) to ensure reproducible coordinate basis orientations in $\mathbb{R}^{32}$.
+- **Week 2: Representation Geometry (MMD vs. Orthogonal Cosine Alignment):**
+  - *MMD Domain Divergence:* Empirically proved that physical turbofan degradation (Category A) occupies a distinct manifold from compute operational stress (Category B) with uniform $\text{MMD} \approx 1.23$. Compute domains exhibit internal distributional proximity ($\text{MMD} = 0.90 - 0.93$).
+- **Week 3: Cognition Pipeline Comprehensive Ablation Suite & Deterministic Seeding:**
+  - *Ablation 1 (Full Cognition Pipeline vs. RUL-Alone Baseline):* Delivered a **47.17% lifecycle cost reduction** ($1,817.50 vs. $3,440.00) across 100 C-MAPSS test units. Dissected premature replacement waste (281.0 cycles across 3 early-life units: `unit_19`, `unit_27`, `unit_95`) and connected it to Month 2's finding on early-life embedding degeneracy: brand-new engines have near-zero cosine distances ($d \approx 0.000$) but high raw lifespan variance in AMKB retrieval ($\sigma^2 \approx 3,000 - 4,500$), causing symmetric Gaussian Monte Carlo uncertainty ($\sigma \approx 60$) to inflate tail failure probability ($p_{\text{fail}} \approx 11.3\%$) and prompt risk-averse preventive replacement ($60 vs. $113 expected failure cost).
+  - *Ablation 2 (AMKB-Grounded vs. Ungrounded Explainability):* Demonstrated strong negative error correlation ($r_s = -0.5090$) for grounded confidence against true prediction error, whereas ungrounded models collapse to an uninformative 0.50 maximal uncertainty prior ($r_s = \text{Undefined}$) with 0% citation traceability.
+  - *Ablation 3 (Cost-Weighted Decision Graph vs. Naive Rules):* Established a two-dimensional evaluation: (1) Safety parity baseline where both policies safely catch 100% of critical near-failure units ($t_{\text{true}} \le 15$), with Unit 66's 4-cycle margin ($t_{\text{true}}=14$, lead time=10) honestly disclosed as an operational near-miss; and (2) Economic and operational discrimination on the 30 disagreed units ($1,370.00 vs. $1,530.00, +10.46% savings), safely converting 26 units to graduated scheduling (`SOON`/`NOW`) instead of naive blunt immediate replacement (20 units).
+  - *Ablation 4 (Domain-Adapted vs. Foreign Representation Transfer):* Reused Week 2's within vs. cross-physical retrieval findings (Laptop 0.89x, Mobile 8.30x, Server 7.10x) and demonstrated on the new 3×3 Cross-Compute Generalization Matrix that every domain achieves minimal retrieval RMSE on its own encoder (1.00x on diagonal, $2.57\times - 11.56\times$ cross-inflation).
+  - *Decision Graph Determinism & Stochastic Simulation Limitation:* Documented that while seeding (`seed=42`) ensures exact reproducibility for evaluation benchmarks, near-tied expected-cost decisions (within 1-3% of each other on high-variance early-life units) are inherently sensitive under stochastic Monte Carlo simulation. Formally noted for production deployment that systems require larger sample counts, inference-time seed policies, or tie-breaking margin thresholds below which the system defers to human judgment rather than auto-recommending.
+
 | Date | File | Decision | Reason |
 |---|---|---|---|
+| Month 7 W3 | `server/atlas/ablation_engine.py` | 4 Canonical Ablation evaluations + pure-NumPy Spearman rank correlation | Provides standardized, C-extension-safe ablation metrics across full ATLAS pipeline |
+| Month 7 W3 | `server/atlas/simulation.py` | Deterministic RNG seeding (`seed=42`) in Monte Carlo simulation | Locks stochastic sample draws across borderline high-variance units for reproducible evaluation |
+| Month 7 W3 | `docs/ABLATION_STUDY_RESULTS.md` | Dual-axis Ablation 3 framing + Gaussian early-life tail limitation disclosure | Evaluates economic discrimination on disputed units and documents stochastic sensitivity in production |
+| Month 7 W1 | `server/atlas/learning_engine.py` | 3% epsilon promotion gate (`RMSE_cand <= 0.97 * RMSE_active`) with DB audit | Protects production checkpoint from regressions; logs all promote/rollback events |
+| Month 7 W2 | `server/atlas/pretrain_domain.py` | Self-supervised Attention-LSTM domain pre-training + non-collapse guard | Produces legitimate 32-dim latent spaces for compute domains prior to transfer study |
+| Month 7 W2 | `server/atlas/transfer_study.py` | Replaced zero-padding with AMKB 32-dim latent $k$-NN memory retrieval | Tests genuine semantic memory transfer without dimensional mismatch distortion |
+| Month 7 W2 | `docs/TRANSFER_STUDY_RESULTS.md` | Formal literature grounding (MMD, TCA, NTI) + Laptop asymmetry disclosure | Thesis-ready research report with honest, mathematically sound boundary analysis |
 | Month 6 W1 | `server/adapters/laptop_adapter.py` | `health_index` defined as Instantaneous Stress Score (`0.7*cpu + 0.3*mem`) | Laptops lack labeled failure points; load is a stress proxy, not structural failure |
 | Month 6 W2 | `server/atlas/domain_service.py` | Standalone polling loop streams laptop readings into AMKB (`true_rul=None`) | Partitions live experiences into `domain='laptop'` without contaminating C-MAPSS rows |
 | Month 6 W3 | `server/atlas/adaptive_context.py` | Relaxed hardcoded `(30, 14)` check; dynamic shape handling with zero-shot fallback | Enables `/api/context`, `/api/explain`, and `/api/decide` to serve non-CMAPSS domains |
