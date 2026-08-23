@@ -229,10 +229,12 @@ Rather than applying heuristic thresholds to the point estimate $\hat{y}$, the *
 
 ### Action Space & Lead-Time Matrix:
 Each action $a \in \mathcal{A}$ has an associated operational lead time $t_{\text{lead}}(a)$ representing the cycles required for part delivery, scheduling, and labor deployment:
-- $a_1 = \text{CONTINUE\_OPERATION}$ ($t_{\text{lead}} = 30$ cycles review horizon)
+- $a_1 = \text{CONTINUE\_OPERATION}$ ($t_{\text{lead}} = 30$ cycles risk-exposure review horizon)
 - $a_2 = \text{SCHEDULE\_MAINTENANCE\_SOON}$ ($t_{\text{lead}} = 10$ cycles)
 - $a_3 = \text{SCHEDULE\_MAINTENANCE\_NOW}$ ($t_{\text{lead}} = 3$ cycles)
 - $a_4 = \text{REPLACE\_IMMEDIATELY}$ ($t_{\text{lead}} = 0$ cycles)
+
+*(Operational Clarification: For scheduled interventions and component replacement, $t_{\text{lead}}$ represents the physical logistical delay for parts and technician deployment. For $\text{CONTINUE\_OPERATION}$, $t_{\text{lead}} = 30$ cycles represents the proactive risk-exposure horizon over which inaction is evaluated until the subsequent inspection window, rather than an execution delay).*
 
 ### Stochastic Cost Formulation:
 Across $M = 1,000$ Monte Carlo realizations drawn from the prognostic uncertainty distribution $y^{(m)} \sim \mathcal{N}(\hat{y}, \sigma^2)$, the expected cost of action $a$ is evaluated:
