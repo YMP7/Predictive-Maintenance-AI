@@ -96,11 +96,17 @@ class ExplanationEngine:
         
         # Guard against zero neighbors
         if not neighbors:
+            attributions = []
+            attribution_unavailable_reason = None
+            if window is not None and ace is not None:
+                attributions, attribution_unavailable_reason = self.calculate_feature_attribution(window, ace, context.predicted_rul)
             return ExplanationReport(
                 confidence_score=0.0,
                 confidence_level="Low",
                 primary_justification="No historical similar engines found to ground this prediction.",
-                citations=[]
+                citations=[],
+                sensor_attributions=attributions,
+                attribution_unavailable_reason=attribution_unavailable_reason
             )
 
         # 2. Explicit carry-over: citations MUST use true_rul, never predicted_rul

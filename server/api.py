@@ -38,15 +38,30 @@ def startup_event():
     _amkb = AMKB()
     
     # 2. Init Machine DNA
-    _dna_engine = MachineDNAEngine(_amkb)
+    _dna_engine = MachineDNAEngine()
     
-    # 3. Load WorldModel
-    model_path = MODELS_DIR / "cmapss_world_model.pt"
-    if not model_path.exists():
-        raise RuntimeError(f"WorldModel not found at {model_path}")
+    # 3. Load World Models for all available domains
+    domain_models = {}
+    for domain, filename in [
+        ("cmapss", "best_model.pt"),
+        ("laptop", "laptop_world_model.pt"),
+        ("mobile", "mobile_world_model.pt"),
+        ("server", "server_world_model.pt"),
+    ]:
+        p = MODELS_DIR / filename
+        if not p.exists() and domain == "cmapss":
+            p = MODELS_DIR / "cmapss_world_model.pt"
+        if p.exists():
+            try:
+                domain_models[domain] = WorldModel.load(p)
+            except Exception as e:
+                print(f"Warning: could not load {domain} model from {p}: {e}")
+
+    _world_model = domain_models.get("cmapss")
+    if _world_model is None:
+        raise RuntimeError(f"Primary C-MAPSS WorldModel not found in {MODELS_DIR}")
         
-    _world_model = WorldModel.load(model_path)
-    _ace = AdaptiveContextEngine(_amkb, _dna_engine, _world_model)
+    _ace = AdaptiveContextEngine(_amkb, _dna_engine, _world_model, domain_models=domain_models)
     _explain_engine = ExplanationEngine()
     _simulation_engine = SimulationEngine()
     _decision_graph = DecisionGraph()

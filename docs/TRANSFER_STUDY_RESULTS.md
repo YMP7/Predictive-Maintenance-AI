@@ -1,6 +1,6 @@
 # ATLAS Cross-Domain Representation Discrepancy Study (Month 7 Week 2)
 
-**Generated:** 2026-08-19T11:23:36Z  
+**Generated:** 2026-08-23T06:59:34Z  
 **Subsystem:** `server.atlas.transfer_study` / `scripts/run_transfer_study.py`  
 **Status:** Methodologically Verified with Trained Domain Encoders & Deterministic Seeds
 

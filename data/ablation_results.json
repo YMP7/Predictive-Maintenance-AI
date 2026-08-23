@@ -109,5 +109,5 @@
     "laptop_asymmetry_analysis": "Laptop's within-domain retrieval RMSE (0.0961) is ~2.4\u20133.2x higher than Server (0.0404) and Mobile (0.0301) due to multi-modal operational regime transitions. Cross-domain C-MAPSS queries land on a distant out-of-distribution boundary (~10.82 distance) where retrieved normalized labels cluster near the global mean (~0.55), which coincidentally matches Laptop's validation target mean (~0.52). This lower cross RMSE is a boundary-mean regression artifact rather than successful semantic transfer."
   },
   "n_test_units": 100,
-  "timestamp": "2026-08-23 06:42:01Z"
+  "timestamp": "2026-08-23 06:59:56Z"
 }

@@ -114,7 +114,10 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 ## 5. Research, IP, and Publication Plan
 
 - **Research gap:** No open, reproducible system integrates RUL prediction + simulation-based decision recommendation + memory-grounded explainability, evaluated across heterogeneous real machine domains (not just one benchmark).
-- **One paper, two sections:** (A) RUL benchmarking vs. published C-MAPSS baselines. (B) Full pipeline decision-quality/explainability results + the Cross-Domain Machine DNA Transfer Study (the standout, most-citable result).
+- **One paper, three dedicated sections (deliberate v5 expansion):** 
+  - *(A) Predictive Sequence Modeling:* Attention-LSTM benchmark vs. published C-MAPSS FD001 baselines (RMSE = 15.21, PHM = 375.00).
+  - *(B) Decision Intelligence & Explainability:* Lead-time-modeled Decision Graph (+47.17% lifecycle savings), AMKB epistemic grounding ($r_s = -0.5090$).
+  - *(C) Cross-Domain Representation Discrepancy & Transfer Study:* Negative transfer quantification ($7.1\times–8.3\times$ inflation), MMD manifold divergence (~1.23 vs ~0.90), and 3×3 compute generalization matrix (the standout, most-citable result).
 - **4 patent candidates** (labeled candidates for post-implementation evaluation, NOT filed claims): (1) simulation-coupled cost-weighted Decision Graph, (2) Machine DNA representation (pending prior-art search), (3) AMKB-grounded explainability method, (4) adapter-based cross-domain cognition pipeline.
 - **Open-source release:** the ATLAS Cross-Domain Benchmark (normalized data from all 4 domains + eval scripts) as a standalone citable artifact.
 - **Ablations planned (final list, 4):** RUL-alone vs. full pipeline · AMKB-grounded vs. ungrounded explainability · cost-weighted vs. naive-threshold Decision Graph · single-domain vs. cross-domain-informed World Model.
@@ -125,8 +128,8 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 ## 6. Current Status
 *(Update this section whenever real progress is made — this is the handoff source of truth)*
 
-- **Current phase:** Month 7 (Learning Engine, Cross-Domain Transfer Study, and Full Pipeline Ablations)
-- **Immediate Task:** Begin Month 7 Week 3: Full Pipeline Ablation Study & Empirical Evaluation Framework (`scripts/run_ablations.py`).
+- **Current phase:** Month 7 Complete (Continuous Learning, Transfer Study, Full Pipeline Ablations, and Cross-Domain Contract Audits) — Transitioning to Month 8 (System Benchmarking & Synthesis).
+- **Immediate Task:** Begin Month 8: End-to-End System Performance Benchmark (`docs/ATLAS_BENCHMARK.md`).
 
 **Sequencing decision in effect:** AI core built first on C-MAPSS (Months 1–5); adapters for Laptop/Mobile/Server built and verified in Month 6; adaptive learning and cross-domain transfer verified in Month 7.
 
@@ -230,16 +233,34 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 - [x] **Week 1 — DONE:** `LearningEngine` periodic batch retraining pipeline with 3% epsilon promotion gate and PostgreSQL audit logging.
 - [x] **Week 2 — DONE:** Cross-Domain Representation Discrepancy & Transfer Study (`TRANSFER_STUDY_RESULTS.md`) with non-collapse guards and AMKB latent retrieval transfer.
 - [x] **Week 3 — DONE:** Full Cognition Pipeline Comprehensive Ablation Suite (`ABLATION_STUDY_RESULTS.md`), deterministic seeding (`seed=42`), and dual-axis evaluation.
-- [ ] **Week 4 — Next immediate step:** Month 7 Wrap-up / Month 8 Preparation.
+- [x] **Week 4 — DONE:** System Audit, Immutable DB Annotation, Cross-Domain Dynamic Model Routing, and Evaluation Suite Consolidation.
 
-**Next immediate step:** Month 7 Week 4 / Month 8 — End-to-End System Benchmark & Thesis Synthesis.
+**Next immediate step:** Month 8 — End-to-End System Benchmark (`docs/ATLAS_BENCHMARK.md`) & Thesis Synthesis.
 
 ---
 
 ## 6b. Architecture Decisions Log
 *(One entry per non-obvious decision or bug fix — so future agents and the thesis writeup don't rediscover these from scratch)*
 
-- **Architecture Verification:** Cross-unit generalization tests definitively prove that embeddings for both healthy units and near-failure units accurately cluster and retrieve logically consistent nearest neighbors *across different physical engines* (avg ~123 RUL for healthy; ~4 RUL for near-failure queries).
+- **Week 4: System Audit, Cross-Domain Model Routing & Standalone Script Isolation:**
+  - *Encoder Routing Discrepancy Found and Fixed:* Discovered that while Week 2 trained encoders (`laptop_world_model.pt`, etc.) existed on disk, `AdaptiveContextEngine` and `server/api.py` were still using the single-model Month 6 fallback for 5-channel queries. Upgraded `AdaptiveContextEngine` with a multi-model registry (`domain_models: Dict[str, WorldModel]`) and dynamic disk resolution (`get_world_model(domain, feature_dim)`), restoring real Attention-LSTM stress evaluation and 32-dim latent representations across all 4 domains.
+  - *Standalone-Script Evaluation Isolation Confirmed:* Verified that `scripts/run_transfer_study.py` and `scripts/run_ablations.py` load checkpoints directly via `WorldModel.load()`, bypassing `AdaptiveContextEngine` and `server/api.py` entirely, ensuring all Month 7 Week 2/3 research numbers were always computed on genuine trained models and unaffected by the API-layer routing bug.
+  - *Stress Sensitivity & Non-Collapse Verified:* Confirmed on canonical idle (0.10) vs stress (0.90) windows that all compute domain encoders respond dynamically (e.g. Laptop stress moves from 0.1633 to 1.0000) and satisfy strict directional ($\text{Cosine Dist} \ge 0.20$) and magnitude ($\text{Euclidean Dist} \ge 0.50$) non-collapse bounds.
+  - *Immutable DB Audit Annotation:* Annotated row #1 in `learning_events` in PostgreSQL, documenting that the 48.7839 baseline was an initial all-window measurement-protocol smoke-test artifact, maintaining immutable audit trail integrity without obscuring history.
+  - *MachineDNAEngine Connection Bug Fixed:* Fixed `MachineDNAEngine` initialization in `server/api.py` where passing `_amkb` directly broke `.connection()` calls on DNA retrieval.
+
+| Date | File | Decision | Reason |
+|---|---|---|---|
+| Month 7 W4 | `server/atlas/adaptive_context.py` | Multi-domain WorldModel registry + dynamic `get_world_model` disk resolution | Connects live API queries across laptop/mobile/server to real pretrained Attention-LSTM encoders |
+| Month 7 W4 | `server/database.py` | Added `load_dotenv()` on module import | Automatically loads `.env` connection pool settings for scripts and database utilities |
+| Month 7 W4 | `server/atlas/explain.py` | Feature attribution and reason code computed on zero-neighbor queries | Ensures consistent machine-readable attribution reasons on live devices with no historical failures |
+| Month 7 W3 | `server/atlas/ablation_engine.py` | 4 Canonical Ablation evaluations + pure-NumPy Spearman rank correlation | Provides standardized, C-extension-safe ablation metrics across full ATLAS pipeline |
+| Month 7 W3 | `server/atlas/simulation.py` | Deterministic RNG seeding (`seed=42`) in Monte Carlo simulation | Locks stochastic sample draws across borderline high-variance units for reproducible evaluation |
+| Month 7 W3 | `docs/ABLATION_STUDY_RESULTS.md` | Dual-axis Ablation 3 framing + Gaussian early-life tail limitation disclosure | Evaluates economic discrimination on disputed units and documents stochastic sensitivity in production |
+| Month 7 W1 | `server/atlas/learning_engine.py` | 3% epsilon promotion gate (`RMSE_cand <= 0.97 * RMSE_active`) with DB audit | Protects production checkpoint from regressions; logs all promote/rollback events |
+| Month 7 W2 | `server/atlas/pretrain_domain.py` | Self-supervised Attention-LSTM domain pre-training + non-collapse guard | Produces legitimate 32-dim latent spaces for compute domains prior to transfer study |
+| Month 7 W2 | `server/atlas/transfer_study.py` | Replaced zero-padding with AMKB 32-dim latent $k$-NN memory retrieval | Tests genuine semantic memory transfer without dimensional mismatch distortion |
+| Month 7 W2 | `docs/TRANSFER_STUDY_RESULTS.md` | Formal literature grounding (MMD, TCA, NTI) + Laptop asymmetry disclosure | Thesis-ready research report with honest, mathematically sound boundary analysis |
 
 ### RUL-Scale Canonical Policy (Decisions Log)
 Across Month 2, the handling of RUL limits encountered structural contradictions between World Model training, semantic retrieval, and long-term health metrics. The finalized canonical policy is:

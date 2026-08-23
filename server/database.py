@@ -6,7 +6,10 @@ the app crashes on import if DATABASE_URL is not set.
 """
 import os
 import logging
+from dotenv import load_dotenv
 from psycopg_pool import ConnectionPool
+
+load_dotenv()
 
 logger = logging.getLogger("DigitalTwin")
 

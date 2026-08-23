@@ -25,10 +25,48 @@ class AdaptiveContext:
     machine_dna: Optional[List[float]]
 
 class AdaptiveContextEngine:
-    def __init__(self, amkb: AMKB, dna_engine: MachineDNAEngine, world_model: WorldModel):
+    def __init__(
+        self,
+        amkb: AMKB,
+        dna_engine: MachineDNAEngine,
+        world_model: Optional[WorldModel] = None,
+        domain_models: Optional[Dict[str, WorldModel]] = None,
+    ):
         self.amkb = amkb
         self.dna_engine = dna_engine
         self.world_model = world_model
+        self.domain_models: Dict[str, WorldModel] = dict(domain_models) if domain_models else {}
+
+    def get_world_model(self, domain: str, feature_dim: int) -> Optional[WorldModel]:
+        """Resolves the appropriate WorldModel for a specific domain and feature dimensionality."""
+        # 1. Explicit domain models registry
+        if domain in self.domain_models:
+            m = self.domain_models[domain]
+            if m is not None and getattr(m, "config", None) is not None and m.config.feature_dim == feature_dim:
+                return m
+
+        # 2. Check default world_model
+        if (
+            self.world_model is not None
+            and getattr(self.world_model, "config", None) is not None
+            and self.world_model.config.feature_dim == feature_dim
+        ):
+            return self.world_model
+
+        # 3. Dynamic disk lookup from data/models/
+        try:
+            from pathlib import Path
+            models_dir = Path(__file__).parent.parent.parent / "data" / "models"
+            candidate = models_dir / f"{domain}_world_model.pt"
+            if candidate.exists():
+                loaded = WorldModel.load(str(candidate))
+                if getattr(loaded, "config", None) is not None and loaded.config.feature_dim == feature_dim:
+                    self.domain_models[domain] = loaded
+                    return loaded
+        except Exception:
+            pass
+
+        return None
 
     def build_context(
         self,
@@ -40,8 +78,8 @@ class AdaptiveContextEngine:
     ) -> AdaptiveContext:
         """
         Builds the adaptive context for a given operational window.
-        - Validates window is exactly shape (30, 14)
-        - Runs the World Model to get `state_vector` and `predicted_rul`.
+        - Validates 2D shape (seq_len, feature_dim).
+        - Runs the domain-specific World Model to get `state_vector` and `predicted_rul`.
         - Queries AMKB for similar historical states, applying self-match exclusion.
         - Fetches Machine DNA.
         """
@@ -51,18 +89,15 @@ class AdaptiveContextEngine:
 
         seq_len, feature_dim = current_window.shape
 
-        # 2. Run World Model if feature_dim matches model config, otherwise fallback
-        if (
-            self.world_model is not None
-            and getattr(self.world_model, "config", None) is not None
-            and self.world_model.config.feature_dim == feature_dim
-        ):
+        # 2. Run World Model if available for domain and feature_dim, otherwise fallback
+        model = self.get_world_model(domain, feature_dim)
+        if model is not None:
             tensor_window = prepare_window(current_window, seq_len=seq_len, feature_dim=feature_dim)
-            out = self.world_model.predict(tensor_window)
+            out = model.predict(tensor_window)
             pred_rul = float(out.rul_pred)
             sv = out.state_vector
         else:
-            # Fallback for domains without a matching trained WorldModel (e.g. laptop/mobile)
+            # Fallback for domains without a matching trained WorldModel
             pred_rul = 30.0
             sv = np.zeros(32, dtype=np.float32)
 

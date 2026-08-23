@@ -125,6 +125,6 @@
       "notes": "Multi-core and GPU saturation profile calibrated to SSH telemetry (seed=103)"
     }
   },
-  "timestamp": "2026-08-19T11:23:36Z",
+  "timestamp": "2026-08-23T06:59:34Z",
   "methodology_notes": "Passive MMD and Centroid Cosine representation discrepancy diagnostics with AMKB k-NN latent retrieval transfer"
 }

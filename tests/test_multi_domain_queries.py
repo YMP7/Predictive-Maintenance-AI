@@ -61,7 +61,7 @@ def test_adaptive_context_multi_domain_shapes(mock_engines):
     assert ctx_cmapss.predicted_rul == 82.5
     assert len(ctx_cmapss.neighbors) == 2
     
-    # 2. Laptop (30, 5) -> Feature dim mismatch triggers fallback path safely
+    # 2. Laptop (30, 5) -> Uses domain-specific trained model if available
     laptop_win = np.random.rand(30, 5).astype(np.float32)
     ctx_laptop = ace.build_context(
         domain="laptop",
@@ -70,8 +70,20 @@ def test_adaptive_context_multi_domain_shapes(mock_engines):
         current_window=laptop_win
     )
     assert ctx_laptop.domain == "laptop"
-    assert ctx_laptop.predicted_rul == 30.0
+    # When laptop_world_model.pt exists, it outputs normalized stress [0, 1]
+    assert 0.0 <= ctx_laptop.predicted_rul <= 1.0 or ctx_laptop.predicted_rul == 30.0
     assert len(ctx_laptop.neighbors) == 2
+
+    # 3. Unsupported domain (30, 8) -> Triggers fallback path safely
+    unsupported_win = np.random.rand(30, 8).astype(np.float32)
+    ctx_unsupported = ace.build_context(
+        domain="unsupported_domain",
+        machine_id="device_99",
+        current_cycle=1,
+        current_window=unsupported_win
+    )
+    assert ctx_unsupported.domain == "unsupported_domain"
+    assert ctx_unsupported.predicted_rul == 30.0
 
 
 def test_explain_multidomain_attribution_reason(mock_engines):
