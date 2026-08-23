@@ -77,9 +77,17 @@ class MachineDNAEngine:
 
     @staticmethod
     def _slope(y: np.ndarray) -> float:
-        if len(y) < 2:
+        n = len(y)
+        if n < 2:
             return 0.0
-        return float(np.polyfit(np.arange(len(y)), y, 1)[0])
+        x = np.arange(n, dtype=np.float64)
+        y_arr = np.asarray(y, dtype=np.float64)
+        x_dev = x - ((n - 1.0) / 2.0)
+        denom = float(np.dot(x_dev, x_dev))
+        if denom == 0.0:
+            return 0.0
+        numer = float(np.dot(x_dev, y_arr - np.mean(y_arr)))
+        return float(numer / denom)
     
     @staticmethod
     def _validate_vector(v: np.ndarray) -> np.ndarray:

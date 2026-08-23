@@ -140,8 +140,14 @@ class RULEstimator:
         for i in range(1, len(y_med)):
             y_ema[i] = alpha * y_med[i] + (1 - alpha) * y_ema[i - 1]
             
-        # Fit linear curve: y = mx + c on the smoothed data
-        m, c = np.polyfit(x, y_ema, 1)
+        # Fit linear curve: y = mx + c on the smoothed data (closed-form linear regression)
+        x_arr = np.asarray(x, dtype=np.float64)
+        x_mean = np.mean(x_arr)
+        y_mean = np.mean(y_ema)
+        x_dev = x_arr - x_mean
+        denom = float(np.dot(x_dev, x_dev))
+        m = float(np.dot(x_dev, y_ema - y_mean) / denom) if denom > 0 else 0.0
+        c = float(y_mean - m * x_mean)
         
         current_deg = y_ema[-1]
         critical_threshold = 0.8

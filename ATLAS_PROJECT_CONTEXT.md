@@ -237,17 +237,21 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 
 **Weekly checklist (Month 8 - System Benchmarking, Resource Profiling & Thesis Synthesis):**
 - [x] **Week 1 — DONE:** End-to-End Latency & Throughput Benchmark (`docs/ATLAS_BENCHMARK.md`), stage-sum residual reconciliation, and transport characterization.
-- [ ] **Week 2 — Next immediate step:** Resource Profiling, Memory Footprint & API Load Testing under Concurrent Clients.
-- [ ] **Week 3:** Open-Source Benchmark Release Package & Standalone Evaluation Harness.
+- [x] **Week 2 — DONE:** Resource Profiling, Memory Footprint & API Load Testing under Concurrent Clients (`docs/ATLAS_RESOURCE_PROFILE.md`, `data/system_resource_profile.json`, `scripts/profile_resources.py`).
+- [ ] **Week 3 — Next immediate step:** Open-Source Benchmark Release Package & Standalone Evaluation Harness.
 - [ ] **Week 4:** Final Thesis Chapter Synthesis (Sections A, B, and C Compilation).
 
-**Next immediate step:** Month 8 Week 2 — Resource Profiling, Memory Footprint & API Concurrent Load Testing.
+**Next immediate step:** Month 8 Week 3 — Open-Source Benchmark Release Package & Standalone Evaluation Harness.
 
 ---
 
 ## 6b. Architecture Decisions Log
 *(One entry per non-obvious decision or bug fix — so future agents and the thesis writeup don't rediscover these from scratch)*
 
+- **Month 8 Week 2: Resource Footprint, Concurrency Tiering & Connection Pool Saturation Dynamics:**
+  - *Compact Memory Footprint Verification:* The full multi-domain runtime (4 loaded Attention-LSTM World Models, psycopg connection pools, vector lookup caches) occupies ~282.6 MB RSS, with zero cumulative memory leakage over 100 continuous end-to-end cycles ($\Delta = 0.09$ MB after GC).
+  - *Two-Tier Concurrency Scoping:* Evaluated `/api/context`, `/api/decide`, `/api/dna`, and `/api/health` across an *In-Domain Fleet Tier* ($C = 1, 2, 4, 8$) matching the validated 4-domain streaming fleet (30.5–48.1 req/s on `/api/context` with 0.0% errors) and a *Stretch Stress Tier* ($C = 16, 32, 64$).
+  - *Dual-Pool Saturation & Queuing Characterization:* Under stretch load ($C \ge 16$), both `AMKB` and `MachineDNAEngine` connection pools (`max_size=3`) saturate, creating double-queue contention. Because requests check out connections sequentially, requests queue gracefully in psycopg without socket errors (0.0% error rate), scaling latency proportionally to $C / \text{max\_size}$. Recommends consolidating to a shared database pool session in future production scaling.
 - **Month 8 Week 1: Performance Benchmarking, Transport Bounds & Residual Reconciliation:**
   - *Hardware & Runtime Disclosure:* Standardized all benchmark profiling with explicit hardware context (10 cores / 16 threads, 15.7 GB RAM, CPU backend, single-process execution) and 100 trials per stage with warm-up cycles.
   - *Stage-Sum vs End-to-End Reconciliation:* Documented that the isolated micro-benchmark sum (~25.2 ms) vs end-to-end latency (37.76 ms) on C-MAPSS has a ~12.5 ms delta caused by dual DB connection pool checkouts (`AMKB` and `MachineDNAEngine`), 15 tensor copy/prepare cycles (`prepare_window`), and dataclass instantiation.
@@ -256,6 +260,8 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 
 | Date | File | Decision | Reason |
 |---|---|---|---|
+| Month 8 W2 | `scripts/profile_resources.py` | Multi-tier concurrent load testing ($C \in [1 \dots 64]$) + RSS profiling + connection pool queue telemetry | Quantifies RAM footprint, leak resilience, and dual-pool saturation boundaries across in-domain and stretch tiers |
+| Month 8 W2 | `docs/ATLAS_RESOURCE_PROFILE.md` | Dual-tier load reporting, leak verification, and connection pool consolidation takeaway | Provides formal thesis-grade resource profiling document with concrete edge deployment sizing |
 | Month 8 W1 | `scripts/benchmark_system.py` | Automated multi-stage latency and throughput benchmarking harness + JSON/MD export | Provides reproducible empirical latency profiling ($p_{50}, p_{95}, p_{99}$) across full pipeline |
 | Month 8 W1 | `docs/ATLAS_BENCHMARK.md` | Dual-table latency reporting with stage-sum reconciliation and transport caveats | Delivers rigorous thesis-ready benchmarking document with honest hardware & network qualifiers |
 | Month 8 W1 | `server/mqtt_client.py` | Graceful warning fallback if local MQTT broker (1883) is offline | Prevents offline unit tests and dev scripts from crashing on import |
