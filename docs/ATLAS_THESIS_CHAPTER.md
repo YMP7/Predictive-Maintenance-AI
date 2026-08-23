@@ -9,7 +9,7 @@
 
 Industrial cyber-physical systems and enterprise compute fleets generate massive, multi-rate telemetry streams under dynamic operating regimes. Conventional predictive maintenance (PdM) frameworks exhibit four foundational failure modes: (1) isolated Remaining Useful Life (RUL) estimation lacking contextual grounding in past machine lifecycles; (2) opaque, "black-box" predictions that fail to provide actionable, verifiable explanations for maintenance engineers; (3) decision policies based on naive heuristic thresholds that ignore degradation uncertainty, action lead times, and asymmetric economic risk; and (4) brittle domain specificity that prevents deployment across heterogeneous machine archetypes.
 
-To address these limitations, this thesis presents **ATLAS (Adaptive Telemetry Learning & Autonomous System)**—an end-to-end machine cognition platform for explainable, cost-optimal predictive maintenance across heterogeneous cyber-physical and edge-compute systems. ATLAS integrates:
+To address these limitations, this thesis presents **ATLAS**—an **Adaptive Machine Cognition Platform** for explainable, cost-optimal predictive maintenance across heterogeneous cyber-physical and edge-compute systems. ATLAS integrates:
 - An **Attention-LSTM World Model** yielding terminal RUL prediction accuracy of **$\text{RMSE} = 15.42$ cycles** ($\text{PHM} = 394.70$, multi-seed training distribution of $\text{RMSE} = 15.21 \pm 0.30$) on NASA C-MAPSS turbofans;
 - An **Adaptive Machine Knowledge Base (AMKB)** embedding operational states into a 32-dimensional vector space for high-dimensional angular cosine retrieval, mathematically unified across live pgvector databases and zero-drift in-memory fallbacks ($<10^{-5}$ numerical tolerance);
 - A **Grounded Explainability Engine (XAI)** combining 14-pass occlusion feature attribution with non-circular ground-truth precedent citations, achieving a strong negative rank correlation ($r_s = -0.5090$) between explanation confidence and true prediction error;
@@ -35,7 +35,8 @@ Comprehensive system benchmarking demonstrates quiescent end-to-end cognition la
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
 │ 2. ATTENTION-LSTM WORLD MODEL ENCODER                                                  │
 │    - 2-Layer LSTM + Temporal Attention Pooling                                          │
-│    - Multi-Head Outputs: Predicted RUL (y_pred), Stress (s), State Vector (z in R^32)   │
+│    - Multi-Head Outputs: Predicted RUL (y_hat), Health/Stress Index (h), State Vector (z)│
+│    * Note: h represents degradation-to-failure (Cat A) or operational stress (Cat B)    │
 └──────────────────┬───────────────────────────────────────┬──────────────────────────────┘
                    │                                       │
                    ▼                                       ▼
@@ -59,7 +60,7 @@ Comprehensive system benchmarking demonstrates quiescent end-to-end cognition la
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
 │ 6. MONTE CARLO SIMULATION & COST-WEIGHTED DECISION GRAPH                                │
 │    - 1,000-Draw Stochastic Degradation Rollouts over RUL Uncertainty Bounds             │
-│    - Action Lead-Time Penalty Modeling (t_lead in {0, 2, 5, 10} cycles)                 │
+│    - Action Lead-Time Penalty Modeling (t_lead in {30, 10, 3, 0} cycles)                │
 │    - Economic Risk Optimization: argmin Expected Fleet Cost                             │
 └──────────────────────────────────────┬──────────────────────────────────────────────────┘
                                        │
@@ -89,10 +90,10 @@ ATLAS addresses these challenges through a modular, closed-loop machine cognitio
 
 ## 2. Attention-LSTM World Model Architecture
 
-The ATLAS **WorldModel** acts as the perceptual core of the system. For an incoming sequence of multivariate sensor readings, it simultaneously estimates Remaining Useful Life, quantifies operational stress, and compresses temporal dynamics into a low-dimensional state representation.
+The ATLAS **WorldModel** acts as the perceptual core of the system. For an incoming sequence of multivariate sensor readings, it simultaneously estimates Remaining Useful Life, quantifies health/stress state, and compresses temporal dynamics into a low-dimensional state representation.
 
 ### Mathematical Formulation & Temporal Attention:
-Given an input sequence window $X = [x_1, x_2, \dots, x_L]^T \in \mathbb{R}^{L \times D}$ where $L=30$ is the sequence length and $D$ is the sensor feature dimension ($D=14$ for C-MAPSS, $D=4$ for Laptop, $D=5$ for Mobile, $D=6$ for Server):
+Given an input sequence window $X = [x_1, x_2, \dots, x_L]^T \in \mathbb{R}^{L \times D}$ where $L=30$ is the sequence length and $D$ is the sensor feature dimension ($D=14$ for C-MAPSS turbofans, and $D=5$ for all three compute domains: Laptop, Mobile, and Server):
 
 1. **Feature Extraction**: $X$ is processed through a 2-layer recurrent Long Short-Term Memory (LSTM) network with hidden dimension $H=64$ and dropout rate $p=0.20$:
    $$h_t, c_t = \text{LSTM}(x_t, (h_{t-1}, c_{t-1})), \quad t \in \{1, \dots, L\}$$
@@ -108,11 +109,12 @@ Given an input sequence window $X = [x_1, x_2, \dots, x_L]^T \in \mathbb{R}^{L \
      $$z = \text{LayerNorm}(W_z c_{\text{attn}} + b_z)$$
    - **RUL Prediction ($\hat{y} \in \mathbb{R}^+$)**: Passed through an MLP with ReLU activation:
      $$\hat{y} = W_r \text{ReLU}(W_{r1} z + b_{r1}) + b_r$$
-   - **Operational Stress Index ($s \in [0, 1]$)**: Bounded via a sigmoid activation:
-     $$s = \sigma(W_s z + b_s)$$
+   - **Health / Stress Head ($h \in [0, 1]$)**: Bounded via a sigmoid activation:
+     $$h = \sigma(W_h z + b_h)$$
+     *(Semantic Note: In Category A physical systems like C-MAPSS, $h$ quantifies degradation toward irreversible failure. In Category B live compute hardware like Laptops, Mobile phones, and Linux Servers, $h$ acts as an instantaneous operational workload and thermal stress score; see Section B.1).*
 
 ```
-Input Window X (30 x D)
+Input Window X (30 x D)  [D=14 for C-MAPSS, D=5 for Compute Domains]
       │
       ▼
 ┌───────────────┐
@@ -134,8 +136,8 @@ Context Vector c_attn (64)
         ├──────────────────────┬──────────────────────┐
         ▼                      ▼                      ▼
 ┌───────────────┐      ┌───────────────┐      ┌───────────────┐
-│   RUL Head    │      │  Stress Head  │      │  State Output │
-│  y_hat (RUL)  │      │  s in [0, 1]  │      │  z in R^32    │
+│   RUL Head    │      │ Health/Stress │      │  State Output │
+│  y_hat (RUL)  │      │  h in [0, 1]  │      │  z in R^32    │
 └───────────────┘      └───────────────┘      └───────────────┘
 ```
 
@@ -209,9 +211,9 @@ Rather than applying heuristic thresholds to the point estimate $\hat{y}$, the *
                                           ▼
                 ┌──────────────────────────────────────────────────┐
                 │ Action Lead-Time & Economic Risk Matrix          │
-                │ - CONTINUE_OPERATION      (Lead Time: 0 cycles)  │
-                │ - SCHEDULE_MAINTENANCE_SOON (Lead Time: 5 cycles)│
-                │ - SCHEDULE_MAINTENANCE_NOW (Lead Time: 2 cycles) │
+                │ - CONTINUE_OPERATION      (Lead Time: 30 cycles) │
+                │ - SCHEDULE_MAINTENANCE_SOON (Lead Time: 10 cycles)│
+                │ - SCHEDULE_MAINTENANCE_NOW (Lead Time: 3 cycles) │
                 │ - REPLACE_IMMEDIATELY     (Lead Time: 0 cycles)  │
                 └─────────────────────────┬────────────────────────┘
                                           │
@@ -227,26 +229,25 @@ Rather than applying heuristic thresholds to the point estimate $\hat{y}$, the *
 
 ### Action Space & Lead-Time Matrix:
 Each action $a \in \mathcal{A}$ has an associated operational lead time $t_{\text{lead}}(a)$ representing the cycles required for part delivery, scheduling, and labor deployment:
-- $a_1 = \text{CONTINUE\_OPERATION}$ ($t_{\text{lead}} = 0$ cycles)
-- $a_2 = \text{SCHEDULE\_MAINTENANCE\_SOON}$ ($t_{\text{lead}} = 5$ cycles)
-- $a_3 = \text{SCHEDULE\_MAINTENANCE\_NOW}$ ($t_{\text{lead}} = 2$ cycles)
+- $a_1 = \text{CONTINUE\_OPERATION}$ ($t_{\text{lead}} = 30$ cycles review horizon)
+- $a_2 = \text{SCHEDULE\_MAINTENANCE\_SOON}$ ($t_{\text{lead}} = 10$ cycles)
+- $a_3 = \text{SCHEDULE\_MAINTENANCE\_NOW}$ ($t_{\text{lead}} = 3$ cycles)
 - $a_4 = \text{REPLACE\_IMMEDIATELY}$ ($t_{\text{lead}} = 0$ cycles)
 
 ### Stochastic Cost Formulation:
 Across $M = 1,000$ Monte Carlo realizations drawn from the prognostic uncertainty distribution $y^{(m)} \sim \mathcal{N}(\hat{y}, \sigma^2)$, the expected cost of action $a$ is evaluated:
 $$\mathbb{E}[\text{Cost}(a)] = \frac{1}{M} \sum_{m=1}^M \text{CostFunction}\left(a, y^{(m)}, t_{\text{lead}}(a)\right)$$
-where:
+where, matching the tested implementation in `server/atlas/simulation.py`:
 $$\text{CostFunction}(a, y, t_{\text{lead}}) = 
 \begin{cases}
-C_{\text{unplanned}} + C_{\text{downtime}} \cdot (t_{\text{lead}} - y), & \text{if } y < t_{\text{lead}} \text{ (Catastrophic In-Service Failure)} \\
-C_{\text{planned}} + C_{\text{waste}} \cdot \max(0, y - t_{\text{lead}}), & \text{if } a \in \{a_2, a_3\} \text{ and } y \ge t_{\text{lead}} \\
-C_{\text{replace}} + C_{\text{waste}} \cdot y, & \text{if } a = a_4 \text{ (Immediate Replacement)} \\
-0, & \text{if } a = a_1 \text{ and } y \ge t_{\text{lead}}
+C_{\text{unplanned}}, & \text{if } y \le t_{\text{lead}}(a) \text{ (Unit fails before action is executed)} \\
+0, & \text{if } a = \text{CONTINUE\_OPERATION} \text{ and } y > t_{\text{lead}}(a) \\
+C_{\text{base}} + C_{\text{downtime}} \cdot \mu_{\text{urgency}}(a), & \text{if } a \in \{\text{SOON, NOW, REPLACE}\} \text{ and } y > t_{\text{lead}}(a)
 \end{cases}$$
 
-Under our standard benchmark parameters ($C_{\text{unplanned}} = \$1,000$, $C_{\text{planned}} = \$50$, $C_{\text{replace}} = \$150$, $C_{\text{downtime}} = \$5/\text{cycle}$, $C_{\text{waste}} = \$1/\text{cycle}$):
-- If $\hat{y}$ is large, $\text{CONTINUE\_OPERATION}$ yields minimal expected cost.
-- As $\hat{y}$ approaches lead-time thresholds, proactive scheduling minimizes total cost by avoiding catastrophic failure penalties while avoiding the excessive premature disposal waste caused by immediate replacements.
+Under our standard benchmark parameters ($C_{\text{unplanned}} = \$1,000$, $C_{\text{base}} = \$50$, $C_{\text{downtime}} = \$5/\text{cycle}$, and urgency multipliers $\mu_{\text{urgency}} = \{1.0, 1.5, 2.0\}$ for SOON, NOW, and REPLACE):
+- If $\hat{y}$ is high, $\text{CONTINUE\_OPERATION}$ incurs $\$0$ cost since $y > 30$ cycles.
+- If $\hat{y}$ approaches lead times, proactive scheduled maintenance avoids the $\$1,000$ unplanned failure penalty at a fraction of the cost ($\$55.00$ or $\$57.50$).
 - **Safety Overrides**: If $\hat{y} \le 10$ cycles or health index $h(t) \le 0.20$, the Decision Graph enforces conservative emergency overrides ($\text{REPLACE\_IMMEDIATELY}$ or $\text{SCHEDULE\_MAINTENANCE\_NOW}$) regardless of minor cost differences.
 
 ---
@@ -282,22 +283,22 @@ To demonstrate cross-system generalizability beyond aerospace turbofans, ATLAS d
 │ CMAPSSAdapter    │   │ LaptopAdapter    │   │ MobileAdapter    │   │ ServerAdapter    │
 │ - NASA Turbofans │   │ - Consumer PC    │   │ - Android Phones │   │ - Linux Servers  │
 │ - 14 Turbofan Ch │   │ - psutil Polling │   │ - Termux:API     │   │ - SSH / procfs   │
-│ - 100 Run-to-Fail│   │ - CPU, RAM, Temp │   │ - Thermal, Batt  │   │ - 16-Core System │
+│ - 100 Run-to-Fail│   │ - 5 OS Features  │   │ - 5 Mobile Feat  │   │ - 5 Server Feat  │
 └──────────────────┘   └──────────────────┘   └──────────────────┘   └──────────────────┘
 ```
 
 | Domain Name | Physical Target | Primary Sensor Channels ($D$) | Transport Mechanism | Acquisition Rate | Failure / Stress Phenotype |
 | :--- | :--- | :---: | :--- | :--- | :--- |
-| **C-MAPSS** | Commercial Turbofan Engines | 14 thermodynamic channels (T24, T30, T50, P30, Ps30, phi, etc.) | High-speed static dataset streaming | 1 Hz (simulated flight cycles) | High-pressure compressor and fan blade degradation |
-| **Laptop** | Consumer Workstations / PCs | 4 channels: CPU utilization (%), RAM utilization (%), Battery wear (%), Package temp (°C) | Direct OS kernel hooks (`psutil`) | 10–20 Hz | Thermal saturation, battery degradation, memory exhaustion |
-| **Mobile** | Android Smartphones | 5 channels: Battery temp (°C), Voltage (mV), Level (%), CPU load avg, Current (mA) | Local HTTP REST bridge (`Termux:API`) | 0.2–5.0 Hz | Thermal runaway, aggressive voltage sagging, battery wear |
-| **Server** | Enterprise Linux Servers | 6 channels: CPU load (1m), RAM usage (%), Swap usage (%), CPU max temp, IO wait (%), Context switches | Remote SSH command polling & `procfs` | 3–10 Hz | Thermal throttling, sustained I/O bottlenecks, memory leaks |
+| **C-MAPSS** | Commercial Turbofan Engines | **14 informative channels**: T24, T30, T50, P50, Np, Nc, Ps30, phi, NRf, NRc, BPR, htBleed, W31, W32 | High-speed static dataset streaming | 1 Hz (simulated flight cycles) | High-pressure compressor and fan blade degradation (Category A) |
+| **Laptop** | Consumer Workstations / PCs | **5 normalized features**: `cpu_usage`, `memory_usage`, `disk_usage`, `battery_percent`, `is_charging` | Direct OS kernel hooks (`psutil`) | 10–20 Hz | Thermal saturation, battery wear, memory exhaustion (Category B) |
+| **Mobile** | Android Smartphones | **5 normalized features**: `battery_level`, `battery_temp`, `battery_current`, `memory_used_percent`, `cpu_usage` | Local HTTP REST bridge (`Termux:API`) | 0.2–5.0 Hz | Thermal runaway, discharge spikes, battery wear (Category B) |
+| **Server** | Enterprise Linux Servers | **5 normalized features**: `cpu_usage`, `memory_usage`, `disk_usage`, `network_io_rate`, `gpu_utilization` | Remote SSH polling / `procfs` (sim fallback) | 3–10 Hz | Thermal throttling, sustained I/O saturation, compute bottlenecks (Category B) |
 
 ---
 
 ## 2. Self-Supervised Domain Pretraining
 
-Each non-aerospace domain trains a specialized `WorldModel` encoder via self-supervised sequence reconstruction. Models are initialized with a non-collapse variance guard:
+Each non-aerospace domain trains a specialized `WorldModel` encoder via self-supervised sequence reconstruction over its 5 normalized features ($D=5$). Models are initialized with a non-collapse variance guard:
 $$\sigma(z) = \sqrt{\frac{1}{32} \sum_{j=1}^{32} (z_j - \bar{z})^2} \ge 0.05$$
 This ensures the encoder learns an expressive, non-degenerate 32-dimensional embedding space rather than collapsing into trivial point representations.
 
@@ -336,7 +337,7 @@ Server   [    0.080   -0.217   0.073   1.000 ]     Server   [ 1.2290  0.8996  0.
 ### 3-Domain Cross-Physical Retrieval Transfer Diagnostics:
 
 | Target Domain | Within-Domain Retrieval RMSE | Cross-Domain (C-MAPSS Direct) RMSE | Error Inflation Ratio | Within Latent Distance | Cross Latent Distance | Negative Transfer Index (NTI) |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **Mobile** | **0.0301** | **0.2495** | **8.30×** | 0.3022 | 10.8024 | **-0.0060** |
 | **Server** | **0.0404** | **0.2868** | **7.10×** | 0.0683 | 10.9709 | **-0.0074** |
 | **Laptop** | **0.0961** | **0.0858** | **0.89×\*** | 0.2834 | 10.8235 | **-0.0020** |
@@ -374,8 +375,8 @@ To validate the necessity of each architectural subsystem, ATLAS was evaluated a
 
 ```
 [ Ablation 1: Fleet Lifecycle Maintenance Cost ]
-Baseline (Pipeline A: RUL-Alone) : $3,440.00  ████████████████████████████████████ (24 emergency replacements)
-ATLAS    (Pipeline B: Multi-Stage) : $1,817.50  █████████████████ (-47.17% Cost Savings, +$1,622.50)
+Baseline (Pipeline A: RUL-Alone) : $3,440.00  ████████████████████████████████████ (24 emergency replacements, 76 continue ops)
+ATLAS    (Pipeline B: Multi-Stage) : $1,817.50  █████████████████ (-47.17% Cost Savings, +$1,622.50 net savings)
 
 [ Ablation 2: Explanation Grounding vs. Error Correlation ]
 Baseline (Ungrounded Prior)       : r_s =  0.0000 (Constant 0.50 uncertainty, zero rank correlation)
@@ -398,7 +399,7 @@ ATLAS    (Domain-Adapted Model)    : RMSE = 0.0301  ███ (Accurate within-d
 | **Ablation 4** | **Domain Adaptation vs. Direct Transfer** | Zero-shot transfer from C-MAPSS turbofan memory | Pretrained domain-specific Attention-LSTM encoders | **8.30× Mobile / 7.10× Server Error Reduction** ($\text{NTI} < 0$, preventing negative transfer) |
 
 ### Detailed Ablation Insights:
-1. **Ablation 1 (Fleet Cost Optimization)**: Naive thresholding triggered 24 costly immediate replacements ($\$150$ base each) with zero proactive scheduling. ATLAS scheduled 14 early maintenance interventions and 13 urgent interventions, avoiding premature disposal while eliminating all catastrophic in-service failures across the fleet.
+1. **Ablation 1 (Fleet Cost Optimization & Action Distribution)**: Naive thresholding on predicted RUL (Pipeline A) triggered 24 costly emergency replacements ($\text{REPLACE\_IMMEDIATELY}$) and 76 $\text{CONTINUE\_OPERATION}$ decisions ($0$ scheduled actions), totaling $\$3,440.00$ across the 100-unit test fleet. In contrast, the full ATLAS multi-stage cognition pipeline (Pipeline B) dynamically graduated interventions: scheduling 14 early maintenance interventions ($\text{SCHEDULE\_MAINTENANCE\_SOON}$) and 13 urgent interventions ($\text{SCHEDULE\_MAINTENANCE\_NOW}$), while limiting emergency replacements to 5 units and continuing operation on 68 units (281.0 premature waste cycles discarded vs. 0.0), reducing total fleet cost to $\$1,817.50$—a **47.17% net savings ($+\$1,622.50$)** with zero missed failures.
 2. **Ablation 2 (Grounded Explanation Fidelity)**: In the ungrounded baseline, explanation confidence is static ($0.50$), offering zero correlation with model accuracy. With AMKB grounding, explanation confidence achieves a strong negative Spearman rank correlation ($r_s = -0.5090$, $p < 10^{-6}$) with absolute prediction error, meaning human operators can reliably trust high-confidence recommendations.
 3. **Ablation 3 (Disputed Unit Optimization & Safety Parity)**: On the 30 units where naive rules and the Decision Graph disagreed, naive thresholding defaulted to 20 emergency replacements. ATLAS graduated 26 of these into planned maintenance, saving $\$160.00$ ($10.46\%$) without compromising safety (100% near-failure intervention parity on all units with true $\text{RUL} \le 15$).
 4. **Ablation 4 (Cross-Compute Transfer)**: Evaluating cross-compute transfer across all 3 compute domains confirmed that domain-adapted encoders prevent the $7.10–8.30\times$ error inflation observed under direct zero-shot transfer.
