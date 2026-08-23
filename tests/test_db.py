@@ -15,7 +15,7 @@ load_dotenv()
 
 def test_database_url_required():
     """App must crash if DATABASE_URL is unset."""
-    with patch.dict('os.environ', {}, clear=True):
+    with patch('dotenv.load_dotenv'), patch.dict('os.environ', {}, clear=True):
         import sys
         if 'server.database' in sys.modules:
             del sys.modules['server.database']

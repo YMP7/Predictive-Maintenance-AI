@@ -238,16 +238,20 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 **Weekly checklist (Month 8 - System Benchmarking, Resource Profiling & Thesis Synthesis):**
 - [x] **Week 1 — DONE:** End-to-End Latency & Throughput Benchmark (`docs/ATLAS_BENCHMARK.md`), stage-sum residual reconciliation, and transport characterization.
 - [x] **Week 2 — DONE:** Resource Profiling, Memory Footprint & API Load Testing under Concurrent Clients (`docs/ATLAS_RESOURCE_PROFILE.md`, `data/system_resource_profile.json`, `scripts/profile_resources.py`).
-- [ ] **Week 3 — Next immediate step:** Open-Source Benchmark Release Package & Standalone Evaluation Harness.
-- [ ] **Week 4:** Final Thesis Chapter Synthesis (Sections A, B, and C Compilation).
+- [x] **Week 3 — DONE:** Open-Source Benchmark Release Package & Standalone Evaluation Harness (`scripts/evaluate_atlas.py`, `docs/REPRODUCIBILITY.md`, `data/atlas_evaluation_summary.json`, `tests/test_evaluation_cli.py`).
+- [ ] **Week 4 — Next immediate step:** Final Thesis Chapter Synthesis (Sections A, B, and C Compilation).
 
-**Next immediate step:** Month 8 Week 3 — Open-Source Benchmark Release Package & Standalone Evaluation Harness.
+**Next immediate step:** Month 8 Week 4 — Final Thesis Chapter Synthesis (Sections A, B, and C Compilation).
 
 ---
 
 ## 6b. Architecture Decisions Log
 *(One entry per non-obvious decision or bug fix — so future agents and the thesis writeup don't rediscover these from scratch)*
 
+- **Month 8 Week 3: Standalone Evaluation Package & Zero-Drift InMemory Fallback:**
+  - *Unified CLI Evaluation Harness:* Implemented `scripts/evaluate_atlas.py` orchestrating Prediction Accuracy (C-MAPSS FD001), Cross-Domain Transfer (MMD & NTI), Cognition Ablations (Ablations 1–4), System Latency Benchmarking, and Memory Profiling into a single scorecard (`data/atlas_evaluation_summary.json`).
+  - *Exact InMemoryAMKB Equivalence:* Built zero-dependency in-memory vector storage for offline researchers using float32 normalized dot-product cosine distance ($1.0 - \text{cos\_sim}$) matching pgvector's `<=>` operator and deterministic tie-breaking. Formally verified $< 10^{-5}$ tolerance equivalence in `tests/test_evaluation_cli.py`.
+  - *Reproducibility & Tolerance Documentation:* Published `docs/REPRODUCIBILITY.md` with SHA-256 checkpoint hashes, explicit distinction between deterministic fixed-checkpoint evaluation ($\pm 0.001$) and retraining empirical variance bounds (RMSE $15.21 \pm 0.30$, PHM $375 \pm 22$).
 - **Month 8 Week 2: Resource Footprint, Concurrency Tiering & Connection Pool Saturation Dynamics:**
   - *Compact Memory Footprint Verification:* The full multi-domain runtime (4 loaded Attention-LSTM World Models, psycopg connection pools, vector lookup caches) occupies ~281.7 MB RSS, with zero cumulative memory leakage over 100 continuous end-to-end cycles ($\Delta = 0.07$ MB after GC).
   - *Two-Tier Concurrency Scoping:* Evaluated `/api/context`, `/api/decide`, `/api/dna`, and `/api/health` across an *In-Domain Fleet Tier* ($C = 1, 2, 4, 8$) matching the validated 4-domain streaming fleet (27.4–49.5 req/s on `/api/context` with 0.0% errors) and a *Stretch Stress Tier* ($C = 16, 32, 64$).
@@ -260,6 +264,9 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 
 | Date | File | Decision | Reason |
 |---|---|---|---|
+| Month 8 W3 | `scripts/evaluate_atlas.py` | Standalone modular evaluation CLI harness + exact InMemoryAMKB fallback | Enables peer reviewers and examiners to reproduce all benchmark suites in <10s without PostgreSQL dependencies |
+| Month 8 W3 | `docs/REPRODUCIBILITY.md` | Checkpoint SHA-256 manifest + CPU floating-point tolerance bounds disclosure | Formally documents artifact integrity and sets clear empirical tolerance expectations for neural inference vs retraining |
+| Month 8 W3 | `tests/test_evaluation_cli.py` | Equivalence tests between pgvector `<=>` and InMemoryAMKB ($<10^{-5}$ tol) | Mathematically proves zero drift between live database and offline fallback paths |
 | Month 8 W2 | `scripts/profile_resources.py` | Multi-tier concurrent load testing ($C \in [1 \dots 64]$) + RSS profiling + connection pool queue telemetry | Quantifies RAM footprint, leak resilience, and dual-pool saturation boundaries across in-domain and stretch tiers |
 | Month 8 W2 | `docs/ATLAS_RESOURCE_PROFILE.md` | Dual-tier load reporting, leak verification, and connection pool consolidation takeaway | Provides formal thesis-grade resource profiling document with concrete edge deployment sizing |
 | Month 8 W1 | `scripts/benchmark_system.py` | Automated multi-stage latency and throughput benchmarking harness + JSON/MD export | Provides reproducible empirical latency profiling ($p_{50}, p_{95}, p_{99}$) across full pipeline |

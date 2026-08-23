@@ -1,0 +1,348 @@
+{
+  "timestamp": "2026-08-23T14:40:22.185321+00:00",
+  "execution_duration_sec": 8.33,
+  "database_live": true,
+  "hardware_context": {
+    "platform": "Windows",
+    "os_release": "11",
+    "processor": "Intel64 Family 6 Model 186 Stepping 2, GenuineIntel",
+    "physical_cores": 10,
+    "logical_cores": 16,
+    "total_ram_gb": 15.7,
+    "python_version": "3.13.5",
+    "torch_version": "2.10.0+cpu",
+    "torch_backend": "CPU",
+    "torch_num_threads": 10,
+    "background_cpu_percent": 68.0,
+    "background_ram_percent": 96.2,
+    "timestamp": "2026-08-23T14:40:14Z"
+  },
+  "checkpoints_manifest": {
+    "cmapss": {
+      "path": "data\\models\\best_model.pt",
+      "size_bytes": 248949,
+      "sha256": "bff765692b8239aae8766a123f1856773efec9936af00b69ed571ad98085fd3d"
+    },
+    "laptop": {
+      "path": "data\\models\\laptop_world_model.pt",
+      "size_bytes": 239917,
+      "sha256": "053bd408b75898eb818dd52dfe8562cee1a6c7cf1660ece098d47ee04c2896bf"
+    },
+    "mobile": {
+      "path": "data\\models\\mobile_world_model.pt",
+      "size_bytes": 239917,
+      "sha256": "782a542545b689e9bbb9997cdcd9637ba9eeb8536e0eb99852a9f832f743e46c"
+    },
+    "server": {
+      "path": "data\\models\\server_world_model.pt",
+      "size_bytes": 239917,
+      "sha256": "856ebde39dfe4ec6b01a92fe494985d9f78134e4e06e13e0c9dce134b1c2ed12"
+    },
+    "dna_scaler": {
+      "path": "data\\models\\machine_dna_scaler.json",
+      "size_bytes": 889,
+      "sha256": "edcfc8f5991504834118b400e4fc6612775dcba5b6f66cce23a335d343a26521"
+    }
+  },
+  "prediction_accuracy": {
+    "dataset": "NASA C-MAPSS FD001 (Terminal Test Windows, N=100 Units)",
+    "total_test_units": 100,
+    "rmse": 15.4242,
+    "mae": 11.8103,
+    "phm_score": 394.7,
+    "reference_baseline": {
+      "rmse": 15.02,
+      "phm_score": 383.19,
+      "delta_rmse": 0.4042,
+      "delta_phm": 11.51
+    },
+    "status": "PASSED"
+  },
+  "cross_domain_transfer": {
+    "status": "PASSED",
+    "domains": [
+      "cmapss",
+      "laptop",
+      "mobile",
+      "server"
+    ],
+    "cosine_similarity_matrix": {
+      "cmapss": {
+        "cmapss": 1.0,
+        "laptop": 0.140048,
+        "mobile": 0.154323,
+        "server": 0.080045
+      },
+      "laptop": {
+        "cmapss": 0.140048,
+        "laptop": 1.0,
+        "mobile": -0.109655,
+        "server": -0.216945
+      },
+      "mobile": {
+        "cmapss": 0.154323,
+        "laptop": -0.109655,
+        "mobile": 1.0,
+        "server": 0.07288
+      },
+      "server": {
+        "cmapss": 0.080045,
+        "laptop": -0.216945,
+        "mobile": 0.07288,
+        "server": 1.0
+      }
+    },
+    "mmd_divergence_matrix": {
+      "cmapss": {
+        "cmapss": 0.0,
+        "laptop": 1.229945,
+        "mobile": 1.227893,
+        "server": 1.228964
+      },
+      "laptop": {
+        "cmapss": 1.229945,
+        "laptop": 0.0,
+        "mobile": 0.929953,
+        "server": 0.899572
+      },
+      "mobile": {
+        "cmapss": 1.227893,
+        "laptop": 0.929953,
+        "mobile": 0.0,
+        "server": 0.914664
+      },
+      "server": {
+        "cmapss": 1.228964,
+        "laptop": 0.899572,
+        "mobile": 0.914664,
+        "server": 0.0
+      }
+    },
+    "negative_transfer_indices": {
+      "laptop": -0.002007,
+      "mobile": -0.005951,
+      "server": -0.007431
+    },
+    "retrieval_transfer_diagnostics": {
+      "laptop": {
+        "domain": "laptop",
+        "within_rmse": 0.0961,
+        "cross_rmse": 0.0858,
+        "error_inflation_ratio": 0.89,
+        "mean_latent_dist_within": 0.2834,
+        "mean_latent_dist_cross": 10.8235,
+        "negative_transfer_index": -0.002007
+      },
+      "mobile": {
+        "domain": "mobile",
+        "within_rmse": 0.0301,
+        "cross_rmse": 0.2495,
+        "error_inflation_ratio": 8.3,
+        "mean_latent_dist_within": 0.3022,
+        "mean_latent_dist_cross": 10.8024,
+        "negative_transfer_index": -0.005951
+      },
+      "server": {
+        "domain": "server",
+        "within_rmse": 0.0404,
+        "cross_rmse": 0.2868,
+        "error_inflation_ratio": 7.1,
+        "mean_latent_dist_within": 0.0683,
+        "mean_latent_dist_cross": 10.9709,
+        "negative_transfer_index": -0.007431
+      }
+    },
+    "timestamp": "2026-08-23T06:59:34Z"
+  },
+  "ablation_suite": {
+    "ablation_1": {
+      "total_cost_pipeline_a": 3440.0,
+      "total_cost_pipeline_b": 1817.5,
+      "cost_reduction_percent": 47.17,
+      "premature_waste_cycles_a": 0.0,
+      "premature_waste_cycles_b": 281.0,
+      "missed_failures_a": 0,
+      "missed_failures_b": 0,
+      "action_counts_a": {
+        "CONTINUE_OPERATION": 76,
+        "SCHEDULE_MAINTENANCE_SOON": 0,
+        "SCHEDULE_MAINTENANCE_NOW": 0,
+        "REPLACE_IMMEDIATELY": 24
+      },
+      "action_counts_b": {
+        "CONTINUE_OPERATION": 68,
+        "SCHEDULE_MAINTENANCE_SOON": 14,
+        "SCHEDULE_MAINTENANCE_NOW": 13,
+        "REPLACE_IMMEDIATELY": 5
+      },
+      "cost_model_caveat": "Cost figures use the illustrative, non-fitted cost model established in Month 5 (unplanned failure penalty=1000, maintenance base=50, downtime per cycle=5); absolute numbers are for relative policy comparison under consistent assumptions."
+    },
+    "ablation_2": {
+      "grounded_confidence_mean": 0.0351,
+      "grounded_confidence_std": 0.0778,
+      "ungrounded_confidence_mean": 0.5,
+      "ungrounded_confidence_std": 0.0,
+      "grounded_spearman_rho": -0.509,
+      "grounded_spearman_p": null,
+      "ungrounded_spearman_rho": null,
+      "ungrounded_spearman_note": "Undefined (Zero Variance) \u2014 constant 0.50 maximal uncertainty prior across all units. Confirms that AMKB episodic memory retrieval is required for dynamic confidence calibration.",
+      "grounded_citation_coverage_pct": 100.0,
+      "ungrounded_citation_coverage_pct": 0.0
+    },
+    "ablation_3": {
+      "policy_agreement_rate": 70.0,
+      "near_failure_urgent_rate_naive": 100.0,
+      "near_failure_urgent_rate_atlas": 90.0,
+      "n_near_failure_units": 10,
+      "avg_mc_sample_cost_std": 54.34,
+      "disagreement_count": 30,
+      "disagreement_cost_naive": 1530.0,
+      "disagreement_cost_atlas": 1370.0,
+      "disagreement_cost_reduction_percent": 10.46,
+      "naive_heavy_replacement_count": 20,
+      "atlas_graduated_scheduling_count": 26,
+      "safety_parity_note": "Both policies safely intervene before failure on near-failure units (true RUL <= 15). The Decision Graph's primary advantage is economic precision and action graduation on disputed decisions.",
+      "naive_rule_definition": "if pred_rul < 30: REPLACE_IMMEDIATELY, elif pred_rul < 60: SCHEDULE_MAINTENANCE_SOON, else: CONTINUE_OPERATION"
+    },
+    "ablation_4": {
+      "within_vs_cmapss_transfer": {
+        "laptop": {
+          "within_rmse": 0.0961,
+          "cross_cmapss_rmse": 0.0858,
+          "error_inflation_ratio": 0.89,
+          "within_latent_dist": 0.2834,
+          "cross_cmapss_latent_dist": 10.8235
+        },
+        "mobile": {
+          "within_rmse": 0.0301,
+          "cross_cmapss_rmse": 0.2495,
+          "error_inflation_ratio": 8.3,
+          "within_latent_dist": 0.3022,
+          "cross_cmapss_latent_dist": 10.8024
+        },
+        "server": {
+          "within_rmse": 0.0404,
+          "cross_cmapss_rmse": 0.2868,
+          "error_inflation_ratio": 7.1,
+          "within_latent_dist": 0.0683,
+          "cross_cmapss_latent_dist": 10.9709
+        }
+      },
+      "cross_compute_matrix": {
+        "laptop": {
+          "laptop": 0.0961,
+          "mobile": 0.2472,
+          "server": 0.3723
+        },
+        "mobile": {
+          "laptop": 0.348,
+          "mobile": 0.0301,
+          "server": 0.08
+        },
+        "server": {
+          "laptop": 0.1768,
+          "mobile": 0.1132,
+          "server": 0.0404
+        }
+      },
+      "cross_compute_inflation_matrix": {
+        "laptop": {
+          "laptop": 1.0,
+          "mobile": 2.57,
+          "server": 3.87
+        },
+        "mobile": {
+          "laptop": 11.56,
+          "mobile": 1.0,
+          "server": 2.66
+        },
+        "server": {
+          "laptop": 4.38,
+          "mobile": 2.8,
+          "server": 1.0
+        }
+      },
+      "laptop_asymmetry_analysis": "Laptop's within-domain retrieval RMSE (0.0961) is ~2.4\u20133.2x higher than Server (0.0404) and Mobile (0.0301) due to multi-modal operational regime transitions. Cross-domain C-MAPSS queries land on a distant out-of-distribution boundary (~10.82 distance) where retrieved normalized labels cluster near the global mean (~0.55), which coincidentally matches Laptop's validation target mean (~0.52). This lower cross RMSE is a boundary-mean regression artifact rather than successful semantic transfer."
+    },
+    "n_test_units": 100,
+    "timestamp": "2026-08-23 06:59:56Z"
+  },
+  "latency_benchmark": {
+    "cmapss": {
+      "n_samples": 15,
+      "mean_ms": 20.983853336656466,
+      "std_ms": 1.3374573420699802,
+      "min_ms": 19.26949998596683,
+      "p50_ms": 20.78680001432076,
+      "p95_ms": 23.03990999353118,
+      "p99_ms": 24.82502199360169,
+      "max_ms": 25.271299993619323
+    },
+    "laptop": {
+      "n_samples": 15,
+      "mean_ms": 6.430813332553953,
+      "std_ms": 0.32715080635630056,
+      "min_ms": 5.556299991440028,
+      "p50_ms": 6.517900008475408,
+      "p95_ms": 6.778560008388013,
+      "p99_ms": 6.785951999481767,
+      "max_ms": 6.787799997255206
+    },
+    "mobile": {
+      "n_samples": 15,
+      "mean_ms": 6.386213334432493,
+      "std_ms": 0.5457963722600111,
+      "min_ms": 5.542300001252443,
+      "p50_ms": 6.61100001889281,
+      "p95_ms": 7.012780007789843,
+      "p99_ms": 7.064075990929268,
+      "max_ms": 7.076899986714125
+    },
+    "server": {
+      "n_samples": 15,
+      "mean_ms": 8.701533333320791,
+      "std_ms": 1.8354937537575113,
+      "min_ms": 6.240899994736537,
+      "p50_ms": 8.76649998826906,
+      "p95_ms": 11.807540003792383,
+      "p99_ms": 11.821427995455451,
+      "max_ms": 11.824899993371218
+    }
+  },
+  "resource_profile": {
+    "baseline_process_ram_mb": 337.7,
+    "ram_after_loading_models_mb": 338.14,
+    "models_ram_delta_mb": 0.44,
+    "total_disk_weights_mb": 0.92,
+    "model_breakdown": {
+      "cmapss": {
+        "disk_size_mb": 0.237,
+        "parameters_count": 60609
+      },
+      "laptop": {
+        "disk_size_mb": 0.229,
+        "parameters_count": 58305
+      },
+      "mobile": {
+        "disk_size_mb": 0.229,
+        "parameters_count": 58305
+      },
+      "server": {
+        "disk_size_mb": 0.229,
+        "parameters_count": 58305
+      }
+    },
+    "ram_after_connection_pools_mb": 338.32,
+    "peak_memory_during_explain_mb": 338.58,
+    "peak_memory_during_simulation_mb": 338.58,
+    "transient_peak_delta_mb": 0.0,
+    "leak_audit": {
+      "cycles_evaluated": 100,
+      "ram_pre_loop_mb": 338.58,
+      "ram_post_loop_raw_mb": 338.59,
+      "ram_post_loop_gc_mb": 338.59,
+      "net_memory_delta_mb": 0.01,
+      "leak_detected": false
+    }
+  }
+}
