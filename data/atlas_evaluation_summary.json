@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-08-23T14:40:22.185321+00:00",
-  "execution_duration_sec": 8.33,
+  "timestamp": "2026-08-23T17:19:30.597569+00:00",
+  "execution_duration_sec": 44.4,
   "database_live": true,
   "hardware_context": {
     "platform": "Windows",
@@ -13,9 +13,9 @@
     "torch_version": "2.10.0+cpu",
     "torch_backend": "CPU",
     "torch_num_threads": 10,
-    "background_cpu_percent": 68.0,
-    "background_ram_percent": 96.2,
-    "timestamp": "2026-08-23T14:40:14Z"
+    "background_cpu_percent": 31.0,
+    "background_ram_percent": 88.0,
+    "timestamp": "2026-08-23T17:18:51Z"
   },
   "checkpoints_manifest": {
     "cmapss": {
@@ -51,10 +51,14 @@
     "mae": 11.8103,
     "phm_score": 394.7,
     "reference_baseline": {
-      "rmse": 15.02,
-      "phm_score": 383.19,
-      "delta_rmse": 0.4042,
-      "delta_phm": 11.51
+      "multiseed_mean_rmse": 15.2152,
+      "multiseed_std_rmse": 0.3014,
+      "multiseed_mean_phm": 375.0,
+      "multiseed_std_phm": 21.93,
+      "literature_zheng_rmse": 16.14,
+      "literature_zheng_phm": 338.0,
+      "delta_rmse_vs_multiseed": 0.209,
+      "delta_phm_vs_multiseed": 19.7
     },
     "status": "PASSED"
   },
@@ -270,48 +274,48 @@
   "latency_benchmark": {
     "cmapss": {
       "n_samples": 15,
-      "mean_ms": 20.983853336656466,
-      "std_ms": 1.3374573420699802,
-      "min_ms": 19.26949998596683,
-      "p50_ms": 20.78680001432076,
-      "p95_ms": 23.03990999353118,
-      "p99_ms": 24.82502199360169,
-      "max_ms": 25.271299993619323
+      "mean_ms": 210.5069866636768,
+      "std_ms": 9.949703121981772,
+      "min_ms": 187.29630002053455,
+      "p50_ms": 210.06059998762794,
+      "p95_ms": 224.51561998168472,
+      "p99_ms": 225.6011239840882,
+      "max_ms": 225.87249998468906
     },
     "laptop": {
       "n_samples": 15,
-      "mean_ms": 6.430813332553953,
-      "std_ms": 0.32715080635630056,
-      "min_ms": 5.556299991440028,
-      "p50_ms": 6.517900008475408,
-      "p95_ms": 6.778560008388013,
-      "p99_ms": 6.785951999481767,
-      "max_ms": 6.787799997255206
+      "mean_ms": 36.55273332842626,
+      "std_ms": 3.8093476935061634,
+      "min_ms": 32.57039998425171,
+      "p50_ms": 36.33920001448132,
+      "p95_ms": 42.22273998893797,
+      "p99_ms": 47.431187978945665,
+      "max_ms": 48.7332999764476
     },
     "mobile": {
       "n_samples": 15,
-      "mean_ms": 6.386213334432493,
-      "std_ms": 0.5457963722600111,
-      "min_ms": 5.542300001252443,
-      "p50_ms": 6.61100001889281,
-      "p95_ms": 7.012780007789843,
-      "p99_ms": 7.064075990929268,
-      "max_ms": 7.076899986714125
+      "mean_ms": 34.027980004126825,
+      "std_ms": 2.5924219861088575,
+      "min_ms": 29.486400017049164,
+      "p50_ms": 33.79069999209605,
+      "p95_ms": 38.537420000648126,
+      "p99_ms": 39.29252401343547,
+      "max_ms": 39.481300016632304
     },
     "server": {
       "n_samples": 15,
-      "mean_ms": 8.701533333320791,
-      "std_ms": 1.8354937537575113,
-      "min_ms": 6.240899994736537,
-      "p50_ms": 8.76649998826906,
-      "p95_ms": 11.807540003792383,
-      "p99_ms": 11.821427995455451,
-      "max_ms": 11.824899993371218
+      "mean_ms": 33.72150667128153,
+      "std_ms": 3.615569675936827,
+      "min_ms": 26.846399996429682,
+      "p50_ms": 34.826000017346814,
+      "p95_ms": 38.117540004896,
+      "p99_ms": 39.10694800899364,
+      "max_ms": 39.35430001001805
     }
   },
   "resource_profile": {
-    "baseline_process_ram_mb": 337.7,
-    "ram_after_loading_models_mb": 338.14,
+    "baseline_process_ram_mb": 339.2,
+    "ram_after_loading_models_mb": 339.63,
     "models_ram_delta_mb": 0.44,
     "total_disk_weights_mb": 0.92,
     "model_breakdown": {
@@ -332,16 +336,16 @@
         "parameters_count": 58305
       }
     },
-    "ram_after_connection_pools_mb": 338.32,
-    "peak_memory_during_explain_mb": 338.58,
-    "peak_memory_during_simulation_mb": 338.58,
+    "ram_after_connection_pools_mb": 339.85,
+    "peak_memory_during_explain_mb": 340.07,
+    "peak_memory_during_simulation_mb": 340.07,
     "transient_peak_delta_mb": 0.0,
     "leak_audit": {
       "cycles_evaluated": 100,
-      "ram_pre_loop_mb": 338.58,
-      "ram_post_loop_raw_mb": 338.59,
-      "ram_post_loop_gc_mb": 338.59,
-      "net_memory_delta_mb": 0.01,
+      "ram_pre_loop_mb": 340.07,
+      "ram_post_loop_raw_mb": 340.05,
+      "ram_post_loop_gc_mb": 340.05,
+      "net_memory_delta_mb": -0.02,
       "leak_detected": false
     }
   }
