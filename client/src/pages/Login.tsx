@@ -82,8 +82,41 @@ const Login: React.FC = () => {
               Login
             </button>
 
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', marginTop: '16px', lineHeight: 1.4 }}>
-              Demo Account: <code style={{ color: 'var(--text-secondary)' }}>demo_viewer / demo_viewer_public_pw_123</code>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  setUsername('demo_viewer');
+                  setPassword('demo_viewer_public_pw_123');
+                  try {
+                    const response = await apiFetch<any>('/api/auth/login', {
+                      method: 'POST',
+                      body: JSON.stringify({ username: 'demo_viewer', password: 'demo_viewer_public_pw_123' })
+                    });
+                    if (response && response.role) {
+                      window.location.href = '/dashboard';
+                    }
+                  } catch (err: any) {
+                    setError(err.message || 'Login failed');
+                  }
+                }}
+                style={{
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--accent-cyan)',
+                  padding: '8px 12px',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Instant Demo Access (Viewer)
+              </button>
+
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.4 }}>
+                Demo Credentials: <code style={{ color: 'var(--text-secondary)' }}>demo_viewer / demo_viewer_public_pw_123</code>
+              </div>
             </div>
           </div>
         </form>

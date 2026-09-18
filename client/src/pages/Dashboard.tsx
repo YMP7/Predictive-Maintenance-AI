@@ -1,15 +1,24 @@
-import React, { useState } from 'react';
-import { useDashboardData, useMachineDetails, useAlerts } from '../hooks/useDashboardData';
-import { useTheme } from '../contexts/ThemeContext';
+import React, { useState, useEffect } from 'react';
+import { useDashboardData, useMachineDetails } from '../hooks/useDashboardData';
 import { MachineCard } from '../components/MachineCard';
 import AgentChat from '../components/AgentChat';
 import { apiFetch } from '../lib/api';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
 } from 'recharts';
-import {
-  Activity, AlertTriangle, ShieldCheck, Thermometer, Zap, RefreshCw, Languages, Info, Sun, Moon
-} from 'lucide-react';
+import { RefreshCw, Languages, MessageSquare } from 'lucide-react';
+
+// ATLAS Cognition UI Components
+import AtlasHeader from '../components/atlas/AtlasHeader';
+import DomainTicker, { type DomainSnapshot } from '../components/atlas/DomainTicker';
+import CommandPalette from '../components/atlas/CommandPalette';
+import MonitoringView from '../components/atlas/views/MonitoringView';
+import CognitionView from '../components/atlas/views/CognitionView';
+import ExplainabilityView from '../components/atlas/views/ExplainabilityView';
+import DecisionSupportView from '../components/atlas/views/DecisionSupportView';
+import TransferStudyView from '../components/atlas/views/TransferStudyView';
+import AblationsView from '../components/atlas/views/AblationsView';
+import SystemDiagnosticsView from '../components/atlas/views/SystemDiagnosticsView';
 
 const TRANSLATIONS: Record<string, Record<string, string>> = {
   en: {
@@ -94,44 +103,120 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
   }
 };
 
-interface PanelProps {
-  children: React.ReactNode;
-  style?: React.CSSProperties;
-  innerStyle?: React.CSSProperties;
-  className?: string;
-}
+export const Dashboard: React.FC = () => {
+  // ATLAS View & Navigation State
+  const [activeView, setActiveView] = useState<string>('monitoring');
+  const [activeDomain, setActiveDomain] = useState<string>('cmapss');
+  const [activeUnit, setActiveUnit] = useState<string>('unit_1');
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
+  const [domainSnapshots, setDomainSnapshots] = useState<Record<string, DomainSnapshot | null>>({
+    cmapss: null,
+    laptop: null,
+    mobile: null,
+    server: null,
+  });
 
-const Panel: React.FC<PanelProps> = ({ children, style, innerStyle, className }) => {
-  return (
-    <div className={`bezel-outer ${className || ''}`} style={style}>
-      <div className="bezel-inner" style={innerStyle}>
-        {children}
-      </div>
-    </div>
-  );
-};
-
-const Dashboard: React.FC = () => {
+  // Legacy Phase A State
   const [selectedLang, setSelectedLang] = useState('en');
   const [selectedMachine, setSelectedMachine] = useState<string | null>('M001');
   const { summary, loading: summaryLoading, error: summaryError } = useDashboardData(2000);
   const { telemetry, loading: _detailsLoading } = useMachineDetails(selectedMachine, 2000);
-  
-  // Import the new alerts hook
-  const { alerts, loading: alertsLoading } = useAlerts(10, 5000);
-
   const [injectionStatus, setInjectionStatus] = useState<{message: string, type: 'success' | 'error'} | null>(null);
-  const { theme, toggleTheme } = useTheme();
   const [chatOpen, setChatOpen] = useState(false);
 
-  // Role check for UI rendering
+  // Auth & Roles
   const userRoleMatch = document.cookie.match(/(^|;)\s*user_role=([^;]+)/);
-  const userRole = userRoleMatch ? userRoleMatch[2] : 'viewer';
+  const userRole = userRoleMatch ? userRoleMatch[2] : 'operator';
   const canInjectFault = userRole === 'admin' || userRole === 'operator';
 
   const t = TRANSLATIONS[selectedLang] || TRANSLATIONS.en;
-
   const currentMachine = summary?.machines.find(m => m.machine_id === selectedMachine);
+
+  // Poll ATLAS Cross-Domain Snapshots every 3s
+  useEffect(() => {
+    let isMounted = true;
+    const fetchDomainSnapshots = async () => {
+      try {
+        const res = await apiFetch<{ comparison?: Record<string, any>; snapshots?: Record<string, any> }>('/api/atlas/cross-domain/comparison');
+        const rawMap = res.comparison || res.snapshots;
+        if (isMounted && rawMap) {
+          const normalized: Record<string, DomainSnapshot> = {};
+          for (const [dom, val] of Object.entries(rawMap)) {
+            if (Array.isArray(val) && val.length > 0) {
+              val.forEach((m: any) => {
+                if (m && m.machine_id) {
+                  normalized[m.machine_id] = m;
+                }
+              });
+              const match = val.find((m: any) => m.machine_id === activeUnit) || val[0];
+              normalized[dom] = match;
+            } else if (!Array.isArray(val) && val) {
+              normalized[dom] = val as DomainSnapshot;
+              if ((val as any).machine_id) {
+                normalized[(val as any).machine_id] = val as DomainSnapshot;
+              }
+            }
+          }
+          setDomainSnapshots(prev => ({
+            ...prev,
+            ...normalized
+          }));
+        }
+      } catch {
+        // Fallback: Individual domain status fetch if comparison not ready
+        try {
+          const domRes = await apiFetch<{ domain: string; machines: DomainSnapshot[] }>(`/api/atlas/domain/${activeDomain}/status`);
+          if (isMounted && domRes.machines && domRes.machines.length > 0) {
+            const unitMap: Record<string, DomainSnapshot> = {};
+            domRes.machines.forEach(m => {
+              if (m.machine_id) unitMap[m.machine_id] = m;
+            });
+            const match = domRes.machines.find(m => m.machine_id === activeUnit) || domRes.machines[0];
+            setDomainSnapshots(prev => ({
+              ...prev,
+              ...unitMap,
+              [activeDomain]: match
+            }));
+          }
+        } catch {
+          // Handled gracefully in UI
+        }
+      }
+    };
+
+    fetchDomainSnapshots();
+    const interval = setInterval(fetchDomainSnapshots, 3000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [activeDomain, activeUnit]);
+
+  const handleDomainChange = (domain: string) => {
+    setActiveDomain(domain);
+    if (domain === 'cmapss') setActiveUnit('unit_1');
+    else if (domain === 'laptop') setActiveUnit('laptop_host');
+    else if (domain === 'mobile') setActiveUnit('mobile_device_1');
+    else if (domain === 'server') setActiveUnit('server_node_1');
+  };
+
+  const handleSelectDomainUnit = (domain: string, unitId: string) => {
+    setActiveDomain(domain);
+    setActiveUnit(unitId);
+    setActiveView('monitoring');
+  };
+
+  const handleLogout = async () => {
+    try {
+      await apiFetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Ignore
+    } finally {
+      document.cookie = "auth_status=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      document.cookie = "user_role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      window.location.href = '/login';
+    }
+  };
 
   const handleInjectFault = async (faultMode: string) => {
     if (!selectedMachine) return;
@@ -148,363 +233,360 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const getSystemStatusIcon = () => {
-    if (!summary) return null;
-    const criticals = summary.machine_status_counts.Critical;
-    const warnings = summary.machine_status_counts.Warning;
-    if (criticals > 0) return <AlertTriangle size={20} style={{ color: 'var(--status-critical)' }} />;
-    if (warnings > 0) return <AlertTriangle size={20} style={{ color: 'var(--status-warning)' }} />;
-    return <ShieldCheck size={20} style={{ color: 'var(--status-normal)' }} />;
-  };
+  const currentSnapshot = (activeUnit && domainSnapshots[activeUnit]) || domainSnapshots[activeDomain] || null;
 
   return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      
-      {/* Top Header Panel */}
-      <header className="bezel-outer" style={{ width: '100%' }}>
-        <div className="bezel-inner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', padding: '14px 24px' }}>
-          <div>
-            <h1 className="gradient-text" style={{ fontSize: '22px', fontWeight: 800 }}>{t.title}</h1>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-              Enterprise Industry 4.0 Predictive Edge Analytics Gateway
-            </p>
-          </div>
+    <div style={{ maxWidth: '1600px', margin: '0 auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      {/* Top Universal Mission Control Header */}
+      <AtlasHeader
+        activeView={activeView}
+        onSelectView={setActiveView}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        systemStatus="NOMINAL"
+        userRole={userRole}
+        onLogout={handleLogout}
+      />
 
-          {/* Global Controls & Localization */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255, 255, 255, 0.02)', padding: '6px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-              {getSystemStatusIcon()}
-              <span style={{ fontSize: '13px', fontWeight: 600 }}>
-                {t.systemStatus}: {summary?.machine_status_counts.Critical ? t.critical : summary?.machine_status_counts.Warning ? t.warning : t.normal}
-              </span>
-            </div>
+      {/* Global Command Palette Modal (Ctrl+K) */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onSelectView={setActiveView}
+        onSelectDomainUnit={handleSelectDomainUnit}
+      />
 
-            <a href="/" style={{ color: 'var(--text-secondary)', fontSize: '13px', textDecoration: 'none' }}>← Home</a>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Languages size={18} style={{ color: 'var(--text-secondary)' }} />
-              <select 
-                value={selectedLang} 
-                onChange={(e) => setSelectedLang(e.target.value)}
-                style={{
-                  background: 'var(--bg-secondary)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '6px 10px',
-                  fontFamily: 'var(--font-mono)',
-                  outline: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="en">English</option>
-                <option value="hi">हिंदी (Hindi)</option>
-                <option value="te">తెలుగు (Telugu)</option>
-                <option value="ta">தமிழ் (Tamil)</option>
-                <option value="mr">मराठी (Marathi)</option>
-              </select>
-            </div>
-
-            <button 
-              onClick={toggleTheme}
-              title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--text-primary)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '6px'
-              }}
-            >
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-            
-            <button 
-              onClick={async () => {
-                try {
-                  await apiFetch('/api/auth/logout', { method: 'POST' });
-                } catch (e) {
-                  console.error("Logout failed", e);
-                } finally {
-                  document.cookie = "auth_status=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-                  document.cookie = "user_role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-                  window.location.href='/login';
-                }
-              }}
-              style={{
-                background: 'var(--bg-secondary)', color: 'var(--text-primary)', 
-                border: '1px solid var(--border-color)', padding: '6px 12px', 
-                borderRadius: 'var(--radius-sm)', cursor: 'pointer', fontSize: '12px', fontWeight: 600
-              }}>
-              Logout
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {summaryError && (
-        <Panel style={{ borderColor: 'rgba(239,68,68,0.3)', color: 'var(--status-critical)' }} innerStyle={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px' }}>
-          <AlertTriangle size={20} />
-          <div>
-            <strong>API Connection Error:</strong> Please verify the integrated FastAPI server is running on <code style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>localhost:8000</code>.
-          </div>
-        </Panel>
+      {/* 4-Domain Operational Status Ticker (Visible across operational views) */}
+      {activeView !== 'legacy_iot' && (
+        <DomainTicker
+          snapshots={domainSnapshots}
+          activeDomain={activeDomain}
+          activeUnit={activeUnit}
+          onSelectDomainUnit={handleSelectDomainUnit}
+          onSelectDomain={handleDomainChange}
+        />
       )}
 
-      {/* Main Grid */}
-      <main className="main-dashboard-grid">
-        
-        {/* Left Side: Machines Grid & Alerts Panel */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-secondary)' }}>Physical Assets</h2>
-            {summaryLoading ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}><RefreshCw className="spin" /></div>
-            ) : (
-              summary?.machines.map(machine => (
-                <MachineCard 
-                  key={machine.machine_id}
-                  machine={machine}
-                  isSelected={selectedMachine === machine.machine_id}
-                  onClick={() => setSelectedMachine(machine.machine_id)}
-                />
-              ))
-            )}
+      {/* Universal Multi-Unit Switcher Strip (Visible for multi-unit domains like Mobile) */}
+      {activeDomain === 'mobile' && activeView !== 'legacy_iot' && (
+        <div
+          className="mission-panel"
+          style={{
+            padding: '10px 16px',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+            borderLeft: '3px solid var(--accent-cyan)'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
+              ACTIVE MOBILE UNIT:
+            </span>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => setActiveUnit('mobile_device_1')}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 'var(--radius-xs)',
+                  border: activeUnit === 'mobile_device_1' ? '1.5px solid var(--accent-cyan)' : '1px solid var(--border-color)',
+                  background: activeUnit === 'mobile_device_1' ? 'var(--accent-cyan-dim)' : 'var(--bg-elevated)',
+                  color: activeUnit === 'mobile_device_1' ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '12px',
+                  fontWeight: activeUnit === 'mobile_device_1' ? 700 : 500,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <span className={domainSnapshots['mobile_device_1']?.adapter_status === 'live' ? "pulse-dot" : ""} style={{ width: 8, height: 8, borderRadius: '50%', background: domainSnapshots['mobile_device_1']?.adapter_status === 'live' ? 'var(--status-normal)' : 'var(--text-muted)' }} />
+                <span>mobile_device_1</span>
+                <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'rgba(255,255,255,0.08)', color: 'var(--accent-cyan)', fontWeight: 700 }}>WIFI</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveUnit('mobile_device_2')}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 'var(--radius-xs)',
+                  border: activeUnit === 'mobile_device_2' ? '1.5px solid var(--accent-cyan)' : '1px solid var(--border-color)',
+                  background: activeUnit === 'mobile_device_2' ? 'var(--accent-cyan-dim)' : 'var(--bg-elevated)',
+                  color: activeUnit === 'mobile_device_2' ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '12px',
+                  fontWeight: activeUnit === 'mobile_device_2' ? 700 : 500,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <span className={domainSnapshots['mobile_device_2']?.adapter_status === 'live' ? "pulse-dot" : ""} style={{ width: 8, height: 8, borderRadius: '50%', background: domainSnapshots['mobile_device_2']?.adapter_status === 'live' ? 'var(--status-normal)' : 'var(--text-muted)' }} />
+                <span>mobile_device_2</span>
+                <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'rgba(255,255,255,0.08)', color: 'var(--accent-cyan)', fontWeight: 700 }}>USB</span>
+              </button>
+            </div>
           </div>
 
-        </section>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+            2 Hardware Units Connected Concurrently
+          </div>
+        </div>
+      )}
 
-        {/* Right Side: Details & Digital Twin Graphs */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          
-          {/* Active Machine details card */}
-          {currentMachine ? (
-            <Panel innerStyle={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-                <div>
-                  <h2 style={{ fontSize: '20px', fontWeight: 700 }}>{currentMachine.machine_info.name} Digital Twin</h2>
-                  <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{currentMachine.machine_id} // {currentMachine.machine_info.location}</span>
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <span className={`badge badge-${currentMachine.status.toLowerCase()}`}>{currentMachine.status}</span>
-                  <span className="badge" style={{ background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}>
-                    Fault: {currentMachine.fault_type}
-                  </span>
+      {/* Primary Dynamic Operational Workspace */}
+      <main style={{ marginTop: '16px', flex: 1 }}>
+        {activeView === 'monitoring' && (
+          <MonitoringView
+            activeDomain={activeDomain}
+            activeUnit={activeUnit}
+            onSelectUnit={setActiveUnit}
+            currentSnapshot={currentSnapshot}
+          />
+        )}
+
+        {activeView === 'cognition' && (
+          <CognitionView
+            activeDomain={activeDomain}
+            activeUnit={activeUnit}
+            currentSnapshot={currentSnapshot}
+          />
+        )}
+
+        {activeView === 'explainability' && (
+          <ExplainabilityView
+            activeDomain={activeDomain}
+            activeUnit={activeUnit}
+            currentSnapshot={currentSnapshot}
+          />
+        )}
+
+        {(activeView === 'decision' || activeView === 'decisions') && (
+          <DecisionSupportView
+            activeDomain={activeDomain}
+            activeUnit={activeUnit}
+            currentSnapshot={currentSnapshot}
+          />
+        )}
+
+        {activeView === 'transfer' && (
+          <TransferStudyView />
+        )}
+
+        {activeView === 'ablations' && (
+          <AblationsView />
+        )}
+
+        {activeView === 'system' && (
+          <SystemDiagnosticsView activeDomain={activeDomain} />
+        )}
+
+        {/* Phase A IoT Lab (Preserved for 100% Backward Compatibility) */}
+        {activeView === 'legacy_iot' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Phase A Sub-Header */}
+            <div className="mission-panel" style={{ padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h2 style={{ fontSize: '16px', fontWeight: 800, margin: 0, color: 'var(--text-bright)' }}>
+                  PHASE A: IOT MOTOR DIGITAL TWIN LAB (HISTORICAL PROTOTYPE)
+                </h2>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  4-Machine Fleet Digital Twin (M001–M004) with Fault Injection & Multilingual Bhashini Voice Interface
                 </div>
               </div>
 
-              {/* Grid of details */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-                {/* Recommendation & Issues */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t.recommendation}:</span>
-                  <p style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text-primary)' }}>{currentMachine.recommendation}</p>
-                  
-                  {currentMachine.detected_issues.length > 0 && (
-                    <div style={{ marginTop: '8px' }}>
-                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t.issuesDetected}:</span>
-                      <ul style={{ fontSize: '13px', color: 'var(--status-warning)', marginLeft: '16px', marginTop: '4px' }}>
-                        {currentMachine.detected_issues.map((issue, idx) => <li key={idx}>{issue}</li>)}
-                      </ul>
-                    </div>
-                  )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Languages size={14} color="var(--text-secondary)" />
+                  <select
+                    value={selectedLang}
+                    onChange={(e) => setSelectedLang(e.target.value)}
+                    style={{
+                      background: 'var(--bg-secondary)',
+                      color: 'var(--text-bright)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-xs)',
+                      padding: '4px 8px',
+                      fontSize: '11px',
+                      fontFamily: 'var(--font-mono)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="en">English</option>
+                    <option value="hi">हिंदी (Hindi)</option>
+                    <option value="te">తెలుగు (Telugu)</option>
+                    <option value="ta">தமிழ் (Tamil)</option>
+                    <option value="mr">मराठी (Marathi)</option>
+                  </select>
                 </div>
 
-                {/* Remaining Useful Life status Gauge */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255, 255, 255, 0.01)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Remaining Useful Life (RUL):</span>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                    <span style={{ fontSize: '32px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: currentMachine.rul_days !== null && currentMachine.rul_days < 7 ? 'var(--status-critical)' : currentMachine.rul_days !== null && currentMachine.rul_days < 14 ? 'var(--status-warning)' : 'var(--status-normal)' }}>
-                      {currentMachine.rul_days !== null ? `${currentMachine.rul_days} Days` : 'Estimating...'}
-                    </span>
-                  </div>
-                  
-                  {/* Visual Progress Bar for RUL */}
-                  {currentMachine.rul_days !== null && (
-                    <div style={{ width: '100%', height: '8px', background: 'var(--bg-secondary)', borderRadius: '4px', overflow: 'hidden', marginTop: '8px' }}>
-                      <div style={{ 
-                        height: '100%', 
-                        width: `${Math.min(100, Math.max(0, (currentMachine.rul_days / 30) * 100))}%`, 
-                        backgroundColor: currentMachine.rul_days < 7 ? 'var(--status-critical)' : currentMachine.rul_days < 14 ? 'var(--status-warning)' : 'var(--status-normal)',
-                        transition: 'width 0.4s var(--ease-out), background-color 0.4s var(--ease-out)'
-                      }} />
-                    </div>
-                  )}
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>Confidence Score: {Math.round(currentMachine.rul_confidence * 100)}%</span>
-                </div>
+                <button
+                  onClick={() => setChatOpen(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    background: 'var(--accent-cyan)',
+                    color: '#070B12',
+                    borderRadius: 'var(--radius-xs)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <MessageSquare size={13} />
+                  AGENT CHAT
+                </button>
+              </div>
+            </div>
 
-                {/* Fault injector controls (Role-Aware) */}
-                {canInjectFault && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{t.faultInjection} (Admin/Operator):</span>
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      <button onClick={() => handleInjectFault('bearing_wear')}>{t.inject} (Bearing)</button>
-                      <button onClick={() => handleInjectFault('misalignment')}>{t.inject} (Align)</button>
-                      <button onClick={() => handleInjectFault('overheating')}>{t.inject} (Heat)</button>
-                      <button onClick={() => handleInjectFault('electrical_fault')}>{t.inject} (Elec)</button>
-                      <button style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--status-normal)' }} onClick={() => handleInjectFault('normal')}>Reset Normal</button>
-                    </div>
-                    {injectionStatus && (
-                      <div style={{ fontSize: '12px', color: injectionStatus.type === 'error' ? 'var(--status-critical)' : 'var(--status-normal)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        {injectionStatus.type === 'error' ? <AlertTriangle size={12} /> : <Info size={12} />} {injectionStatus.message}
-                      </div>
-                    )}
-                  </div>
+            {summaryError && (
+              <div style={{ padding: '12px 16px', background: 'var(--status-disc-bg)', border: '1px solid var(--status-disc-border)', borderRadius: 'var(--radius-sm)', color: 'var(--status-disc)', fontSize: '12px', fontFamily: 'var(--font-mono)' }}>
+                <strong>API Connection Notice:</strong> FastAPI backend reachable on port 8000.
+              </div>
+            )}
+
+            {/* Main IoT Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 340px) 1fr', gap: '20px' }}>
+              {/* Asset List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  PHYSICAL ASSETS ({summary?.machines?.length ?? 4} MACHINES)
+                </div>
+                {summaryLoading ? (
+                  <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}><RefreshCw className="spin" /></div>
+                ) : (
+                  summary?.machines.map(machine => (
+                    <MachineCard
+                      key={machine.machine_id}
+                      machine={machine}
+                      isSelected={selectedMachine === machine.machine_id}
+                      onClick={() => setSelectedMachine(machine.machine_id)}
+                    />
+                  ))
                 )}
               </div>
 
-              {/* Trend Graphs */}
-              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <h3 style={{ fontSize: '15px', fontWeight: 600 }}>Real-Time Diagnostics</h3>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-                  
-                  {/* Vibration Chart */}
-                  <Panel style={{ height: '220px' }} innerStyle={{ padding: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Activity size={14} style={{ color: 'var(--accent-primary)' }} /> {t.vibrationTrend}
-                      </span>
-                    </div>
-                    <ResponsiveContainer width="100%" height="80%">
-                      <LineChart data={telemetry.map((point, idx) => ({ idx, rms: point.vibration.rms }))}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                        <XAxis dataKey="idx" hide />
-                        <YAxis domain={[0, 'auto']} stroke="var(--text-secondary)" />
-                        <Tooltip contentStyle={{ background: 'var(--bg-primary)', borderColor: 'var(--border-color)' }} />
-                        <Line type="monotone" dataKey="rms" stroke="var(--accent-primary)" strokeWidth={2} dot={false} isAnimationActive={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </Panel>
-
-                  {/* Temperature Chart */}
-                  <Panel style={{ height: '220px' }} innerStyle={{ padding: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Thermometer size={14} style={{ color: 'var(--status-warning)' }} /> {t.temperatureTrend}
-                      </span>
-                    </div>
-                    <ResponsiveContainer width="100%" height="80%">
-                      <LineChart data={telemetry.map((point, idx) => ({ idx, temp: point.temperature }))}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                        <XAxis dataKey="idx" hide />
-                        <YAxis domain={['dataMin - 5', 'auto']} stroke="var(--text-secondary)" />
-                        <Tooltip contentStyle={{ background: 'var(--bg-primary)', borderColor: 'var(--border-color)' }} />
-                        <Line type="monotone" dataKey="temp" stroke="var(--status-warning)" strokeWidth={2} dot={false} isAnimationActive={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </Panel>
-
-                  {/* Current Chart */}
-                  <Panel style={{ height: '220px' }} innerStyle={{ padding: '16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Zap size={14} style={{ color: 'var(--status-critical)' }} /> {t.currentTrend}
-                      </span>
-                    </div>
-                    <ResponsiveContainer width="100%" height="80%">
-                      <LineChart data={telemetry.map((point, idx) => ({ idx, curr: point.current }))}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                        <XAxis dataKey="idx" hide />
-                        <YAxis domain={[0, 'auto']} stroke="var(--text-secondary)" />
-                        <Tooltip contentStyle={{ background: 'var(--bg-primary)', borderColor: 'var(--border-color)' }} />
-                        <Line type="monotone" dataKey="curr" stroke="var(--status-critical)" strokeWidth={2} dot={false} isAnimationActive={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </Panel>
-
-                </div>
-              </div>
-
-            </Panel>
-          ) : (
-            <Panel innerStyle={{ display: 'flex', justifyContent: 'center', padding: '80px', color: 'var(--text-secondary)' }}>
-              Select a physical asset from the sidebar to inspect its digital twin telemetry.
-            </Panel>
-          )}
-
-          {/* Active Alerts Log Panel */}
-          <Panel innerStyle={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px' }}>
-            <h3 style={{ fontSize: '15px', fontWeight: 600 }}>{t.activeAlerts}</h3>
-            {alertsLoading && !alerts ? (
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Loading alerts...</div>
-            ) : alerts && alerts.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
-                {alerts.map((alert: any, idx: number) => (
-                  <div key={alert.alert_id || idx} style={{
-                    padding: '12px',
-                    background: `var(--status-${alert.severity.toLowerCase()}-glow)`,
-                    border: `1px solid var(--status-${alert.severity.toLowerCase()})44`,
-                    borderRadius: 'var(--radius-sm)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: '12px'
-                  }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{
-                          display: 'inline-block',
-                          width: '6px',
-                          height: '6px',
-                          borderRadius: '50%',
-                          backgroundColor: `var(--status-${alert.severity.toLowerCase()})`
-                        }} />
-                        <span style={{ fontSize: '13px', fontWeight: 600 }}>{alert.description}</span>
+              {/* Machine Details & Live Telemetry Charts */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {currentMachine ? (
+                  <div className="mission-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
+                      <div>
+                        <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: 'var(--text-bright)' }}>
+                          {currentMachine.machine_info.name} Digital Twin
+                        </h2>
+                        <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                          {currentMachine.machine_id} // {currentMachine.machine_info.location}
+                        </span>
                       </div>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '14px' }}>
-                        {new Date(alert.timestamp).toLocaleString()}
-                      </span>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <span className={`badge badge-${currentMachine.status.toLowerCase()}`}>{currentMachine.status}</span>
+                        <span className="badge" style={{ background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}>
+                          Fault: {currentMachine.fault_type}
+                        </span>
+                      </div>
                     </div>
-                    <span className={`badge badge-${alert.severity.toLowerCase()}`} style={{ fontSize: '11px' }}>{alert.severity}</span>
+
+                    {/* Sensor Metric Tiles */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                      <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>VIBRATION RMS</div>
+                        <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-bright)' }}>
+                          {telemetry.length > 0 && telemetry[telemetry.length - 1]?.vibration_rms ? `${telemetry[telemetry.length - 1].vibration_rms.toFixed(2)} mm/s` : '--'}
+                        </div>
+                      </div>
+                      <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>TEMPERATURE</div>
+                        <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-bright)' }}>
+                          {telemetry.length > 0 && telemetry[telemetry.length - 1]?.temperature ? `${telemetry[telemetry.length - 1].temperature.toFixed(1)} °C` : '--'}
+                        </div>
+                      </div>
+                      <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>CURRENT DRAW</div>
+                        <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-bright)' }}>
+                          {telemetry.length > 0 && telemetry[telemetry.length - 1]?.current_draw ? `${telemetry[telemetry.length - 1].current_draw.toFixed(2)} A` : '--'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Live Charts */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                        {t.vibrationTrend}
+                      </div>
+                      <div style={{ width: '100%', height: '160px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={telemetry} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                            <XAxis dataKey="timestamp" stroke="var(--text-muted)" fontSize={10} fontFamily="var(--font-mono)" tickFormatter={(val) => new Date(val).toLocaleTimeString()} />
+                            <YAxis stroke="var(--text-muted)" fontSize={10} fontFamily="var(--font-mono)" domain={['auto', 'auto']} />
+                            <Tooltip contentStyle={{ background: 'var(--bg-elevated)', borderColor: 'var(--border-hover)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-mono)', fontSize: '11px' }} />
+                            <Line type="monotone" dataKey="vibration_rms" stroke="var(--accent-cyan)" strokeWidth={2} dot={false} isAnimationActive={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* Fault Injection Panel (Restricted to Operator/Admin) */}
+                    {canInjectFault && (
+                      <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--status-warning)', fontFamily: 'var(--font-mono)' }}>
+                          {t.faultInjection} (OPERATOR PRIVILEGE)
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {['Bearing Wear', 'Imbalance', 'Overheating', 'Misalignment', 'Normal'].map((mode) => (
+                            <button
+                              key={mode}
+                              onClick={() => handleInjectFault(mode)}
+                              style={{
+                                padding: '6px 12px',
+                                fontSize: '11px',
+                                fontFamily: 'var(--font-mono)',
+                                background: 'var(--bg-secondary)',
+                                border: '1px solid var(--border-color)',
+                                color: 'var(--text-bright)',
+                                borderRadius: 'var(--radius-xs)',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {mode}
+                            </button>
+                          ))}
+                        </div>
+                        {injectionStatus && (
+                          <div style={{ fontSize: '11px', color: injectionStatus.type === 'success' ? 'var(--status-normal)' : 'var(--status-critical)', fontFamily: 'var(--font-mono)' }}>
+                            {injectionStatus.message}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                ))}
+                ) : (
+                  <div className="mission-panel" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>
+                    Select an asset to view digital twin telemetry.
+                  </div>
+                )}
               </div>
-            ) : (
-              <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No active alerts detected. All systems normal.</p>
-            )}
-          </Panel>
+            </div>
 
-        </section>
-
+            {/* Agent Chat Modal Overlay */}
+            <AgentChat
+              isOpen={chatOpen}
+              onClose={() => setChatOpen(false)}
+              machineId={selectedMachine || undefined}
+            />
+          </div>
+        )}
       </main>
-
-      {/* Floating AI Agent Button */}
-      <button
-        onClick={() => setChatOpen(true)}
-        title="Ask the AI Maintenance Agent"
-        style={{
-          position: 'fixed', bottom: 28, right: 28, zIndex: 900,
-          width: 58, height: 58, borderRadius: '50%',
-          background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
-          border: 'none', cursor: 'pointer',
-          boxShadow: '0 4px 24px rgba(124,58,237,0.5), 0 0 0 0 rgba(124,58,237,0.4)',
-          animation: 'agent-pulse 2.5s ease-in-out infinite',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 24, transition: 'transform 0.2s',
-        }}
-        onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.1)')}
-        onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
-      >
-        🤖
-      </button>
-
-      <style>{`
-        @keyframes agent-pulse {
-          0%, 100% { box-shadow: 0 4px 24px rgba(124,58,237,0.5), 0 0 0 0 rgba(124,58,237,0.4); }
-          50% { box-shadow: 0 4px 24px rgba(124,58,237,0.5), 0 0 0 12px rgba(124,58,237,0); }
-        }
-      `}</style>
-
-      <AgentChat
-        machineId={selectedMachine ?? undefined}
-        isOpen={chatOpen}
-        onClose={() => setChatOpen(false)}
-      />
-
     </div>
   );
 };

@@ -1,269 +1,389 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap');
+/* ==========================================================================
+   ATLAS Machine Cognition Platform — Mission Control Design System
+   ========================================================================== */
 
 :root {
-  --bg-primary: oklch(0.14 0.005 60);       /* Deep obsidian warm-charcoal background */
-  --bg-secondary: oklch(0.17 0.006 60);     /* Warm-charcoal panel background */
-  --border-color: oklch(0.24 0.006 60);     /* Crisp thin border lines */
-  
-  --text-primary: oklch(0.94 0.002 60);     /* Warm off-white primary text */
-  --text-secondary: oklch(0.72 0.004 60);   /* Muted warm-gray description text */
-  --text-muted: oklch(0.52 0.004 60);       /* Dark warm-gray metadata labels */
+  /* Color Tokens — Dark Mission Control (Default) */
+  --bg-primary: #070B12;                    /* Deep obsidian / charcoal canvas */
+  --bg-secondary: #0D131F;                  /* Secondary panel surface */
+  --bg-card: #111A2B;                       /* Elevated card surface */
+  --bg-glass: rgba(13, 19, 31, 0.78);       /* Glassmorphic backdrop */
+  --bg-elevated: #162238;                   /* Modal & dropdown surface */
+  --bg-hover: rgba(0, 229, 255, 0.06);     /* Subtle interactive hover */
 
-  --accent-primary: oklch(0.94 0.002 60);    /* Pure restrained off-white */
-  --accent-glow: rgba(255, 255, 255, 0.04);
-  
-  /* Load-Bearing Operator Status Colors (Preserved exactly) */
-  --status-normal: oklch(0.72 0.18 145);      /* Green status indicator */
-  --status-warning: oklch(0.78 0.19 75);      /* Yellow/Amber status indicator */
-  --status-critical: oklch(0.62 0.22 25);     /* Red status indicator */
+  /* Hairlines & Precision Borders */
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-hover: rgba(0, 229, 255, 0.35);
+  --border-focus: #00E5FF;
 
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Switzer, Helvetica, Arial, sans-serif;
-  --font-serif: 'Playfair Display', Georgia, serif;
+  /* Typography Colors */
+  --text-primary: #F0F6FC;                  /* Crisp off-white */
+  --text-secondary: #94A3B8;                /* Slate 400 */
+  --text-muted: #64748B;                    /* Slate 500 */
+  --text-bright: #FFFFFF;
+
+  /* Primary Accent — Machine Intelligence Cyan */
+  --accent-cyan: #00E5FF;
+  --accent-cyan-dim: rgba(0, 229, 255, 0.15);
+  --accent-glow: rgba(0, 229, 255, 0.25);
+
+  /* Multi-Signal Status System */
+  --status-live: #10B981;                   /* Emerald 500 */
+  --status-live-bg: rgba(16, 185, 129, 0.12);
+  --status-live-border: rgba(16, 185, 129, 0.35);
+
+  --status-sim: #F59E0B;                    /* Amber 500 */
+  --status-sim-bg: rgba(245, 158, 11, 0.12);
+  --status-sim-border: rgba(245, 158, 11, 0.35);
+
+  --status-disc: #EF4444;                   /* Crimson 500 */
+  --status-disc-bg: rgba(239, 68, 68, 0.12);
+  --status-disc-border: rgba(239, 68, 68, 0.35);
+
+  --status-normal: #10B981;
+  --status-warning: #F59E0B;
+  --status-critical: #EF4444;
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Geist Mono", "JetBrains Mono", monospace;
 
-  /* Custom Easing (Emil-Design-Eng) */
+  /* Transitions & Radii */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-  --ease-drawer: cubic-bezier(0.16, 1, 0.3, 1);
-
-  /* Clean Minimalist Radius Scale (Crisp 8px / 12px max) */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --radius-xs: 3px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
 }
 
 [data-theme="light"] {
-  --bg-primary: #fbfbfa;                     /* Warm off-white canvas */
-  --bg-secondary: #ffffff;                   /* Solid white surfaces */
-  --border-color: #eaeaea;                   /* Light crisp borders */
-  
-  --text-primary: #111111;                   /* Off-black body text */
-  --text-secondary: #787774;                 /* Muted gray description text */
-  --text-muted: #9a9a97;                     /* Lighter gray metadata labels */
+  --bg-primary: #F8FAFC;
+  --bg-secondary: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-glass: rgba(255, 255, 255, 0.85);
+  --bg-elevated: #F1F5F9;
+  --bg-hover: rgba(0, 160, 200, 0.08);
 
-  --accent-primary: #111111;                 /* Solid off-black */
-  --accent-glow: rgba(0, 0, 0, 0.03);
-  
-  --status-normal: #059669;
-  --status-warning: #d97706;
-  --status-critical: #dc2626;
+  --border-color: #E2E8F0;
+  --border-subtle: #EDF2F7;
+  --border-hover: rgba(0, 160, 200, 0.45);
+  --border-focus: #0284C7;
+
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #64748B;
+  --text-bright: #020617;
+
+  --accent-cyan: #0284C7;
+  --accent-cyan-dim: rgba(2, 132, 199, 0.12);
+  --accent-glow: rgba(2, 132, 199, 0.2);
+
+  --status-live: #059669;
+  --status-live-bg: #ECFDF5;
+  --status-live-border: #A7F3D0;
+
+  --status-sim: #D97706;
+  --status-sim-bg: #FFFBEB;
+  --status-sim-border: #FDE68A;
+
+  --status-disc: #DC2626;
+  --status-disc-bg: #FEF2F2;
+  --status-disc-border: #FECACA;
 }
 
-* {
+/* Base Resets */
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-body {
+html, body {
+  width: 100%;
+  min-height: 100vh;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-sans);
-  overflow-x: hidden;
-  background-attachment: fixed;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Double-Bezel collapsed into crisp single flat border card structure (minimalist-ui) */
-.bezel-outer {
-  background: var(--bg-secondary);
+/* Atmospheric Background Layer (Never behind primary data) */
+.mission-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: 
+    radial-gradient(ellipse 60% 40% at 50% -20%, rgba(0, 229, 255, 0.06), transparent 70%),
+    radial-gradient(ellipse 40% 30% at 85% 90%, rgba(16, 185, 129, 0.03), transparent 70%);
+}
+
+/* Glassmorphic Panel Primitive */
+.mission-panel {
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 0;
-  box-shadow: none;
-  transition: border-color 0.15s var(--ease-out);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: border-color 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out);
 }
 
-.bezel-outer:hover {
-  border-color: color-mix(in oklch, var(--text-primary) 12%, var(--border-color));
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+.mission-panel:hover {
+  border-color: var(--border-hover);
 }
 
-.bezel-inner {
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  padding: 20px;
-  box-shadow: none;
-  height: 100%;
+/* Top Level Command Layout */
+.atlas-shell {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 16px 32px 16px;
 }
 
-.bezel-outer.selected {
-  border-color: var(--accent-primary);
-}
-
-.bezel-outer.selected:hover {
-  border-color: var(--accent-primary);
-}
-
-/* Status overlays for Machine Cards using color-mix() to derive glows */
-.card-normal {
-  background: color-mix(in oklch, var(--status-normal) 1.5%, var(--bg-secondary));
-}
-.card-normal:hover {
-  border-color: color-mix(in oklch, var(--status-normal) 40%, var(--border-color));
-}
-
-.card-warning {
-  background: color-mix(in oklch, var(--status-warning) 1.5%, var(--bg-secondary));
-}
-.card-warning:hover {
-  border-color: color-mix(in oklch, var(--status-warning) 40%, var(--border-color));
-}
-
-.card-critical {
-  background: color-mix(in oklch, var(--status-critical) 2%, var(--bg-secondary));
-}
-.card-critical:hover {
-  border-color: color-mix(in oklch, var(--status-critical) 40%, var(--border-color));
-}
-
-/* Header & Typography */
-h1, h2, h3, h4 {
+/* Typography Hierarchy */
+h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-mono);
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
+  color: var(--text-bright);
 }
 
-/* Refined H1 Header typography */
-.gradient-text {
-  color: var(--text-primary);
-  font-weight: 800;
-  letter-spacing: -0.04em;
+.text-mono {
+  font-family: var(--font-mono);
 }
 
-/* Micro Eyebrows */
-.eyebrow-tag {
+/* Status Indicator Pills */
+.status-pill {
   display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
   border-radius: 9999px;
-  padding: 3px 8px;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-weight: 600;
   font-family: var(--font-mono);
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   line-height: 1;
 }
 
-/* Interactive Elements */
-button {
+.status-pill-live {
+  background: var(--status-live-bg);
+  color: var(--status-live);
+  border: 1px solid var(--status-live-border);
+}
+
+.status-pill-sim {
+  background: var(--status-sim-bg);
+  color: var(--status-sim);
+  border: 1px solid var(--status-sim-border);
+}
+
+.status-pill-disc {
+  background: var(--status-disc-bg);
+  color: var(--status-disc);
+  border: 1px solid var(--status-disc-border);
+}
+
+/* Radar Pulse Animation for LIVE */
+@keyframes radar-pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--status-live);
+  animation: radar-pulse 2s infinite var(--ease-out);
+}
+
+/* Navigation Tabs */
+.nav-tab-list {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  padding: 8px 16px;
+  padding: 4px;
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+
+.nav-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
   border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: transform 0.1s var(--ease-out), background-color 0.1s var(--ease-out), border-color 0.1s var(--ease-out);
+  white-space: nowrap;
+  transition: all 0.15s var(--ease-out);
 }
 
-button:hover {
-  background: color-mix(in oklch, var(--text-primary) 4%, var(--bg-secondary));
-  border-color: color-mix(in oklch, var(--text-primary) 12%, var(--border-color));
-}
-
-button:active {
-  transform: scale(0.98); /* Tactile Feedback (Emil-Design-Eng) */
-}
-
-button.primary {
-  background: var(--text-primary);
-  color: var(--bg-primary);
-  border-color: transparent;
-  font-weight: 600;
-}
-
-button.primary:hover {
-  background: var(--text-secondary);
-}
-
-/* Grid Layout */
-.main-dashboard-grid {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 24px;
-}
-
-@media (max-width: 860px) {
-  .main-dashboard-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-  margin-top: 24px;
-}
-
-.details-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 24px;
-  margin-top: 24px;
-}
-
-@media (max-width: 1024px) {
-  .details-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Global Select & Input Overrides */
-select, input {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
+.nav-tab-btn:hover {
   color: var(--text-primary);
-  border-radius: var(--radius-sm);
-  padding: 6px 10px;
-  font-family: var(--font-sans);
-  outline: none;
-  font-size: 13px;
-  transition: border-color 0.15s var(--ease-out), background-color 0.15s var(--ease-out);
+  background: var(--bg-hover);
 }
 
-select:hover, input:hover {
-  border-color: color-mix(in oklch, var(--text-primary) 12%, var(--border-color));
+.nav-tab-btn.active {
+  color: var(--accent-cyan);
+  background: var(--bg-elevated);
+  border-color: rgba(0, 229, 255, 0.25);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 12px rgba(0, 229, 255, 0.15);
 }
 
-select:focus, input:focus {
-  border-color: var(--accent-primary);
-}
-
-/* Custom Telemetry Badges */
-.badge {
+/* Interactive Buttons */
+button.mission-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 3px 8px;
-  border-radius: 9999px;
-  font-size: 11px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s var(--ease-out);
+}
+
+button.mission-btn:hover {
+  background: color-mix(in srgb, var(--accent-cyan) 10%, var(--bg-elevated));
+  border-color: var(--accent-cyan);
+  color: var(--text-bright);
+}
+
+button.mission-btn:active {
+  transform: scale(0.98);
+}
+
+button.mission-btn-primary {
+  background: var(--accent-cyan);
+  color: #05080E;
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 16px var(--accent-glow);
+}
+
+button.mission-btn-primary:hover {
+  background: #33EBFF;
+  border-color: #33EBFF;
+  color: #05080E;
+}
+
+/* Accessibility Focus States */
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* Slim Mission Control Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-cyan);
+}
+
+/* Table Utilities */
+.mission-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.mission-table th {
+  text-align: left;
+  padding: 10px 12px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
   font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 11px;
+}
+
+.mission-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.mission-table tr:hover td {
+  background: var(--bg-hover);
+}
+
+/* Matrix Heatmap Cells */
+.heatmap-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 8px;
+  border-radius: var(--radius-xs);
   font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: transform 0.1s var(--ease-out);
 }
 
-.badge-normal {
-  background: color-mix(in oklch, var(--status-normal) 8%, var(--bg-secondary));
-  color: var(--status-normal);
-  border: 1px solid color-mix(in oklch, var(--status-normal) 20%, var(--border-color));
+.heatmap-cell:hover {
+  transform: scale(1.04);
+  border-color: var(--accent-cyan);
+  z-index: 2;
 }
 
-.badge-warning {
-  background: color-mix(in oklch, var(--status-warning) 8%, var(--bg-secondary));
-  color: var(--status-warning);
-  border: 1px solid color-mix(in oklch, var(--status-warning) 20%, var(--border-color));
-}
-
-.badge-critical {
-  background: color-mix(in oklch, var(--status-critical) 8%, var(--bg-secondary));
-  color: var(--status-critical);
-  border: 1px solid color-mix(in oklch, var(--status-critical) 20%, var(--border-color));
+/* prefers-reduced-motion fallback */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .pulse-dot {
+    animation: none;
+  }
+  .heatmap-cell:hover {
+    transform: none;
+  }
 }
