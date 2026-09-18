@@ -13,6 +13,9 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from server.adapters.cmapss_adapter import CMAPSSAdapter
 from server.atlas.amkb import AMKB, Experience
 from server.atlas.machine_dna import MachineDNAEngine, DNA_DIM

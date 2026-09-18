@@ -1,7 +1,13 @@
 import os
+from dotenv import load_dotenv
 from psycopg_pool import ConnectionPool
 
-db_url = os.environ.get("DATABASE_URL", "postgresql://dtwin:devpassword123@localhost:5433/digital_twin")
+load_dotenv()
+
+db_url = os.environ.get("DATABASE_URL")
+if not db_url:
+    raise RuntimeError("DATABASE_URL not set in environment or .env file")
+
 pool = ConnectionPool(db_url, open=True)
 
 with pool.connection() as conn:

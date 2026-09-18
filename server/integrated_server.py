@@ -1,5 +1,9 @@
-import logging
 import os
+from dotenv import load_dotenv
+load_dotenv()
+os.environ["KMP_DUPLICATE_LIB_OK"] = os.environ.get("KMP_DUPLICATE_LIB_OK", "TRUE")
+
+import logging
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -12,8 +16,6 @@ from fastapi import HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import uvicorn
-from dotenv import load_dotenv
-load_dotenv()
 
 from server.data_service import get_data_service
 from server.backend_api import app
@@ -33,6 +35,9 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+from server.api import startup_event as atlas_api_startup, shutdown_event as atlas_api_shutdown
+
+
 @asynccontextmanager
 async def lifespan(_app):
     simulation_enabled = os.environ.get("SIMULATION_ENABLED", "true").lower() in {
@@ -44,9 +49,14 @@ async def lifespan(_app):
     if simulation_enabled:
         service.start_simulation(interval=_env_int("SIMULATION_INTERVAL", 1))
 
-    # ATLAS: register C-MAPSS adapter and start domain streaming
-    # (silently skips if dataset files are not yet downloaded)
+    # Initialize ATLAS Cognition Layer (AMKB, World Models, Decision Graph)
+    atlas_api_startup()
+
+    # ATLAS: register all 4 domain adapters and start multi-domain streaming
     atlas_service.register_cmapss(subset="FD001", max_units=20)
+    atlas_service.register_laptop()
+    atlas_service.register_mobile()
+    atlas_service.register_server()
     atlas_service.start()
 
     try:
@@ -54,6 +64,7 @@ async def lifespan(_app):
     finally:
         service.stop_simulation()
         atlas_service.stop()
+        atlas_api_shutdown()
 
 
 # Add lifecycle management to the shared backend app without starting work at import time.
@@ -69,11 +80,18 @@ if client_dist.exists():
         if full_path.startswith("api/"):
             raise HTTPException(status_code=404, detail="API route not found")
 
+        no_cache_headers = {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        }
         requested_file = client_dist / full_path
         if full_path and requested_file.is_file():
+            if requested_file.suffix == ".html":
+                return FileResponse(requested_file, headers=no_cache_headers)
             return FileResponse(requested_file)
 
-        return FileResponse(client_dist / "index.html")
+        return FileResponse(client_dist / "index.html", headers=no_cache_headers)
 
     logger.info("Mounted production build from %s", client_dist)
 else:

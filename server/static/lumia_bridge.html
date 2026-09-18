@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ATLAS Mobile Bridge — Lumia Telemetry</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body {
+      background: #080c14;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .container {
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .header {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .title-group h1 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #00f0ff;
+      text-transform: uppercase;
+    }
+    .title-group p {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid #10b981;
+      color: #10b981;
+    }
+    .badge.paused {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+    }
+    .card {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+    .gauge-container {
+      text-align: center;
+      padding: 10px 0;
+    }
+    .battery-value {
+      font-size: 48px;
+      font-weight: 800;
+      font-family: monospace;
+      color: #00f0ff;
+      line-height: 1;
+    }
+    .battery-status-sub {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 6px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .progress-bar-bg {
+      width: 100%;
+      height: 14px;
+      background: #1e293b;
+      border-radius: 7px;
+      overflow: hidden;
+      margin-top: 14px;
+      border: 1px solid #334155;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      width: 85%;
+      background: linear-gradient(90deg, #00f0ff, #10b981);
+      border-radius: 7px;
+      transition: width 0.3s ease, background 0.3s ease;
+    }
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .metric-tile {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 10px;
+    }
+    .metric-label {
+      font-size: 10px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .metric-val {
+      font-size: 17px;
+      font-weight: 700;
+      color: #f1f5f9;
+      font-family: monospace;
+      margin-top: 4px;
+    }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-stress {
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      color: #ffffff;
+      box-shadow: 0 0 16px rgba(239, 68, 68, 0.4);
+    }
+    .btn-toggle {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #94a3b8;
+    }
+    .footer-info {
+      text-align: center;
+      font-size: 11px;
+      color: #64748b;
+      font-family: monospace;
+      margin-top: 4px;
+    }
+    .slider-row {
+      margin-top: 6px;
+    }
+    .slider-row label {
+      font-size: 11px;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    input[type=range] {
+      width: 100%;
+      accent-color: #00f0ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="title-group">
+        <h1>ATLAS Lumia Bridge</h1>
+        <p id="device-label">Detecting Lumia device...</p>
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px;">
+        <div id="live-badge" class="badge">
+          <span class="dot"></span>
+          <span id="live-text">STREAMING</span>
+        </div>
+        <select id="target-unit" style="background: #111; color: #00d4ff; border: 1px solid #00d4ff; border-radius: 4px; padding: 2px 6px; font-size: 11px; font-family: monospace;">
+          <option value="mobile_device_1" selected>Target: Unit 1 (Wi-Fi)</option>
+          <option value="mobile_device_2">Target: Unit 2 (Secondary)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Main Battery Gauge Card -->
+    <div class="card">
+      <div class="gauge-container">
+        <div id="batt-text" class="battery-value">85%</div>
+        <div id="batt-sub" class="battery-status-sub">🔋 Battery Discharging</div>
+        <div class="progress-bar-bg">
+          <div id="batt-fill" class="progress-bar-fill" style="width: 85%;"></div>
+        </div>
+      </div>
+
+      <!-- Telemetry Sub-metrics -->
+      <div class="metrics-grid">
+        <div class="metric-tile">
+          <div class="metric-label">Temperature</div>
+          <div id="temp-val" class="metric-val">31.5 °C</div>
+        </div>
+        <div class="metric-tile">
+          <div class="metric-label">Current Draw</div>
+          <div id="current-val" class="metric-val">350 mA</div>
+        </div>
+        <div class="metric-tile">
+          <div class="metric-label">Compute Load</div>
+          <div id="cpu-val" class="metric-val">22 %</div>
+        </div>
+        <div class="metric-tile">
+          <div class="metric-label">Wi-Fi Latency</div>
+          <div id="latency-val" class="metric-val">-- ms</div>
+        </div>
+      </div>
+
+      <!-- Manual Battery Calibration Slider (Useful on WP8.1 or Edge if battery API restricted) -->
+      <div class="slider-row">
+        <label>
+          <span>Battery Level Override</span>
+          <span id="slider-pct">Auto (Native)</span>
+        </label>
+        <input type="range" id="batt-slider" min="5" max="100" value="85">
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="card">
+      <button id="stress-btn" class="btn btn-stress" type="button">
+        ⚡ Inject Stress Load (Test Degradation)
+      </button>
+      <button id="stream-toggle-btn" class="btn btn-toggle" type="button">
+        Pause Telemetry Stream
+      </button>
+    </div>
+
+    <!-- Footer Stats -->
+    <div class="footer-info">
+      <div>Packets Streamed: <span id="packet-count" style="color: #00f0ff;">0</span></div>
+      <div style="margin-top: 4px;">Host: <span id="host-label">--</span></div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      // Compatibility flags
+      var isStreaming = true;
+      var packetCount = 0;
+      var manualOverride = false;
+      var isStressActive = false;
+      var stressTimer = null;
+
+      var currentBatt = 85;
+      var isCharging = false;
+      var currentTemp = 31.0;
+      var currentCpu = 20.0;
+      var currentMa = 350.0;
+
+      // Detect User Agent
+      var ua = navigator.userAgent;
+      var isWindowsPhone = ua.indexOf('Windows Phone') !== -1 || ua.indexOf('Lumia') !== -1 || ua.indexOf('WPhone') !== -1;
+      var deviceName = isWindowsPhone ? 'Nokia Lumia (Windows Phone)' : (ua.indexOf('Android') !== -1 ? 'Android Mobile' : 'Mobile Web Client');
+      document.getElementById('device-label').innerText = deviceName;
+      document.getElementById('host-label').innerText = window.location.host;
+
+      // Battery API Hook
+      if (navigator.getBattery) {
+        navigator.getBattery().then(function(battery) {
+          function syncBattery() {
+            if (!manualOverride) {
+              currentBatt = Math.round(battery.level * 100);
+              isCharging = battery.charging;
+              document.getElementById('batt-slider').value = currentBatt;
+              renderUI();
+            }
+          }
+          syncBattery();
+          battery.addEventListener('levelchange', syncBattery);
+          battery.addEventListener('chargingchange', syncBattery);
+        });
+      }
+
+      // Slider listener
+      var slider = document.getElementById('batt-slider');
+      slider.addEventListener('input', function() {
+        manualOverride = true;
+        currentBatt = parseInt(this.value, 10);
+        document.getElementById('slider-pct').innerText = currentBatt + '% (Manual)';
+        renderUI();
+      });
+
+      // Stress Button
+      var stressBtn = document.getElementById('stress-btn');
+      stressBtn.addEventListener('click', function() {
+        if (!isStressActive) {
+          isStressActive = true;
+          stressBtn.innerText = '🔥 STRESS INJECTED (Thermal & CPU High)';
+          stressBtn.style.background = '#ef4444';
+          currentTemp = 48.5;
+          currentCpu = 85.0;
+          currentMa = 1200.0;
+          renderUI();
+          if (stressTimer) clearTimeout(stressTimer);
+          stressTimer = setTimeout(function() {
+            isStressActive = false;
+            stressBtn.innerText = '⚡ Inject Stress Load (Test Degradation)';
+            stressBtn.style.background = 'linear-gradient(135deg, #f59e0b, #ef4444)';
+            currentTemp = 32.0;
+            currentCpu = 22.0;
+            currentMa = 350.0;
+            renderUI();
+          }, 15000);
+        } else {
+          isStressActive = false;
+          if (stressTimer) clearTimeout(stressTimer);
+          stressBtn.innerText = '⚡ Inject Stress Load (Test Degradation)';
+          stressBtn.style.background = 'linear-gradient(135deg, #f59e0b, #ef4444)';
+          currentTemp = 32.0;
+          currentCpu = 22.0;
+          currentMa = 350.0;
+          renderUI();
+        }
+      });
+
+      // Stream Toggle
+      var toggleBtn = document.getElementById('stream-toggle-btn');
+      toggleBtn.addEventListener('click', function() {
+        isStreaming = !isStreaming;
+        var badge = document.getElementById('live-badge');
+        var text = document.getElementById('live-text');
+        if (isStreaming) {
+          badge.className = 'badge';
+          text.innerText = 'STREAMING';
+          toggleBtn.innerText = 'Pause Telemetry Stream';
+        } else {
+          badge.className = 'badge paused';
+          text.innerText = 'PAUSED';
+          toggleBtn.innerText = 'Resume Telemetry Stream';
+        }
+      });
+
+      function renderUI() {
+        document.getElementById('batt-text').innerText = currentBatt + '%';
+        var fill = document.getElementById('batt-fill');
+        fill.style.width = currentBatt + '%';
+
+        if (currentBatt < 25) {
+          fill.style.background = '#ef4444';
+          document.getElementById('batt-text').style.color = '#ef4444';
+        } else if (currentBatt < 50) {
+          fill.style.background = '#f59e0b';
+          document.getElementById('batt-text').style.color = '#f59e0b';
+        } else {
+          fill.style.background = 'linear-gradient(90deg, #00f0ff, #10b981)';
+          document.getElementById('batt-text').style.color = '#00f0ff';
+        }
+
+        document.getElementById('batt-sub').innerText = isCharging ? '⚡ Charging (AC Adapter)' : '🔋 Battery Discharging';
+        document.getElementById('temp-val').innerText = currentTemp.toFixed(1) + ' °C';
+        document.getElementById('current-val').innerText = (isCharging ? -currentMa : currentMa).toFixed(0) + ' mA';
+        document.getElementById('cpu-val').innerText = currentCpu.toFixed(0) + ' %';
+      }
+
+      // Telemetry Polling Loop (Uses XMLHttpRequest for full IE11/WP8.1/Edge compatibility)
+      function sendTelemetry() {
+        if (!isStreaming) return;
+
+        var t0 = new Date().getTime();
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/atlas/mobile/telemetry', true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+
+        xhr.onreadystatechange = function() {
+          if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+              var latency = new Date().getTime() - t0;
+              document.getElementById('latency-val').innerText = latency + ' ms';
+              packetCount++;
+              document.getElementById('packet-count').innerText = packetCount;
+            } else {
+              document.getElementById('latency-val').innerText = 'Err ' + xhr.status;
+            }
+          }
+        };
+
+        var unitElem = document.getElementById('target-unit');
+        var targetUnit = unitElem ? unitElem.value : 'mobile_device_1';
+
+        var payload = {
+          machine_id: targetUnit,
+          battery_percent: currentBatt,
+          temperature_c: currentTemp,
+          current_ma: currentMa,
+          cpu_percent: currentCpu,
+          memory_percent: 50.0,
+          is_plugged: isCharging,
+          source: isWindowsPhone ? 'Lumia Web Bridge' : 'Mobile Web Bridge',
+          platform: isWindowsPhone ? 'windows_phone' : 'mobile_web',
+          device_model: deviceName
+        };
+
+        xhr.send(JSON.stringify(payload));
+      }
+
+      renderUI();
+      // Send every 1.5 seconds
+      setInterval(sendTelemetry, 1500);
+    })();
+  </script>
+</body>
+</html>

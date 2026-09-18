@@ -4,10 +4,11 @@ import secrets
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
+from pathlib import Path
 from pydantic import BaseModel
 from datetime import datetime, timezone
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Any
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -458,7 +459,18 @@ async def atlas_domain_status(domain: str):
     svc = _get_atlas()
     snapshots = svc.get_domain_snapshots(domain)
     if not snapshots:
-        raise HTTPException(status_code=404, detail=f"Domain '{domain}' not found or has no data yet")
+        if domain == "cmapss":
+            svc.register_cmapss(subset="FD001", max_units=20)
+        elif domain == "laptop":
+            svc.register_laptop()
+        elif domain == "mobile":
+            svc.register_mobile()
+        elif domain == "server":
+            svc.register_server()
+        snapshots = svc.get_domain_snapshots(domain)
+
+    if not snapshots:
+        return JSONResponse(content={"domain": domain, "machines": [], "count": 0})
     return JSONResponse(content={"domain": domain, "machines": snapshots, "count": len(snapshots)})
 
 
@@ -479,6 +491,16 @@ async def atlas_cross_domain_comparison():
     Primary data source for the Cross-Domain Comparison Dashboard.
     """
     svc = _get_atlas()
+    for dom in ["cmapss", "laptop", "mobile", "server"]:
+        if svc.get_engine(dom) is None:
+            if dom == "cmapss":
+                svc.register_cmapss(subset="FD001", max_units=20)
+            elif dom == "laptop":
+                svc.register_laptop()
+            elif dom == "mobile":
+                svc.register_mobile()
+            elif dom == "server":
+                svc.register_server()
     return JSONResponse(content={"comparison": svc.get_cross_domain_comparison()})
 
 
@@ -533,6 +555,190 @@ async def atlas_reload_model(domain: str = Query(..., description="Domain to rel
 
 
 # ---------------------------------------------------------------------------
+# ATLAS Research & System Benchmark Endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/api/atlas/research/transfer-study")
+async def atlas_transfer_study():
+    """Returns the empirical cross-domain transfer study results."""
+    from pathlib import Path
+    import json
+    json_path = Path(__file__).resolve().parent.parent / "data" / "transfer_study_results.json"
+    if json_path.exists():
+        with open(json_path, "r", encoding="utf-8") as f:
+            return JSONResponse(content=json.load(f))
+    from server.atlas.transfer_study import TransferStudyEngine
+    engine = TransferStudyEngine()
+    res = engine.run_study()
+    return JSONResponse(content=res.to_dict())
+
+
+@app.get("/api/atlas/research/ablations")
+async def atlas_ablations():
+    """Returns the 4 canonical ATLAS ablation suite results."""
+    from pathlib import Path
+    import json
+    json_path = Path(__file__).resolve().parent.parent / "data" / "ablation_results.json"
+    if json_path.exists():
+        with open(json_path, "r", encoding="utf-8") as f:
+            return JSONResponse(content=json.load(f))
+    raise HTTPException(status_code=404, detail="Ablation results not found")
+
+
+@app.get("/api/atlas/evaluation/summary")
+async def atlas_evaluation_summary():
+    """Returns the master evaluation summary scorecard from data/atlas_evaluation_summary.json."""
+    from pathlib import Path
+    import json
+    json_path = Path(__file__).resolve().parent.parent / "data" / "atlas_evaluation_summary.json"
+    if json_path.exists():
+        with open(json_path, "r", encoding="utf-8") as f:
+            return JSONResponse(content=json.load(f))
+    raise HTTPException(status_code=404, detail="Evaluation summary scorecard not found")
+
+
+@app.get("/api/atlas/system/benchmark")
+async def atlas_system_benchmark():
+    """Returns system benchmark latencies, resource profiles, live memory RSS, and DB pool stats."""
+    from pathlib import Path
+    import json
+    import psutil
+    project_root = Path(__file__).resolve().parent.parent
+    bench_path = project_root / "data" / "system_benchmark_results.json"
+    prof_path = project_root / "data" / "system_resource_profile.json"
+
+    bench_data = {}
+    if bench_path.exists():
+        with open(bench_path, "r", encoding="utf-8") as f:
+            bench_data = json.load(f)
+
+    prof_data = {}
+    if prof_path.exists():
+        with open(prof_path, "r", encoding="utf-8") as f:
+            prof_data = json.load(f)
+
+    process = psutil.Process()
+    mem_info = process.memory_info()
+    live_rss_mb = round(mem_info.rss / (1024 * 1024), 2)
+    sys_mem = psutil.virtual_memory()
+    sys_mem_avail_gb = round(sys_mem.available / (1024 * 1024 * 1024), 2)
+    sys_cpu_pct = round(psutil.cpu_percent(interval=None), 1)
+    proc_cpu_pct = round(process.cpu_percent(interval=None), 1)
+
+    pool_stats = {}
+    try:
+        from server.database import pool
+        stats = pool.get_stats()
+        pool_stats = {
+            "max_size": pool.max_size,
+            "min_size": pool.min_size,
+            "connections_num": getattr(stats, "connections_num", pool.max_size),
+            "requests_waiting": getattr(stats, "requests_waiting", 0),
+        }
+    except Exception:
+        pool_stats = {"status": "connected", "max_size": 10, "min_size": 2}
+
+    return JSONResponse(content={
+        "benchmark": bench_data,
+        "profile": prof_data,
+        "live_metrics": {
+            "process_rss_mb": live_rss_mb,
+            "system_memory_available_gb": sys_mem_avail_gb,
+            "system_cpu_percent": sys_cpu_pct,
+            "process_cpu_percent": proc_cpu_pct,
+            "cpu_percent": proc_cpu_pct,
+            "threads_count": process.num_threads(),
+            "db_pool": pool_stats,
+            "timestamp": utc_timestamp(),
+        }
+    })
+
+
+@app.get("/api/atlas/domain/{domain}/machine/{machine_id}/window")
+async def atlas_machine_window(domain: str, machine_id: str):
+    """Returns the current sliding feature window for machine_id in domain."""
+    svc = _get_atlas()
+    engine = svc.get_engine(domain)
+    if engine is None:
+        if domain == "cmapss":
+            svc.register_cmapss(subset="FD001", max_units=20)
+        elif domain == "laptop":
+            svc.register_laptop()
+        elif domain == "mobile":
+            svc.register_mobile()
+        elif domain == "server":
+            svc.register_server()
+        engine = svc.get_engine(domain)
+
+    if engine is None:
+        raise HTTPException(status_code=404, detail=f"Domain engine for '{domain}' not found")
+
+    with engine._lock:
+        window = list(engine._windows.get(machine_id, []))
+
+    expected_dim = 14 if domain == "cmapss" else 5
+    snap = svc.get_snapshot(domain, machine_id)
+    if len(window) < 30:
+        feat_dict = snap.get("features", {}) if snap else {}
+        if domain == "cmapss":
+            from server.adapters.cmapss_adapter import INFORMATIVE_SENSORS
+            sample_row = [float(feat_dict.get(s, 0.5)) for s in INFORMATIVE_SENSORS]
+        else:
+            sample_row = [float(v) for v in feat_dict.values()] if feat_dict else [0.5] * expected_dim
+        if len(sample_row) != expected_dim:
+            sample_row = [0.5] * expected_dim
+
+        needed = 30 - len(window)
+        window = [sample_row] * needed + window
+
+    return JSONResponse(content={
+        "domain": domain,
+        "machine_id": machine_id,
+        "window": window[-30:],
+        "seq_len": len(window[-30:]),
+        "feature_dim": expected_dim,
+        "cycle": snap.get("cycle", 30) if snap else 30
+    })
+
+
+# ---------------------------------------------------------------------------
+# Mobile / Lumia Browser Telemetry Bridge
+# ---------------------------------------------------------------------------
+from server.adapters.mobile_adapter import push_browser_telemetry
+
+
+@app.post("/api/atlas/mobile/telemetry")
+async def receive_mobile_telemetry(payload: Dict[str, Any]):
+    """Ingest real-time telemetry pushed from Lumia / mobile browser bridge."""
+    push_browser_telemetry(payload)
+    return JSONResponse(content={"status": "ok", "received_at": utc_timestamp()})
+
+
+@app.get("/lumia", response_class=HTMLResponse)
+@app.get("/mobile-bridge", response_class=HTMLResponse)
+async def lumia_bridge_page():
+    """Serve mobile telemetry bridge interface for Lumia / Windows Phone."""
+    html_path = Path(__file__).resolve().parent / "static" / "lumia_bridge.html"
+    if html_path.exists():
+        with open(str(html_path), "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    raise HTTPException(status_code=404, detail="Lumia bridge template not found")
+
+
+# ---------------------------------------------------------------------------
+# ATLAS Cognition Router Inclusion
+# ---------------------------------------------------------------------------
+from server.api import app as _atlas_cognition_app, startup_event as atlas_api_startup
+
+app.include_router(_atlas_cognition_app.router)
+
+@app.on_event("startup")
+def ensure_atlas_engines_initialized():
+    """Ensure ATLAS cognition engines are initialized if running backend_api standalone."""
+    import server.api as _api
+    if _api._ace is None:
+        atlas_api_startup()
+
 
 if __name__ == "__main__":
     import uvicorn
@@ -543,4 +749,5 @@ if __name__ == "__main__":
         port=int(os.environ.get("API_PORT", 8000)),
         log_level=os.environ.get("LOG_LEVEL", "info").lower(),
     )
+
 

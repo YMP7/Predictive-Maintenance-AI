@@ -119,9 +119,39 @@ class NormalizedReading:
     # Helpers
     # ------------------------------------------------------------------
 
+    # Canonical model features for non-CMAPSS domains to preserve model tensor contracts
+    _CANONICAL_MODEL_FEATURES: Dict[str, List[str]] = field(default_factory=lambda: {
+        "mobile": [
+            "battery_current",
+            "battery_level",
+            "battery_temp",
+            "cpu_usage",
+            "memory_used_percent",
+        ],
+        "laptop": [
+            "battery_percent",
+            "cpu_usage",
+            "disk_usage",
+            "is_charging",
+            "memory_usage",
+        ],
+        "server": [
+            "cpu_usage",
+            "disk_usage",
+            "gpu_utilization",
+            "memory_usage",
+            "network_io_rate",
+        ],
+    })
+
     @property
     def feature_vector(self) -> List[float]:
-        """Returns features as an ordered list (consistent key order)."""
+        """Returns features as an ordered list for machine learning models.
+        If canonical model features are registered for this domain, extracts them in fixed order;
+        otherwise falls back to sorting all keys in features."""
+        canonical = self._CANONICAL_MODEL_FEATURES.get(self.domain)
+        if canonical:
+            return [float(self.features.get(k, 0.0)) for k in canonical]
         return [self.features[k] for k in sorted(self.features)]
 
     @classmethod

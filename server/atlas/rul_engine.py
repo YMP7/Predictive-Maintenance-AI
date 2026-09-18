@@ -212,7 +212,7 @@ class RULEngine:
         if model is not None:
             self._model = model
             self._config = model.config
-            logger.info(f"[{self.domain}] RULEngine: LSTM model loaded ✓")
+            logger.info(f"[{self.domain}] RULEngine: LSTM model loaded [OK]")
         else:
             logger.info(
                 f"[{self.domain}] RULEngine: No LSTM model found — EMA fallback active. "
