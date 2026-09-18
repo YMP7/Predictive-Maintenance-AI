@@ -30,17 +30,20 @@ def test_feature_map_matches_adapter_implementations():
     # 1. Laptop
     lap = LaptopAdapter()
     lap_reading = lap.get_reading("laptop_local")
-    assert list(lap_reading.features.keys()) == DOMAIN_FEATURE_MAP["laptop"]
+    assert set(DOMAIN_FEATURE_MAP["laptop"]).issubset(set(lap_reading.features.keys()))
+    assert len(lap_reading.feature_vector) == 5
 
     # 2. Mobile
     mob = MobileAdapter()
     mob_reading = mob.get_reading("mobile_device_1")
-    assert list(mob_reading.features.keys()) == DOMAIN_FEATURE_MAP["mobile"]
+    assert set(DOMAIN_FEATURE_MAP["mobile"]).issubset(set(mob_reading.features.keys()))
+    assert len(mob_reading.feature_vector) == 5
 
     # 3. Server
     srv = ServerAdapter()
     srv_reading = srv.get_reading("server_prod_1")
-    assert list(srv_reading.features.keys()) == DOMAIN_FEATURE_MAP["server"]
+    assert set(DOMAIN_FEATURE_MAP["server"]).issubset(set(srv_reading.features.keys()))
+    assert len(srv_reading.feature_vector) == 5
 
 
 def test_dataset_generation_shapes_and_bounds():

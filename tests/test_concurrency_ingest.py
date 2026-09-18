@@ -55,10 +55,9 @@ def _mock_database(monkeypatch):
     monkeypatch.setitem(sys.modules, "server.database", mock_db)
 
     # Clear cached imports so they re-import with the mock
-    for mod_name in list(sys.modules.keys()):
-        if mod_name.startswith("server.") and mod_name != "server.database":
-            if mod_name in sys.modules:
-                del sys.modules[mod_name]
+    for mod_name in ("server.data_service",):
+        if mod_name in sys.modules:
+            del sys.modules[mod_name]
 
     yield mock_conn
 

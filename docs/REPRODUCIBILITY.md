@@ -97,7 +97,25 @@ To ensure effortless reproducibility for peer reviewers without requiring a runn
 
 ---
 
-## 6. Citation & Research Deliverables
+## 6. Hardware Adapters & Multi-Tier Fallback Transport
+
+ATLAS connects to heterogeneous physical assets while guaranteeing complete zero-hardware reproducibility for researchers and peer reviewers:
+
+### Mobile Hardware & Fallback Hierarchy:
+The `MobileAdapter` implements a transparent, three-tier fallback transport:
+1. **Tier 1 (Wi-Fi / Web Bridge)**: Live HTTP REST queries to `Termux:API` (`/battery` endpoint) or browser push from Lumia Web Bridge (`/api/mobile/telemetry`).
+2. **Tier 2 (USB ADB Shell)**: Direct fast hardware inspection via Android Debug Bridge (`adb shell dumpsys battery; dumpsys sensorservice; cat /proc/stat; cat /proc/meminfo`) polling real MediaTek MT6833 SoC cores, Bosch BMI320 accelerometers/gyroscopes, and battery thermal sensors.
+3. **Tier 3 (Calibrated Simulation Fallback)**: Multi-frequency, continuous synthetic simulation covering all 15 channels automatically engaged when physical hardware is disconnected, ensuring 100% reproducible execution offline without external devices.
+
+### Laptop Hardware Ingest:
+The `LaptopAdapter` polls the local workstation kernel via `psutil`, acquiring 16 physical channels (5 canonical model features + 11 physical engineering metrics: core count, CPU frequencies, context switches, interrupts, disk read/write bandwidth, network I/O, battery voltage, charging status, and modeled thermodynamic thermal headroom with distinct UI badges and disclaimers), while projecting the canonical 5-feature vector into the Attention-LSTM.
+
+### Server Tier:
+The `ServerAdapter` runs in high-fidelity simulation fallback with verified SSH transport schema.
+
+---
+
+## 7. Citation & Research Deliverables
 
 When citing the ATLAS system, please reference the corresponding chapter deliverables:
 - **Prediction & Digital Twin Architecture**: `docs/ATLAS_PROJECT_CONTEXT.md`

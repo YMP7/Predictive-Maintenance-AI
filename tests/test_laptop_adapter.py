@@ -17,17 +17,31 @@ def test_laptop_adapter_reading():
     assert reading.rul_label is None
     assert reading.adapter_status == AdapterStatus.LIVE.value
     
-    # Check that exactly 5 features are returned
+    # Check that canonical 5 features are strictly present
     features = reading.features
-    expected_keys = {"cpu_usage", "memory_usage", "disk_usage", "battery_percent", "is_charging"}
-    assert set(features.keys()) == expected_keys
+    expected_canonical_keys = {"cpu_usage", "memory_usage", "disk_usage", "battery_percent", "is_charging"}
+    assert expected_canonical_keys.issubset(set(features.keys()))
     
-    # Check that features are in [0, 1]
+    # Check that all 16 channels (15 genuine + 1 estimated) are returned
+    assert len(features) == 16
+    
+    # Check that canonical model vector preserves exact 5 dimensions for WorldModel
+    assert len(reading.feature_vector) == 5
+    
+    # Check that features are strictly bounded in [0, 1]
     for k, v in features.items():
         assert 0.0 <= v <= 1.0, f"{k} is out of bounds: {v}"
         
-    # Check health_index
+    # Check health_index (Instantaneous Stress Score) invariant
     assert 0.0 <= reading.health_index <= 1.0
+    expected_stress = round((0.7 * features["cpu_usage"]) + (0.3 * features["memory_usage"]), 4)
+    assert abs(reading.health_index - expected_stress) < 1e-4
+    
+    # Check honest heuristic metadata on derived thermal estimate
+    assert reading.raw_features.get("is_estimated") is True
+    assert reading.raw_features.get("thermal_is_estimated") is True
+    assert reading.raw_features.get("estimation_method") == "thermodynamic_heuristic"
+    assert "estimated_thermal_c" in reading.raw_features
 
 
 def test_explain_filter_mixed_neighbors():

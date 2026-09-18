@@ -1,24 +1,31 @@
+import os
 import pytest
 import numpy as np
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from server.atlas.amkb import AMKB
 from server.atlas.machine_dna import MachineDNAEngine
 from server.atlas.world_model import WorldModel
 from server.atlas.adaptive_context import AdaptiveContextEngine
 
-# We skip this if DB isn't running, but the marker might be defined elsewhere
-# We'll just define it locally or try/except
-try:
-    import psycopg
-    from psycopg_pool import ConnectionPool
-    # Check if DB is available
-    with psycopg.connect("postgresql://dtwin:devpassword123@localhost:5433/digital_twin") as conn:
-        pass
-    DB_AVAILABLE = True
-except Exception:
-    DB_AVAILABLE = False
 
-pytestmark = pytest.mark.skipif(not DB_AVAILABLE, reason="Database not available")
+def _is_db_available() -> bool:
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url:
+        return False
+    try:
+        import psycopg
+        with psycopg.connect(db_url, connect_timeout=1):
+            pass
+        return True
+    except Exception:
+        return False
+
+
+DB_AVAILABLE = _is_db_available()
+pytestmark = pytest.mark.skipif(not DB_AVAILABLE, reason="DATABASE_URL not set or database unreachable")
 
 @pytest.fixture
 def amkb():

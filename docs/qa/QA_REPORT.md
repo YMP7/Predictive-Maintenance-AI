@@ -11,9 +11,9 @@
 
 | Quality Metric | Value | Source |
 |---|---|---|
-| **Test Pass Rate** | 192/192 (100.0%) | Live execution 2026-08-25 ([TEST_EXECUTION_REPORT.md](TEST_EXECUTION_REPORT.md)) |
-| **Test Files** | 29 (7 pre-ATLAS + 22 ATLAS-era) | AST census of `tests/` directory |
-| **Test Functions** | 186 (43 pre-ATLAS + 143 ATLAS) | AST census |
+| **Test Pass Rate** | 199/199 (100.0%) | Live execution 2026-09-18 (full test suite verification) |
+| **Test Files** | 30 (7 pre-ATLAS + 23 ATLAS-era) | AST census of `tests/` directory |
+| **Test Functions** | 199 (43 pre-ATLAS + 156 ATLAS) | AST census |
 | **Known Open Defects** | 0 | [DEFECT_REPORTS.md](DEFECT_REPORTS.md) — all 11 defects resolved, 1 near-miss proactively mitigated |
 | **Total Defects Found & Fixed** | 11 (3 Critical, 4 High, 3 Medium) + 1 near-miss | Architecture Decisions Log + conversation transcript |
 | **Validation Gates Passed** | All | [STRATEGY.md §6](STRATEGY.md) |
@@ -39,7 +39,7 @@
 | **Explainability Engine** | **High** | $r_s = -0.5090$ error correlation, cosine inversion fixed (DEF-003), 100% citation availability | Coarse occlusion (full 30-cycle column); fine-grained temporal attribution not implemented. Non-14-feature domains return `attribution_unavailable_reason` instead of sensor-level attribution. |
 | **Simulation Engine** | **High** | Deterministic seeding (seed=42), 1,000 MC rollouts, tie-breaker and cost model bugs fixed (DEF-004, DEF-005) | Symmetric Gaussian uncertainty causes premature replacement on 3/100 early-life units (281 wasted cycles); asymmetric priors are documented future work |
 | **Decision Graph** | **High** | Safety-prioritizing tie-breaker, 100% near-failure catch rate, 47.17% savings | Near-tied expected-cost decisions (within 1–3%) are inherently sensitive to MC sampling; documented for production deployment |
-| **Machine Adapters** (4 domains) | **Medium-High** | 28 adapter tests across all 4 domains, schema compliance verified | ServerAdapter and MobileAdapter run in simulation fallback; live SSH/Termux transport is contract-tested but not exercised against real remote endpoints |
+| **Machine Adapters** (4 domains) | **Medium-High** | 35 adapter tests across all 4 domains, schema compliance verified | ServerAdapter runs in simulation fallback; MobileAdapter implements a graceful three-tier fallback transport (Tier 1 Termux HTTP / Lumia Web Bridge, Tier 2 USB ADB shell / dumpsys, Tier 3 multi-frequency simulation fallback when hardware bridges are disconnected). LaptopAdapter acquires 16 hardware channels (5 canonical model features + 11 physical channels). |
 | **Learning Engine** | **High** | 3% epsilon gate, rollback invariance, DB audit trail, 6 unit tests | Baseline evaluation aligned to last-window-per-unit protocol; not tested under production data drift |
 | **Transfer Study** | **High** | Padding-artifact flaw found and fixed (DEF-006), non-collapse guards, deterministic seeds | Laptop boundary-mean regression artifact ($0.0858$ cross vs. $0.0961$ within) — documented and explained, not a bug |
 | **Ablation Suite** | **High** | 4 canonical ablations with deterministic seeding, dual-axis evaluation | Ablation 4 evaluated on Mobile domain (8.30× error inflation reduction) for unambiguous improvement direction |
@@ -56,7 +56,7 @@ These are genuine, documented limitations — not bugs or future-work aspiration
 | Limitation | Impact | Documentation |
 |---|---|---|
 | **Server tier is simulation-based** | ServerAdapter runs in high-fidelity simulation fallback; SSH transport implemented but not exercised against live VM | `ATLAS_PROJECT_CONTEXT.md` §6b Month 6 W4 |
-| **Mobile tier is simulation-based** | MobileAdapter runs in simulation when Termux:API is unavailable | `ATLAS_PROJECT_CONTEXT.md` §6b Month 6 W2–3 |
+| **Mobile tier three-tier fallback** | MobileAdapter implements a graceful three-tier fallback transport (Tier 1: Termux:API HTTP / Lumia Web Bridge; Tier 2: USB direct ADB hardware dumpsys/procfs; Tier 3: Calibrated multi-frequency synthetic simulation when devices are disconnected) | `docs/MOBILE_CLEANUP_GUIDE.md`, `server/adapters/mobile_adapter.py` |
 | **CPU floating-point non-determinism** | Retraining the Attention-LSTM from scratch produces ±0.30 RMSE variance across seeds (CPU multi-thread accumulation order) | `docs/REPRODUCIBILITY.md` §2 |
 | **Deterministic checkpoint evaluation is bit-exact** | Fixed checkpoint eval produces identical results within float32 precision (±0.001) | `docs/REPRODUCIBILITY.md` §2 |
 | **Dual connection pool overhead** | Sequential pool checkouts from AMKB and MachineDNAEngine add ~10.5 ms per request; consolidation is identified as high-leverage optimization | `docs/ATLAS_BENCHMARK.md` §5, `docs/ATLAS_RESOURCE_PROFILE.md` §5 |
