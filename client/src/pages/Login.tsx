@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { apiFetch } from '../lib/api';
-import { useTheme } from '../contexts/ThemeContext';
+import { apiFetch, errorMessage } from '../lib/api';
+import { useTheme } from '../hooks/useTheme';
 import { Sun, Moon } from 'lucide-react';
 
 const Login: React.FC = () => {
@@ -12,15 +12,15 @@ const Login: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await apiFetch<any>('/api/auth/login', {
+      const response = await apiFetch<{ role?: string }>('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ username, password })
       });
       if (response && response.role) {
         window.location.href = '/dashboard';
       }
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
+    } catch (err: unknown) {
+      setError(errorMessage(err, 'Login failed'));
     }
   };
 

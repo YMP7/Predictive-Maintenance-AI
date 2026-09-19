@@ -6,15 +6,11 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 import numpy as np
-from dotenv import load_dotenv
 
 from server.sensor_simulator import MultiMachineSimulator
 from server.ai_agent import AIAgent
 from server.mqtt_client import MQTTClientManager
 from server.database import pool
-
-# Load environment variables
-load_dotenv()
 
 # Configure logging
 log_level_str = os.environ.get("LOG_LEVEL", "INFO").upper()
@@ -59,7 +55,7 @@ class DataService:
         
         # Load machine info from config
         self.machine_info = {}
-        config_path = os.path.join(os.path.dirname(__file__), "config", "machines.json")
+        config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "machines.json")
         if os.path.exists(config_path):
             try:
                 with open(config_path, 'r') as f:

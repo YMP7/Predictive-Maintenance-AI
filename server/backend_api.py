@@ -2,6 +2,10 @@ import logging
 import os
 import secrets
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -59,6 +63,13 @@ if _cors_env:
     cors_origins = [origin.strip() for origin in _cors_env.split(",") if origin.strip()]
 else:
     cors_origins = ["http://localhost:3000"]
+
+if "*" in cors_origins:
+    raise RuntimeError(
+        "FATAL: CORS_ORIGINS=* cannot be combined with cookie authentication — any site "
+        "could then issue credentialed requests. List the exact frontend origins, e.g. "
+        "CORS_ORIGINS=https://app.example.com,http://localhost:3000"
+    )
 
 # CORS configuration
 app.add_middleware(

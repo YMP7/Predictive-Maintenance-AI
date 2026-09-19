@@ -18,10 +18,6 @@ from email.message import EmailMessage
 from html import escape
 from typing import Dict, List, Optional, Tuple
 from enum import Enum
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 # Setup logger sharing configured DigitalTwin logger
 logger = logging.getLogger("DigitalTwin")

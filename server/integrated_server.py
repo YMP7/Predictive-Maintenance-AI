@@ -69,9 +69,14 @@ if client_dist.exists():
         if full_path.startswith("api/"):
             raise HTTPException(status_code=404, detail="API route not found")
 
-        requested_file = client_dist / full_path
-        if full_path and requested_file.is_file():
-            return FileResponse(requested_file)
+        if full_path:
+            requested_file = (client_dist / full_path).resolve()
+            try:
+                requested_file.relative_to(client_dist.resolve())
+            except ValueError:
+                raise HTTPException(status_code=404, detail="Not found")
+            if requested_file.is_file():
+                return FileResponse(requested_file)
 
         return FileResponse(client_dist / "index.html")
 

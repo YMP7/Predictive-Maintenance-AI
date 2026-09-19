@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { useDashboardData, useMachineDetails, useAlerts } from '../hooks/useDashboardData';
-import { useTheme } from '../contexts/ThemeContext';
+import { useDashboardData, useMachineDetails, useAlerts, type AlertData } from '../hooks/useDashboardData';
+import { useTheme } from '../hooks/useTheme';
 import { MachineCard } from '../components/MachineCard';
 import AgentChat from '../components/AgentChat';
-import { apiFetch } from '../lib/api';
+import { apiFetch, errorMessage } from '../lib/api';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
 } from 'recharts';
@@ -115,7 +115,7 @@ const Dashboard: React.FC = () => {
   const [selectedLang, setSelectedLang] = useState('en');
   const [selectedMachine, setSelectedMachine] = useState<string | null>('M001');
   const { summary, loading: summaryLoading, error: summaryError } = useDashboardData(2000);
-  const { telemetry, loading: _detailsLoading } = useMachineDetails(selectedMachine, 2000);
+  const { telemetry } = useMachineDetails(selectedMachine, 2000);
   
   // Import the new alerts hook
   const { alerts, loading: alertsLoading } = useAlerts(10, 5000);
@@ -142,8 +142,8 @@ const Dashboard: React.FC = () => {
       });
       setInjectionStatus({ message: `${t.injectSuccess} (${faultMode})`, type: 'success' });
       setTimeout(() => setInjectionStatus(null), 3000);
-    } catch (err: any) {
-      setInjectionStatus({ message: err.message || "Connection error.", type: 'error' });
+    } catch (err: unknown) {
+      setInjectionStatus({ message: errorMessage(err, 'Connection error.'), type: 'error' });
       setTimeout(() => setInjectionStatus(null), 3000);
     }
   };
@@ -433,7 +433,7 @@ const Dashboard: React.FC = () => {
               <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Loading alerts...</div>
             ) : alerts && alerts.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
-                {alerts.map((alert: any, idx: number) => (
+                {alerts.map((alert: AlertData, idx: number) => (
                   <div key={alert.alert_id || idx} style={{
                     padding: '12px',
                     background: `var(--status-${alert.severity.toLowerCase()}-glow)`,

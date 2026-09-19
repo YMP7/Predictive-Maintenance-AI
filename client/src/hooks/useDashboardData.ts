@@ -1,5 +1,26 @@
 import { useState, useEffect } from 'react';
-import { apiFetch } from '../lib/api';
+import { apiFetch, errorMessage } from '../lib/api';
+
+export interface TelemetryReading {
+  machine_id: string;
+  timestamp: string;
+  vibration: { x: number; y: number; z: number; rms: number };
+  temperature: number;
+  current: number;
+}
+
+export interface TrendSeries {
+  values: number[];
+  mean: number;
+  max: number;
+  min: number;
+}
+
+export interface MachineTrends {
+  vibration: TrendSeries;
+  temperature: TrendSeries;
+  current: TrendSeries;
+}
 
 export interface MachineInfo {
   name: string;
@@ -51,9 +72,9 @@ export function useDashboardData(refreshInterval: number = 2000) {
           setSummary(data);
           setError(null);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (active) {
-          setError(err.message);
+          setError(errorMessage(err));
         }
       } finally {
         if (active) {
@@ -75,8 +96,8 @@ export function useDashboardData(refreshInterval: number = 2000) {
 }
 
 export function useMachineDetails(machineId: string | null, refreshInterval: number = 2000) {
-  const [telemetry, setTelemetry] = useState<any[]>([]);
-  const [trends, setTrends] = useState<any>(null);
+  const [telemetry, setTelemetry] = useState<TelemetryReading[]>([]);
+  const [trends, setTrends] = useState<MachineTrends | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -88,19 +109,19 @@ export function useMachineDetails(machineId: string | null, refreshInterval: num
       try {
         setLoading(true);
         // Telemetry
-        const telData = await apiFetch<any[]>(`/api/machines/${machineId}/telemetry?limit=50`);
+        const telData = await apiFetch<TelemetryReading[]>(`/api/machines/${machineId}/telemetry?limit=50`);
         
         // Trends
-        const trendData = await apiFetch<any>(`/api/machines/${machineId}/trends`);
+        const trendData = await apiFetch<MachineTrends>(`/api/machines/${machineId}/trends`);
         
         if (active) {
           setTelemetry(telData);
           setTrends(trendData);
           setError(null);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (active) {
-          setError(err.message);
+          setError(errorMessage(err));
         }
       } finally {
         if (active) {
@@ -145,9 +166,9 @@ export function useAlerts(limit: number = 20, refreshInterval: number = 2000) {
           setAlerts(data);
           setError(null);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (active) {
-          setError(err.message);
+          setError(errorMessage(err));
         }
       } finally {
         if (active) {

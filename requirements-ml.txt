@@ -1,0 +1,11 @@
+# ATLAS machine-learning dependencies (world models, RUL engine, training).
+#
+# Installs the CPU-only PyTorch build (~200MB) instead of the multi-GB CUDA
+# default. Install after requirements.txt:
+#
+#   pip install -r requirements.txt
+#   pip install -r requirements-ml.txt --extra-index-url https://download.pytorch.org/whl/cpu
+
+-r requirements.txt
+
+torch>=2.2,<3.0

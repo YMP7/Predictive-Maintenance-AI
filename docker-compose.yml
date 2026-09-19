@@ -15,7 +15,7 @@ services:
       DATABASE_URL: postgresql://dtwin:${TSDB_PASSWORD}@timescaledb:5432/digital_twin
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       MQTT_BROKER_HOST: mosquitto
-      CORS_ORIGINS: "${CORS_ORIGINS:-*}"
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3000}"
       SIMULATION_ENABLED: "${SIMULATION_ENABLED:-true}"
       SIMULATION_INTERVAL: "${SIMULATION_INTERVAL:-1}"
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"

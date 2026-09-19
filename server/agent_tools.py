@@ -147,6 +147,10 @@ def create_work_order(
     try:
         now = datetime.now(timezone.utc)
         with pool.connection() as conn:
+            # Serialize concurrent work-order creation for this machine so the
+            # volume cap below cannot be bypassed by simultaneous tool calls.
+            conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (f"work_order:{machine_id}",))
+
             # 1. Volume Cap
             count = conn.execute(
                 "SELECT COUNT(*) FROM work_orders WHERE machine_id = %s AND created_at >= NOW() - INTERVAL '1 day'",
@@ -212,9 +216,9 @@ def create_work_order(
             "urgency": urgency, "status": status,
             "created_at": now.isoformat().replace("+00:00", "Z"),
         }
-    except Exception as e:
-        logger.error(f"create_work_order error: {e}")
-        return {"error": str(e)}
+    except Exception:
+        logger.exception("create_work_order failed for machine %s", machine_id)
+        return {"error": "Work order creation failed due to an internal error."}
 
 
 # ---------------------------------------------------------------------------
