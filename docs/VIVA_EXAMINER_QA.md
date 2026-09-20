@@ -240,10 +240,10 @@ Conflating them would indeed be inconsistent; that is precisely why ATLAS formul
 
 1. **The Phenomenon:** In `docs/TRANSFER_STUDY_RESULTS.md`, Mobile-to-C-MAPSS showed $8.3\times$ NTI inflation and Server-to-C-MAPSS showed $7.1\times$ NTI inflation, proving that compute representations destroy turbofan prediction accuracy. Laptop, however, reported an NTI of $0.89\times$ (cross-domain error appeared slightly lower than within-domain baseline error).
 2. **The Investigation & Root Cause:** We analyzed the prediction distribution and traced this directly to a **boundary-mean regression artifact**:
-   * To resolve DEF-007 (Laptop channel collapse), the synthetic Laptop generator was engineered with extreme multi-modal workload regimes (idle, office, burst, compile), creating a high within-domain baseline RMSE ($\approx 42.1$).
-   * When the Laptop encoder was queried against C-MAPSS's AMKB memory, the out-of-distribution latent vectors caused the attention head to regress toward the global dataset mean ($\approx 65$ cycles).
-   * Because C-MAPSS's target RUL values are bounded at 125 cycles with a median near 62 cycles, regressing to the global mean coincidentally produced an RMSE ($\approx 37.5$) that was numerically lower than Laptop's own noisy within-domain baseline.
-3. **Scientific Integrity:** Rather than claiming anomalous positive transfer, we documented this explicitly as a statistical artifact. Cross-domain transfer between laptops and turbofans is physically meaningless; the $0.89\times$ figure is an artifact of baseline variance, not beneficial feature reuse.
+   * To resolve DEF-007 (Laptop channel collapse), the synthetic Laptop generator was engineered with 4 distinct operational regimes (idle, office, burst, compile) with multi-modal phase transitions, producing a higher within-domain retrieval RMSE ($0.0961$, ~2.4–3.2× higher than Mobile's $0.0301$ and Server's $0.0404$).
+   * When the Laptop encoder was queried against C-MAPSS's AMKB memory, the out-of-distribution latent vectors landed on the distant manifold boundary (latent distance $10.82$, vs. $0.28$ within-domain), where retrieved normalized labels clustered near the global dataset mean ($\approx 0.55$).
+   * Because this global mean coincidentally fell close to the Laptop validation target mean ($\approx 0.52$), the resulting cross-domain RMSE was $0.0858$ ($0.0858 / 0.0961 = 0.89\times$, NTI = $-0.002$), numerically lower than Laptop's own higher-variance baseline.
+3. **Scientific Integrity:** Rather than claiming anomalous positive transfer, we documented this explicitly in `docs/TRANSFER_STUDY_RESULTS.md` §5 as a statistical artifact. Cross-domain transfer between laptops and turbofans is physically meaningless; the $0.89\times$ figure is an artifact of baseline multi-modal variance, not beneficial feature reuse.
 
 ---
 
