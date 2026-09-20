@@ -87,23 +87,70 @@ To provide real-time attribution without calculating computationally expensive S
    $$\phi_j = \frac{\Delta_j}{\sum_{m=1}^D \Delta_m} \times 100\%$$
 The channel maximizing $\phi_j$ is cited in the AMKB explainability drawer as the root cause of the active anomaly.
 
-### 2.4 Asymmetric Cost-Matrix Decision Graph
-Given predicted RUL $\hat{y}$, uncertainty $\sigma$, and confidence $C$, the Decision Graph computes the net expected operational cost $J(a)$ for each maintenance action $a \in \{\text{Do Nothing}, \text{Inspect}, \text{Service/Flush}, \text{Replace Immediately}, \text{Emergency Stop}\}$:
-$$J(a) = C_{\text{direct}}(a) + C_{\text{downtime}}(a) + P(\text{Failure} \mid \hat{y}, \sigma) \cdot C_{\text{catastrophic}}$$
-* **Asymmetric Risk Weighting (DEF-005):** The catastrophic failure penalty decays exponentially with predicted remaining life:
-  $$C_{\text{risk}}(\hat{y}) = C_{\text{catastrophic}} \cdot \exp(-\lambda \cdot \hat{y})$$
-* **Deterministic Multi-Criteria Tie-Breaking (DEF-004):** When two candidate actions yield equal expected utility within floating-point tolerance ($\Delta J < 10^{-4}$), ties are resolved strictly by **Safety Severity Rank** ($\text{Emergency Stop} > \text{Replace} > \text{Service} > \text{Inspect} > \text{Do Nothing}$), completely eliminating Python's arbitrary alphabetical tie-breaking.
+### 2.4 Stochastic Monte Carlo Uncertainty Propagation & Decision Graph (`server/atlas/simulation.py`, `decision.py`)
+ATLAS evaluates candidate maintenance actions using **empirical uncertainty propagation** via Monte Carlo simulation rather than deterministic closed-form approximations:
+
+1. **Discrete Action Space ($\mathcal{A}$):** Frozen into four discrete maintenance interventions:
+   $$\mathcal{A} = \{\text{CONTINUE\_OPERATION}, \text{SCHEDULE\_MAINTENANCE\_SOON}, \text{SCHEDULE\_MAINTENANCE\_NOW}, \text{REPLACE\_IMMEDIATELY}\}$$
+
+2. **Monte Carlo Predictive Uncertainty Sampling ($N = 1,000$):**
+   Given point prediction $\hat{y}$ and empirical neighbor variance $\sigma^2_{\text{AMKB}} = \operatorname{Var}(\{y_j\}_{j=1}^k)$ from the AMKB retrieval context, the simulation draws $N = 1,000$ RUL trajectory realizations:
+   $$y^{(i)} \sim \mathcal{N}\left(\hat{y}, \, \max(\sigma^2_{\text{AMKB}}, 10^{-6})\right), \quad y^{(i)} \in [0.0, 125.0], \quad i \in \{1, \dots, N\}$$
+
+3. **Action Lead Time & Risk Exposure Horizon ($\tau(a)$) (DEF-005):**
+   To resolve the fixed-cost blind spot where `CONTINUE_OPERATION` falsely won at near-failure, every candidate action faces a realistic operational execution horizon:
+   * $\tau(\text{CONTINUE\_OPERATION}) = 30\text{ cycles}$ (exposure horizon until next periodic review)
+   * $\tau(\text{SCHEDULE\_MAINTENANCE\_SOON}) = 10\text{ cycles}$
+   * $\tau(\text{SCHEDULE\_MAINTENANCE\_NOW}) = 3\text{ cycles}$
+   * $\tau(\text{REPLACE\_IMMEDIATELY}) = 0\text{ cycles}$ (immediate hazard elimination)
+
+4. **Sample-Level Cost Evaluation Function ($C(y^{(i)}, a)$):**
+   If the simulated unit expires before the action takes effect ($y^{(i)} \le \tau(a)$), an unplanned failure penalty ($C_{\text{unplanned}} = 1000.0$) is incurred:
+   $$C(y^{(i)}, a) = \begin{cases} 
+   1000.0 & \text{if } y^{(i)} \le \tau(a) \\
+   0.0 & \text{if } y^{(i)} > \tau(a) \text{ and } a = \text{CONTINUE\_OPERATION} \\
+   C_{\text{base}} + C_{\text{downtime}} \cdot \mu_{\text{urgency}}(a) & \text{if } y^{(i)} > \tau(a) \text{ and } a \neq \text{CONTINUE\_OPERATION}
+   \end{cases}$$
+   where $C_{\text{base}} = 50.0$, $C_{\text{downtime}} = 5.0$, and urgency multipliers are $\mu = [1.0, 1.5, 2.0]$ for `SOON`, `NOW`, and `REPLACE`.
+
+5. **Decision Distribution Statistics:**
+   * **Expected Action Cost:** $\mathbb{E}[C(a)] = \frac{1}{N} \sum_{i=1}^N C(y^{(i)}, a)$
+   * **Cost Standard Deviation (Simulation Variance):** $\sigma_C(a) = \sqrt{\frac{1}{N}\sum_{i=1}^N (C(y^{(i)}, a) - \mathbb{E}[C(a)])^2}$
+   * **Empirical Failure Probability:** $p_{\text{fail}}(a) = \frac{1}{N} \sum_{i=1}^N \mathbb{I}(y^{(i)} \le \tau(a))$
+
+6. **Deterministic Safety Tie-Breaking Cascade (DEF-004):**
+   Actions are ranked by an explicit 4-tier tuple in `server/atlas/decision.py`:
+   $$\text{sort\_key}(a) = \Big(\mathbb{E}[C(a)], \; p_{\text{fail}}(a), \; \sigma_C(a), \; \text{name}(a)\Big)$$
+   If expected costs are tied, the action with the higher failure probability (i.e., the more urgent/safer intervention) wins, completely eliminating Python's alphabetical string tie-breaking ('C' < 'S').
+
+7. **Higher-Level Decision Metrics:**
+   * $\text{Confidence} = \text{ExplanationReport.confidence\_score}$ (strictly reused from Explainability Engine to prevent metric drift)
+   * $\text{Risk} = p_{\text{fail}}(a^*) + \frac{\sigma_C(a^*)}{1000.0}$
+   * $\text{Impact} = \max_{a \in \mathcal{A}} \mathbb{E}[C(a)] - \mathbb{E}[C(a^*)]$ (cost difference between worst and best action)
+   * $\text{Urgency} = \frac{100.0}{\hat{y} + \sigma^2_{\text{AMKB}} + 1.0}$
 
 ---
 
-## 3. The Cross-Domain Transfer Study & Negative Transfer Index (NTI)
+## 3. The Cross-Domain Transfer Study & Negative Transfer Diagnostics
 
 ### 3.1 Literature Grounding & Experimental Protocol
-Conducted in Month 7 W2 (`docs/TRANSFER_STUDY_RESULTS.md`), this study evaluated whether cross-domain representation transfer is beneficial or harmful across heterogeneous machine domains using:
-1. **Maximum Mean Discrepancy (MMD):** Gretton et al. (2012) non-parametric two-sample test in RKHS with an RBF kernel $k(x, y) = \exp(-\gamma \|x-y\|^2)$.
-2. **Centroid Cosine Similarity:** Directional alignment of mean latent vectors in $\mathbb{R}^{32}$.
-3. **Negative Transfer Index (NTI):** Variance inflation under unadapted cross-domain AMKB memory retrieval:
-   $$\text{NTI} = \frac{\sigma_{\text{cross}}^2 - \sigma_{\text{within}}^2}{\sigma_{\text{within}}^2 + 1.0}$$
+Conducted in Month 7 W2 (`docs/TRANSFER_STUDY_RESULTS.md`), this study evaluated whether cross-domain representation transfer is beneficial or harmful across heterogeneous machine domains using three mathematical diagnostics:
+1. **Maximum Mean Discrepancy (MMD):** Gretton et al. (2012) non-parametric two-sample test in RKHS with an RBF kernel $k(x, y) = \exp(-\gamma \|x-y\|^2)$ where $\gamma = \frac{1}{2\sigma^2}$ is estimated via the median pairwise Euclidean distance heuristic.
+2. **Centroid Cosine Similarity:** Directional alignment of mean latent representations in 32-dimensional latent space ($\mathbb{R}^{32}$).
+3. **AMKB Semantic Retrieval Diagnostics & Negative Transfer:** Evaluates querying C-MAPSS degradation memory using 32-dimensional latent vectors from compute domains ($k=5$) versus within-domain retrieval:
+   * **Error Inflation Ratio:** Measures the relative degradation in prediction accuracy:
+     $$\text{Error Inflation Ratio} = \frac{\text{RMSE}_{\text{cross}}}{\text{RMSE}_{\text{within}}}$$
+   * **Negative Transfer Index (NTI):** Measures output variance collapse (loss of query discriminability) across the query distribution (`server/atlas/transfer_study.py:249-264`):
+     $$\text{NTI} = \frac{\operatorname{Var}(\hat{\mathbf{y}}_{\text{cross}}) - \operatorname{Var}(\hat{\mathbf{y}}_{\text{within}})}{\operatorname{Var}(\hat{\mathbf{y}}_{\text{within}}) + 1.0}$$
+     where $\hat{\mathbf{y}}_{\text{within}}$ and $\hat{\mathbf{y}}_{\text{cross}}$ are the arrays of retrieved RUL predictions across the evaluation set.
+
+#### Mathematical & Empirical Meaning of Negative NTI Values:
+* When cross-domain queries are issued against C-MAPSS memory from compute domains, unadapted latent vectors land far outside the training support manifold (Euclidean latent distance gap $d \approx 10.8$ vs. $0.07\text{--}0.30$ within-domain).
+* Because all cross-domain query vectors cluster in roughly the same out-of-distribution direction relative to C-MAPSS, they all retrieve the identical nearest-neighbor cluster on the C-MAPSS manifold perimeter.
+* Consequently, the cross-domain predictions become virtually invariant across test instances ($\operatorname{Var}(\hat{\mathbf{y}}_{\text{cross}}) \approx 0.00008$), while within-domain predictions vary normally with changing machine operational states ($\operatorname{Var}(\hat{\mathbf{y}}_{\text{within}}) \approx 0.00603$).
+* The resulting NTI is negative:
+  $$\text{NTI}_{\text{mobile}} = \frac{0.00008 - 0.00603}{0.00603 + 1.0} = -0.005951 \approx -0.0060$$
+* Thus, the **Error Inflation Ratio** ($8.30\times$) captures the massive loss in prediction accuracy, while the **Negative Transfer Index** ($-0.0060$) quantifies the catastrophic collapse of representation sensitivity on unadapted foreign manifolds.
 
 ### 3.2 Locked Empirical Findings
 
@@ -127,12 +174,12 @@ Conducted in Month 7 W2 (`docs/TRANSFER_STUDY_RESULTS.md`), this study evaluated
 
 *Large, uniform divergence ($\text{MMD} \approx 1.23$) cleanly separates physical turbofans from all compute domains, while compute domains show internal affinity ($\text{MMD} \approx 0.90$).*
 
-#### AMKB Semantic Memory Transfer & Error Inflation
-| Source Domain | Target Memory | Within-Domain RMSE | Cross-Domain RMSE | Error Inflation | Latent Dist Gap | NTI |
-|---|---|---|---|---|---|---|
-| **`mobile`** | `cmapss` | `0.0301` | `0.2495` | **8.30×** | $0.30 \rightarrow 10.80$ | -0.0060 |
-| **`server`** | `cmapss` | `0.0404` | `0.2868` | **7.10×** | $0.07 \rightarrow 10.97$ | -0.0074 |
-| **`laptop`** | `cmapss` | `0.0961` | `0.0858` | **0.89×** | $0.28 \rightarrow 10.82$ | -0.0020 |
+#### AMKB Semantic Memory Transfer & Error Inflation Table
+| Source Domain | Target Memory | Within-Domain RMSE | Cross-Domain RMSE | Error Inflation Ratio | Within Latent Dist | Cross Latent Dist | Negative Transfer Index (NTI) |
+|---|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| **`mobile`** | `cmapss` | `0.0301` | `0.2495` | **8.30×** | `0.3022` | `10.8024` | `-0.0060` |
+| **`server`** | `cmapss` | `0.0404` | `0.2868` | **7.10×** | `0.0683` | `10.9709` | `-0.0074` |
+| **`laptop`** | `cmapss` | `0.0961` | `0.0858` | **0.89×** | `0.2834` | `10.8235` | `-0.0020` |
 
 ### 3.3 Defense Analysis of the Laptop 0.89× Ratio
 Laptop's lower cross-domain RMSE ($0.0858$ vs. within-domain $0.0961$) is **not** positive transfer. It is an identified **boundary-mean regression artifact**:
@@ -148,7 +195,7 @@ ATLAS was engineered via structured refutation. All 12 defects (DEF-001 through 
 
 ```
 [ DEF-001 ] ──► [ DEF-002 ] ──► [ DEF-003 ] ──► [ DEF-004 ] ──► [ DEF-005 ] ──► [ DEF-006 ]
-ReLU Head       Row-Order       Distance Invert  Tie-Breaker     Cost Blind-Spot Zero-Padding
+ReLU Head       Row Ordering    Cosine Invert   Tie-Breaker     Lead Time Blind Zero-Padding
 (Month 1 W3)    (Month 1 W2)    (Month 4 W2)     (Month 5)       (Month 5)       (Month 7 W2)
      │                                                                                │
      ▼                                                                                ▼
@@ -161,19 +208,19 @@ Human Gate      LLM Grounding   RNG Leakage      Spearman Zero   Div-by-Zero    
 
 | ID | Severity | Month | Root Cause & Failure Mechanism | Resolution & Permanent Guard |
 |---|---|---|---|---|
-| **DEF-001** | **Critical** | 1 W3 | Terminal `nn.ReLU()` in RUL prediction head caused dead gradients in ~50% of random seeds with negative initialization, silently halting training. | Removed terminal ReLU; added linear output head with post-inference clamp (`torch.clamp(min=0.0)`). |
-| **DEF-002** | **High** | 1 W2 | Row-order silent corruption in sliding window extraction when raw telemetry timestamps were unsorted. | Enforced SQL `ORDER BY cycle, time_in_cycles ASC` and added temporal monotonic validation assertions. |
-| **DEF-003** | **High** | 4 W2 | Cosine distance treated as similarity in explainability drawer, ranking the most distant historical failures as most relevant. | Strictly mapped $\text{Similarity} = 1.0 - \text{Distance}$ throughout the AMKB retrieval engine. |
-| **DEF-004** | **Critical** | 5 | Python's `sorted()` used alphabetical tie-breaking on equal-utility maintenance actions, choosing `"Inspect Spindle"` over `"Emergency Stop"`. | Implemented deterministic multi-criteria tie-breaker: Utility $\rightarrow$ Severity Rank $\rightarrow$ Cost. |
-| **DEF-005** | **Critical** | 5 | Fixed-cost blind spot in cost model treating an impending crash within 2 hours with the same financial penalty as a 30-day wear trend. | Implemented exponential time-decay cost penalty: $C_{\text{risk}} = C_{\text{catastrophic}} \cdot \exp(-\lambda \cdot \hat{y})$. |
-| **DEF-006** | **High** | 7 W2 | Zero-padding 5-channel compute inputs to match 14-channel C-MAPSS created artificial distance inflation in Transfer Study. | Evaluated transfer strictly in the shared 32-dimensional latent representation space ($z \in \mathbb{R}^{32}$). |
-| **DEF-007** | **Medium** | 7 W2 | Static channels (`disk ≈ 0.58`, `mem ≈ 0.60`) in early synthetic laptop generator caused representation collapse (Cosine Dist = 0.0670 < 0.20). | Refactored into 4 multi-modal regimes (idle, office, burst, compile) with strict non-collapse guards (Cosine $\ge 0.20$). |
-| **DEF-008** | **High** | 7 W4 | Live API endpoints silently routed compute domain queries through zero-shot fallbacks because dynamic model registration was missing. | Built dynamic model registry loading `best_model.pt`, `laptop_world_model.pt`, `mobile_world_model.pt`, and `server_world_model.pt`. |
-| **DEF-009** | **High** | 4 W1 | Division-by-zero crash in neighbor confidence formula when all $k$ retrieved neighbors had identical RUL ($\text{Var} = 0$). | Added epsilon regularizer ($\sigma^2 + 10^{-4}$), bounding confidence cleanly in $[0.0, 1.0]$. |
-| **DEF-010** | **Medium** | 7 W3 | Spearman rank correlation undefined for zero-variance confidence arrays during automated benchmark evaluation. | Added zero-variance detection with clean statistical fallback. |
-| **DEF-011** | **Medium** | 7 W2 | Unseeded PyTorch RNG state carry-over between domain pretraining calls caused non-reproducible run-to-run drift. | Isolated pretraining runs with explicit deterministic domain seeds (`laptop: 101`, `mobile: 102`, `server: 103`). |
-| **DEF-012a**| **Medium** | 8 W4 | LLM agent tool used loose keyword fallback to create ungrounded work orders (e.g. citing a vibration alert to justify flushing coolant). | Enforced mandatory alert existence check, structured `fault_type` exact enum match, and `FAULT_TYPE_ALLOWED_ACTIONS` allow-list. |
-| **DEF-012b**| **Medium** | 8 W4 | Multi-action bundling residual risk (e.g., agent submits `"Inspect spindle and flush coolant"`). | Formally bounded residual risk by the Human Confirmation Gate (`POST /api/work-orders/{id}/approve`). |
+| **DEF-001** | **Critical** | 1 W3 | Terminal `nn.ReLU()` in RUL prediction head caused dead gradients in ~50% of random seeds with negative initialization, silently halting training. | Removed terminal ReLU; added linear output head with post-inference clamp (`torch.clamp(min=0.0)` in `server/atlas/world_model.py:101`). |
+| **DEF-002** | **High** | 1 W2 | Static C-MAPSS CSV benchmark preprocessing in `ml/preprocessing.py:170`. `compute_train_rul` merged unit data without explicit row ordering, producing sliding windows of valid shape `(N, 30, 14)` that passed automated shape tests but contained silently corrupted temporal sequences. | Added `df.sort_values(["unit", "cycle"]).reset_index(drop=True)` before window generation and RUL clipping; added temporal monotonic validation assertions. |
+| **DEF-003** | **High** | 4 W2 | Commit `dee527d`. pgvector `<=>` operator returns cosine distance $d \in [0, 2]$ (where 0 is identical). Initial explainability logic in `server/atlas/explain.py` used $d$ directly in confidence calculations, ranking distant historical failures as high-confidence matches. | Mapped distance to bounded similarity $\text{sim} = \frac{1.0}{1.0 + d}$, calibrated confidence formula $\text{Confidence} = \frac{1}{1 + \bar{d}} \cdot \frac{1}{1 + \sigma_{\text{AMKB}}^2}$, verified in `tests/test_explain.py` and validated via Spearman rank correlation ($r_s = -0.5090$). |
+| **DEF-004** | **Critical** | 5 | Python's `sorted()` used default alphabetical string comparison on equal expected costs, causing `CONTINUE_OPERATION` to silently win over `SCHEDULE_MAINTENANCE_*` ('C' < 'S'), favoring dangerous inaction at near-failure. | Implemented deterministic safety-prioritizing cascade: `(expected_cost, p_failure_before_action, cost_std, action_name)` in `server/atlas/decision.py:48-51`. Verified in `tests/test_decision.py:86-115`. |
+| **DEF-005** | **Critical** | 5 | Maintenance interventions were evaluated as static fixed costs while `CONTINUE_OPERATION` faced dynamic failure risk, causing `CONTINUE_OPERATION` to falsely beat maintenance at near-failure because intervention lead time was ignored. | Introduced explicit `ACTION_LEAD_TIME` table ($\tau = [30, 10, 3, 0]$ cycles) in `server/atlas/simulation.py:56-83`. During Monte Carlo sampling, any sample $y^{(i)} \le \tau(a)$ incurs catastrophic failure penalty ($1000.0$). Verified in Ablation 1 (47.17% cost savings, 100% near-failure catch rate). |
+| **DEF-006** | **High** | 7 W2 | Zero-padding 5-channel compute inputs to match 14-channel C-MAPSS created artificial distance inflation in Transfer Study. | Evaluated transfer strictly in the shared 32-dimensional latent representation space ($z \in \mathbb{R}^{32}$) in `server/atlas/transfer_study.py`. |
+| **DEF-007** | **Medium** | 7 W2 | Static channels (`disk ≈ 0.58`, `mem ≈ 0.60`) in early synthetic laptop generator caused representation collapse (Cosine Dist = 0.0670 < 0.20). | Refactored into 4 multi-modal regimes (idle, office, burst, compile) with strict non-collapse guards (Cosine $\ge 0.20$) in `server/atlas/pretrain_domain.py`. |
+| **DEF-008** | **High** | 7 W4 | Live API endpoints silently routed compute domain queries through zero-shot fallbacks because dynamic model registration was missing. | Built dynamic model registry loading `best_model.pt`, `laptop_world_model.pt`, `mobile_world_model.pt`, and `server_world_model.pt` in `server/atlas/adaptive_context.py`. |
+| **DEF-009** | **High** | 4 W1 | Division-by-zero crash in neighbor confidence formula when all $k$ retrieved neighbors had identical RUL ($\text{Var} = 0$). | Added epsilon regularizer ($\sigma^2 + 10^{-4}$), bounding confidence cleanly in $[0.0, 1.0]$ in `server/atlas/world_model.py:275`. |
+| **DEF-010** | **Medium** | 7 W3 | Spearman rank correlation undefined for zero-variance confidence arrays during automated benchmark evaluation. | Added zero-variance detection with clean statistical fallback in `server/atlas/evaluation.py`. |
+| **DEF-011** | **Medium** | 7 W2 | Unseeded PyTorch RNG state carry-over between domain pretraining calls caused non-reproducible run-to-run drift. | Isolated pretraining runs with explicit deterministic domain seeds (`laptop: 101`, `mobile: 102`, `server: 103`) in `server/atlas/pretrain_domain.py`. |
+| **DEF-012a**| **Medium** | 8 W4 | LLM agent tool used loose keyword fallback to create ungrounded work orders (e.g. citing a vibration alert to justify flushing coolant). | Enforced mandatory alert existence check, structured `fault_type` exact enum match, and `FAULT_TYPE_ALLOWED_ACTIONS` allow-list in `server/agent_tools.py:245-280`. |
+| **DEF-012b**| **Medium** | 8 W4 | Multi-action bundling residual risk (e.g., agent submits `"Inspect spindle and flush coolant"`). | Formally bounded residual risk by the Human Confirmation Gate (`POST /api/work-orders/{id}/approve` in `server/backend_api.py:382-415`). |
 | **NM-001**  | Near-Miss | 8 W3 | `InMemoryAMKB` offline fallback could silently diverge from pgvector `<=>` cosine distance. | Added mathematical equivalence regression tests proving $< 10^{-5}$ drift (`tests/test_evaluation_cli.py`). |
 | **NM-002**  | Near-Miss | Phase 5 | Plaintext MQTT development credentials committed in git history (`mosquitto/config/pwfile.raw`). | Untracked file, gitignored `.raw`, implemented in-memory PBKDF2 `$7$` generator, and recorded standing precondition for public release. |
 
@@ -230,11 +277,11 @@ Verified live during Phase 4 verification:
 
 ### Q1: Mobile 16-Channel Telemetry vs. 5-Feature Neural Input
 * **Examiner Inquiry:** *"Your Mobile adapter acquires 16 channels, but your World Model receives only 5 features. Why omit 11 channels from neural modeling?"*
-* **Candidate Defense:** Telemetry acquisition is decoupled from cognition. The adapter acquires 16 channels across three tiers (14 sensed + 2 derived triaxial norms) to drive real-time 3D Digital Twin visualization and threshold shock alarms. However, the neural Attention-LSTM World Model (`data/models/mobile_world_model.pt`) takes strictly the **5 canonical core features** (`battery_level`, `battery_temp`, `battery_current`, `cpu_usage`, `memory_used_percent`). This preserves symmetric 5-dimensional input parity across Laptop ($D=5$), Mobile ($D=5$), and Server ($D=5$), enabling our Cross-Domain Transfer Study (8.3× NTI) to map representations into a shared 32-dimensional latent bottleneck without zero-padding distortion (DEF-006) or environmental noise leakage.
+* **Candidate Defense:** Telemetry acquisition is decoupled from cognition. The adapter acquires 16 channels across three tiers (14 sensed + 2 derived triaxial norms) to drive real-time 3D Digital Twin visualization and threshold shock alarms. However, the neural Attention-LSTM World Model (`data/models/mobile_world_model.pt`) takes strictly the **5 canonical core features** (`battery_level`, `battery_temp`, `battery_current`, `cpu_usage`, `memory_used_percent`). This preserves symmetric 5-dimensional input parity across Laptop ($D=5$), Mobile ($D=5$), and Server ($D=5$), enabling our Cross-Domain Transfer Study (8.3× Error Inflation Ratio, -0.0060 NTI) to map representations into a shared 32-dimensional latent bottleneck without zero-padding distortion (DEF-006) or environmental noise leakage.
 
 ### Q2: Cross-Domain Dimension Alignment (C-MAPSS 14 vs. Compute 5)
 * **Examiner Inquiry:** *"How can you evaluate transfer between C-MAPSS (14 channels) and compute domains (5 channels)?"*
-* **Candidate Defense:** We do not evaluate transfer in raw sensor space. Raw input-space transfer was the exact methodology flaw of DEF-006 (zero-padding artifacts). In ATLAS, transfer is tested strictly in the **shared 32-dimensional latent representation space** ($z \in \mathbb{R}^{32}$). Each domain has an Attention-LSTM encoder projecting its inputs ($D=14$ for C-MAPSS, $D=5$ for compute) into $\mathbb{R}^{32}$. The 8.3× NTI is computed by querying C-MAPSS's AMKB memory using these 32-dimensional latent vectors, isolating semantic transfer from raw dimensional differences.
+* **Candidate Defense:** We do not evaluate transfer in raw sensor space. Raw input-space transfer was the exact methodology flaw of DEF-006 (zero-padding artifacts). In ATLAS, transfer is tested strictly in the **shared 32-dimensional latent representation space** ($z \in \mathbb{R}^{32}$). Each domain has an Attention-LSTM encoder projecting its inputs ($D=14$ for C-MAPSS, $D=5$ for compute) into $\mathbb{R}^{32}$. The 8.3× Error Inflation Ratio (and -0.0060 NTI) is computed by querying C-MAPSS's AMKB memory using these 32-dimensional latent vectors, isolating semantic transfer from raw dimensional differences.
 
 ### Q3: C-MAPSS Benchmark Rigor vs. Literature Baseline (Zheng 2017)
 * **Examiner Inquiry:** *"Why is your C-MAPSS RMSE (15.42) only an 8% improvement over Zheng et al. (16.14)?"*
@@ -266,7 +313,7 @@ Verified live during Phase 4 verification:
 
 ### Q10: Negative Transfer Index & Laptop 0.89× Ratio
 * **Examiner Inquiry:** *"Your Transfer Study showed that Mobile and Server suffered ~8x negative transfer inflation against C-MAPSS, but Laptop showed an NTI of 0.89x. Does Laptop telemetry transfer to jet engines?"*
-* **Candidate Defense:** No. Laptop does not transfer to jet engines. In `docs/TRANSFER_STUDY_RESULTS.md` §5, Laptop's within-domain RMSE is $0.0961$ and cross-domain RMSE is $0.0858$ ($0.89\times$). This is an identified boundary-mean regression artifact: Laptop's 4 multi-modal workload regimes produced higher within-domain baseline variance. When Laptop latent vectors queried C-MAPSS memory, the out-of-distribution vectors landed on the distant boundary ($10.82$ Euclidean distance), causing retrieved normalized labels to cluster near the dataset global mean ($\approx 0.55$), which coincidentally fell close to the Laptop validation mean ($\approx 0.52$). Transparently documenting this artifact rather than claiming false positive transfer is essential to scientific integrity.
+* **Candidate Defense:** No. Laptop does not transfer to jet engines. In `docs/TRANSFER_STUDY_RESULTS.md` §5, Laptop's within-domain RMSE is $0.0961$ and cross-domain RMSE is $0.0858$ ($0.89\times$, NTI = $-0.0020$). This is an identified boundary-mean regression artifact: Laptop's 4 multi-modal workload regimes produced higher within-domain baseline variance. When Laptop latent vectors queried C-MAPSS memory, the out-of-distribution vectors landed on the distant boundary ($10.82$ Euclidean distance), causing retrieved normalized labels to cluster near the dataset global mean ($\approx 0.55$), which coincidentally fell close to the Laptop validation mean ($\approx 0.52$). Transparently documenting this artifact rather than claiming false positive transfer is essential to scientific integrity.
 
 ### Q11: Future Engineering & Research Roadmap
 * **Examiner Inquiry:** *"What would you prioritize changing or extending with six more months?"*
@@ -308,9 +355,9 @@ ATLAS LIVE END-TO-END VALIDATION EXECUTION AUDIT TRAIL
 | **DEF-012b Action Plausibility Allow-Lists** | `server/agent_tools.py:144-171` | `tests/test_work_order_safeguards.py` |
 | **Dual-Direction RBAC Approval Endpoint** | `server/backend_api.py:382-415` | `scripts/run_live_e2e_full.py` (Phase 4) |
 | **NM-002 Plaintext Password Git Tracking Guard** | `scripts/generate_mqtt_passwords.py` | `tests/test_mqtt.py:33` |
-| **Cosine Inversion Fix (DEF-003)** | `server/atlas/amkb.py:180-210` | `tests/test_amkb.py` |
-| **Decision Graph Multi-Criteria Tie-Breaker (DEF-004)** | `server/atlas/decision.py:140-175` | `tests/test_decision_graph.py` |
-| **Asymmetric Exponential Risk Model (DEF-005)** | `server/atlas/decision.py:200-225` | `tests/test_cost_matrix.py` |
+| **Cosine Inversion Fix (DEF-003)** | `server/atlas/explain.py:57-105` | `tests/test_explain.py:46-51` (commit `dee527d`) |
+| **Decision Graph Multi-Criteria Tie-Breaker (DEF-004)** | `server/atlas/decision.py:48-51` | `tests/test_decision.py:86-115` |
+| **Monte Carlo Lead-Time Uncertainty Engine (DEF-005)** | `server/atlas/simulation.py:56-140` | `tests/test_decision.py:30-49, 116-134` |
 | **Transfer Study 32-D Latent Transfer (DEF-006)** | `server/atlas/transfer_study.py:180-240` | `tests/test_transfer_study.py` |
 | **Laptop Multi-Modal Non-Collapse (DEF-007)** | `server/atlas/pretrain_domain.py:80-128` | `tests/test_domain_pretraining.py` |
 | **Dynamic Multi-Domain Model Registry (DEF-008)** | `server/atlas/adaptive_context.py:35-70` | `GET /api/atlas/models/status` |
