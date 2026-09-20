@@ -351,11 +351,17 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
                   style={{ padding: '4px 8px', fontSize: '12px', fontFamily: 'var(--font-mono)' }}
                   aria-label="Select Telemetry Sensor"
                 >
-                  {featureKeys.map(k => (
-                    <option key={k} value={k}>
-                      {k === 'thermal_headroom' ? 'thermal_headroom (Estimated Die Temp)' : k}
-                    </option>
-                  ))}
+                  {featureKeys.map(k => {
+                    let label = k;
+                    if (k === 'thermal_headroom') label = `${k} [Tier c: Heuristic Estimate]`;
+                    else if (k === 'vibration_rms') label = `${k} [Tier b: Triaxial Norm]`;
+                    else if (k === 'magnetic_field') label = `${k} [Tier b: Flux Norm]`;
+                    return (
+                      <option key={k} value={k}>
+                        {label}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
             </div>
@@ -382,24 +388,20 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
                       tickFormatter={(v) => typeof v === 'number' ? v.toFixed(2) : v}
                     />
                     <Tooltip
-                      contentStyle={{
-                        background: 'var(--bg-elevated)',
-                        borderColor: 'var(--border-hover)',
-                        borderRadius: 'var(--radius-sm)',
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '11px',
-                        color: 'var(--text-bright)'
-                      }}
+                      contentStyle={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-xs)', fontSize: '11px', fontFamily: 'var(--font-mono)' }}
+                      labelStyle={{ color: 'var(--text-muted)' }}
                       formatter={(val: any) => [typeof val === 'number' ? val.toFixed(3) : val, selectedSensor]}
                     />
                     <Line
-                      key={selectedSensor}
                       type="monotone"
                       dataKey={selectedSensor}
-                      stroke="var(--accent-cyan)"
+                      stroke={
+                        selectedSensor === 'thermal_headroom' ? 'var(--status-warning)' :
+                        (selectedSensor === 'vibration_rms' || selectedSensor === 'magnetic_field') ? 'var(--accent-purple)' :
+                        'var(--accent-cyan)'
+                      }
                       strokeWidth={2}
-                      dot={{ r: 2, fill: 'var(--accent-cyan)' }}
-                      activeDot={{ r: 4 }}
+                      dot={false}
                       isAnimationActive={false}
                     />
                   </LineChart>
@@ -408,18 +410,20 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
             </div>
           </div>
 
-          {/* Sensor Feature Matrix */}
-          <div className="mission-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* 1. Genuinely Measured Hardware / Kernel Sensors */}
+          {/* Full Acquired Feature Matrix (Grouped by Provenance Tier) */}
+          <div className="mission-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {/* 1. Directly Sensed Hardware Channels (Tier a) */}
             <div>
               <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '10px', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span>
                   {activeDomain === 'laptop' 
                     ? `ACQUIRED HARDWARE & KERNEL SENSORS (${featureKeys.filter(k => k !== 'thermal_headroom').length} CHANNELS)` 
+                    : activeDomain === 'mobile'
+                    ? `DIRECT HARDWARE TELEMETRY (${featureKeys.filter(k => !['vibration_rms', 'magnetic_field'].includes(k)).length} CHANNELS)`
                     : `ACQUIRED FEATURE MATRIX (${featureKeys.length} CHANNELS)`}
                 </span>
                 <span style={{ fontSize: '10px', color: 'var(--status-normal)', fontFamily: 'var(--font-mono)' }}>
-                  ● GENUINE MEASURED TELEMETRY
+                  ● TIER (a) DIRECTLY MEASURED
                 </span>
               </div>
               <div style={{
@@ -427,7 +431,7 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
                 gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
                 gap: '8px'
               }}>
-                {featureKeys.filter(k => k !== 'thermal_headroom').map(k => {
+                {featureKeys.filter(k => k !== 'thermal_headroom' && !(activeDomain === 'mobile' && ['vibration_rms', 'magnetic_field'].includes(k))).map(k => {
                   const isSelected = selectedSensor === k;
                   const val = features[k];
                   return (
@@ -455,7 +459,59 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
               </div>
             </div>
 
-            {/* 2. Distinct Structurally Separated Derived / Model Estimates */}
+            {/* 2. Physically Derived Metrics (Tier b - Mobile: vibration_rms, magnetic_field) */}
+            {activeDomain === 'mobile' && (
+              <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent-purple)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>PHYSICALLY DERIVED METRICS (2 CHANNELS)</span>
+                    <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'rgba(168, 85, 247, 0.15)', border: '1px solid var(--accent-purple)', color: 'var(--accent-purple)', fontWeight: 700 }}>
+                      TIER (b) DERIVED NORM
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    TRI-AXIAL EUCLIDEAN NORMS
+                  </span>
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '10px', lineHeight: 1.4 }}>
+                  Computed deterministically from raw triaxial sensor vectors: vibration RMS from Bosch BMI320 (normalized to 20 m/s²), magnetic field from QMC6308 (normalized to 100 μT).
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px' }}>
+                  {['vibration_rms', 'magnetic_field'].filter(k => featureKeys.includes(k)).map(k => {
+                    const isSelected = selectedSensor === k;
+                    const val = features[k];
+                    return (
+                      <div
+                        key={k}
+                        onClick={() => setSelectedSensor(k)}
+                        style={{
+                          background: isSelected ? 'rgba(168, 85, 247, 0.12)' : 'var(--bg-secondary)',
+                          border: `1px solid ${isSelected ? 'var(--accent-purple)' : 'rgba(168, 85, 247, 0.4)'}`,
+                          borderRadius: 'var(--radius-xs)',
+                          padding: '10px 12px',
+                          cursor: 'pointer',
+                          transition: 'all 0.1s var(--ease-out)'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '10px', color: 'var(--accent-purple)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', fontWeight: 700 }}>
+                            {k}
+                          </span>
+                          <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                            [DERIVED]
+                          </span>
+                        </div>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', fontWeight: 800, color: 'var(--text-bright)', marginTop: '4px' }}>
+                          {typeof val === 'number' ? val.toFixed(3) : val}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* 3. Operational Heuristic Model Estimates (Tier c - Laptop: thermal_headroom) */}
             {featureKeys.includes('thermal_headroom') && (
               <div style={{
                 borderTop: '1px solid var(--border-subtle)',
@@ -465,7 +521,7 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
                   <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--status-warning)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span>DERIVED & ESTIMATED METRICS (1 MODEL ESTIMATE)</span>
                     <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'rgba(255, 179, 0, 0.15)', border: '1px solid var(--status-warning)', color: 'var(--status-warning)', fontWeight: 700 }}>
-                      HEURISTIC ESTIMATE
+                      TIER (c) HEURISTIC ESTIMATE
                     </span>
                   </div>
                   <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>

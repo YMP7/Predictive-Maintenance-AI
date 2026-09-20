@@ -445,6 +445,46 @@ In Phase 5, the Docker compose initialization workflow for Eclipse Mosquitto rel
 
 ---
 
+---
+
+## Architectural Boundary Disclosure: 3-Tier Telemetry Classification (Mobile & Laptop)
+
+To maintain rigorous transparency regarding telemetry provenance and prevent unvalidated claims, all telemetry channels across ATLAS domains are classified into three distinct confidence tiers:
+
+### 1. Classification Taxonomy
+
+1. **Tier (a) Directly Measured:** Acquired directly from hardware sensors, kernel accounting, or vendor driver APIs with zero mathematical transformation other than standard linear normalization into $[0.0, 1.0]$.
+2. **Tier (b) Physically Derived (Validated):** Computed via deterministic physical laws or Euclidean norms from Tier (a) sensor vectors, with an empirical validation basis against physical ground truth (e.g. Earth gravitational acceleration $g = 9.81\text{ m/s}^2$ or ambient geomagnetic flux).
+3. **Tier (c) Operational Heuristic Placeholders (Unvalidated):** Synthetic or weighted linear combinations of operating stress variables representing composite operational strain. These metrics **MUST NOT** be claimed as empirical degradation ground truth (such as battery capacity fade or structural crack growth).
+
+---
+
+### 2. Mobile Domain Channel Breakdown (16 Channels)
+
+| Channel Name | Provenance Tier | Acquisition / Derivation Method | Physical Ground Truth / Reference |
+|---|---|---|---|
+| `battery_level` | **Tier (a) Directly Measured** | Android BatteryManager / Termux `/battery` API | BMIC Coulomb-counter state of charge (0–100%) |
+| `battery_temp` | **Tier (a) Directly Measured** | Android `dumpsys battery` thermistor (`temperature: 320` $\rightarrow$ 32.0°C) | BMIC internal NTC thermistor |
+| `battery_current` | **Tier (a) Directly Measured** | Android `dumpsys battery` `Max charging current` / `current_now` | BMIC internal current shunt resistor (mA) |
+| `battery_voltage` | **Tier (a) Directly Measured** | Android `dumpsys battery` `voltage` (mV) | BMIC terminal cell voltage |
+| `cpu_usage` | **Tier (a) Directly Measured** | Linux `/proc/stat` total vs. idle jiffies delta | Kernel scheduler runtime accounting |
+| `memory_used_percent` | **Tier (a) Directly Measured** | Linux `/proc/meminfo` (`MemTotal` - `MemAvailable`) / `MemTotal` | Kernel memory manager accounting |
+| `accel_x`, `accel_y`, `accel_z` | **Tier (a) Directly Measured** | Bosch Sensortec BMI320 3-axis MEMS accelerometer via `dumpsys sensorservice` | Triaxial capacitive MEMS deflection ($\text{m/s}^2$) |
+| `gyro_x`, `gyro_y`, `gyro_z` | **Tier (a) Directly Measured** | Bosch Sensortec BMI320 3-axis MEMS gyroscope via `dumpsys sensorservice` | Triaxial Coriolis force deflection (rad/s) |
+| `ambient_light` | **Tier (a) Directly Measured** | AMS / TCS3701 ambient light sensor via `dumpsys sensorservice` | Photodiode optical illuminance (Lux) |
+| `proximity` | **Tier (a) Directly Measured** | AMS / TCS3701 IR proximity sensor via `dumpsys sensorservice` | IR VCSEL time-of-flight / reflection distance (cm) |
+| `vibration_rms` | **Tier (b) Physically Derived** | $\frac{1}{20}\sqrt{a_x^2 + a_y^2 + a_z^2}$ | Validated against static baseline Earth gravity ($g = 9.81\text{ m/s}^2 \rightarrow \approx 0.49$) |
+| `magnetic_field` | **Tier (b) Physically Derived** | $\frac{1}{100}\sqrt{m_x^2 + m_y^2 + m_z^2}$ from QMC6308 3-axis AMR magnetometer | Validated against ambient geomagnetic field ($30\text{--}60\ \mu\text{T} \rightarrow 0.3\text{--}0.6$) |
+| `stress_score` (`health_index`) | **Tier (c) Operational Heuristic** | $0.35 T_{\text{batt}} + 0.25 C_{\text{cpu}} + 0.20 M_{\text{mem}} + 0.10 V_{\text{rms}} + 0.10(1 - B_{\text{lvl}})$ | **Unvalidated heuristic placeholder**. Represents instantaneous operational workload, NOT physical battery degradation. |
+
+> [!NOTE]
+> **Clarification on `battery_temp` and `storage_io_rate`:**
+> 1. **`battery_temp` is directly measured:** In the real hardware pipeline (ADB/Termux), battery temperature is directly read from the hardware BMIC thermistor. The "voltage sag under load" formulation exists exclusively in the synthetic simulation fallback (`_generate_simulation_reading`) and is never used when real hardware is connected.
+> 2. **Mobile does NOT have `storage_io_rate`:** Android user-space and Termux permissions restrict `/proc/diskstats` access without root eBPF capabilities. Storage I/O metrics exist exclusively in Laptop (`psutil.disk_io_counters`) and Server (`/proc/diskstats`).
+> 3. **Model Dimensional Isolation:** The Mobile Attention-LSTM World Model checkpoint (`data/models/mobile_world_model.pt`) was trained strictly on the **5 canonical features** (`battery_level`, `battery_temp`, `battery_current`, `cpu_usage`, `memory_used_percent`). The 11 extended hardware channels are ingested for high-fidelity digital twin monitoring and physical engineering analysis, but are decoupled from the 5-dimensional neural encoder input. The Cross-Domain Transfer Study (8.3× NTI) operates exclusively in the canonical 5-dimensional feature space and is completely unpolluted.
+
+---
+
 ## Updated Defect Trend Analysis
 
 | Month | Defects Found | Severity Breakdown | Notes |
@@ -458,3 +498,4 @@ In Phase 5, the Docker compose initialization workflow for Eclipse Mosquitto rel
 | Month 7 | 5 | 2 High, 3 Medium | Transfer study methodology, collapse, seed isolation, Spearman edge case |
 | Month 8 | 1 (+2 near-misses) | 1 Medium | DEF-012 LLM grounding; NM-001 AMKB equivalence; NM-002 MQTT credentials |
 | **Total** | **12 (+2 near-misses)** | **3 Critical, 5 High, 4 Medium** | **100% resolved or mitigated with boundary disclosures** |
+
