@@ -14,19 +14,18 @@ def main():
             try:
                 ckpt = torch.load(path, map_location="cpu", weights_only=False)
                 if isinstance(ckpt, dict):
-                    keys = list(ckpt.keys())
-                    # Check if it has an encoder or lstm or input layer
-                    input_shape = None
-                    for k in ckpt:
-                        if "weight" in k and ("encoder" in k or "lstm" in k or "fc" in k or "linear" in k or "input" in k):
-                            input_shape = (k, ckpt[k].shape)
-                            break
-                    if input_shape:
-                        print(f"{f:<26} | key: {input_shape[0]:<30} | shape: {input_shape[1]}")
-                    else:
-                        first_k = keys[0] if keys else "empty"
-                        shape = ckpt[first_k].shape if hasattr(ckpt[first_k], "shape") else type(ckpt[first_k])
-                        print(f"{f:<26} | first: {first_k:<28} | shape: {shape}")
+                    cfg = ckpt.get("config")
+                    sd = ckpt.get("model_state_dict", ckpt)
+                    lstm_w = sd.get("lstm.weight_ih_l0")
+                    fc_w = sd.get("encoder.0.weight")
+                    feat_dim = None
+                    if hasattr(cfg, "feature_dim"):
+                        feat_dim = cfg.feature_dim
+                    elif isinstance(cfg, dict):
+                        feat_dim = cfg.get("feature_dim")
+                    
+                    shape_info = f"lstm.weight_ih_l0={list(lstm_w.shape)}" if lstm_w is not None else (f"encoder={list(fc_w.shape)}" if fc_w is not None else "no-lstm")
+                    print(f"{f:<26} | config.feature_dim={feat_dim} | {shape_info}")
                 else:
                     print(f"{f:<26} | type: {type(ckpt)}")
             except Exception as e:
@@ -34,3 +33,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
