@@ -36,6 +36,7 @@ All 12 defects have been resolved or mitigated with explicit boundary disclosure
 | ID | Near-Miss | Month | Mitigated By |
 |---|---|---|---|
 | NM-001 | InMemoryAMKB offline fallback could silently diverge from pgvector cosine distance | 8 W3 | Equivalence test proving < 10⁻⁵ drift (`tests/test_evaluation_cli.py`) |
+| NM-002 | Plaintext MQTT development credentials tracked in git (`pwfile.raw`) | Phase 5 / 8 W4 | Untracked, gitignored, in-memory generator (`scripts/generate_mqtt_passwords.py`), standing pre-publication rewrite rule |
 
 ---
 
@@ -412,6 +413,30 @@ The divergence was identified as a **risk** and mitigated before it could produc
 
 ---
 
+## Near-Miss: NM-002 — Plaintext MQTT Development Credentials Tracked in Git
+
+| Field | Detail |
+|---|---|
+| **ID** | NM-002 |
+| **Category** | Security Hardening / Near-Miss |
+| **Month** | Phase 5 (origin) / Month 8 Week 4 (remediation) |
+| **File** | `mosquitto/config/pwfile.raw`, `mosquitto/config/pwfile` |
+
+### Description
+In Phase 5, the Docker compose initialization workflow for Eclipse Mosquitto relied on a plaintext password file (`mosquitto/config/pwfile.raw`) that was copied and hashed into `pwfile` at container startup via `mosquitto_passwd -U`. Because `pwfile.raw` was committed to git history, development credentials (`backend_service:backend_secret`, `device_M001:m001_secret`) remained visible in historical commit diffs (`git log -p`).
+
+### Mitigation Applied
+1. Untracked `mosquitto/config/pwfile.raw` from git tracking (`git rm --cached`).
+2. Added `mosquitto/config/*.raw` and `mosquitto/config/pwfile.raw` to `.gitignore`.
+3. Implemented a native in-memory PBKDF2-HMAC-SHA512 password generator (`scripts/generate_mqtt_passwords.py`) that hashes secrets directly in memory and writes the `$7$` formatted password file to disk without ever persisting plaintext.
+4. Added a permanent regression test (`test_plaintext_password_files_not_tracked_in_git` in `tests/test_mqtt.py`) ensuring no `.raw` password files can be accidentally tracked.
+
+### Deliberate Decision on Git History & Standing Precondition for Publication
+> [!IMPORTANT]
+> **Decision:** Git history was not rewritten, as the exposed credential is a non-production dev fixture. Should this repository ever be made public, a history rewrite (`git filter-repo` / BFG) **MUST** be performed first — this is a standing precondition for publication, not optional cleanup.
+
+---
+
 ## Updated Defect Trend Analysis
 
 | Month | Defects Found | Severity Breakdown | Notes |
@@ -423,5 +448,5 @@ The divergence was identified as a **risk** and mitigated before it could produc
 | Month 5 | 2 | 2 Critical | Both related to cost model soundness |
 | Month 6 | 0 | — | Adapter layer cleanly implemented |
 | Month 7 | 5 | 2 High, 3 Medium | Transfer study methodology, collapse, seed isolation, Spearman edge case |
-| Month 8 | 1 (+1 near-miss) | 1 Medium | DEF-012 LLM grounding semantic correlation; InMemoryAMKB equivalence verified |
-| **Total** | **12 (+1 near-miss)** | **3 Critical, 5 High, 4 Medium** | **100% resolved or mitigated with boundary disclosures** |
+| Month 8 | 1 (+2 near-misses) | 1 Medium | DEF-012 LLM grounding; NM-001 AMKB equivalence; NM-002 MQTT credentials |
+| **Total** | **12 (+2 near-misses)** | **3 Critical, 5 High, 4 Medium** | **100% resolved or mitigated with boundary disclosures** |
