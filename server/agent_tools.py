@@ -137,10 +137,87 @@ def get_maintenance_history(machine_id: str) -> Dict[str, Any]:
 # Tool: create_work_order
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Fault Type Correlation Matrix for Telemetry Grounding
+# ---------------------------------------------------------------------------
+
+FAULT_TYPE_CORRELATION_MAP: Dict[str, Set[str]] = {
+    "vibration_high": {
+        "vibration", "vibrating", "vibrate", "bearing", "imbalance",
+        "alignment", "misalignment", "looseness", "mechanical", "oscillation",
+        "accel", "accelerometer", "rms", "shaking", "chatter", "spindle"
+    },
+    "temp_high": {
+        "temp", "temperature", "thermal", "overheat", "overheating",
+        "heat", "hot", "thermistor", "cooling", "fan", "heatsink"
+    },
+    "current_overload": {
+        "current", "overload", "electrical", "power", "amperage",
+        "amp", "amps", "voltage", "surge", "short", "winding", "motor_current"
+    },
+    "bearing_wear": {
+        "bearing", "wear", "lubrication", "friction", "spindle",
+        "races", "balls", "grease", "vibration", "looseness"
+    },
+    "coolant_pressure": {
+        "coolant", "pressure", "fluid", "hydraulic", "leak",
+        "pump", "psi", "flow", "filter", "radiator", "line"
+    },
+}
+
+
+def _alert_correlates_with_work_order(alert_fault_type: Optional[str], alert_msg: str, text: str) -> bool:
+    """
+    Verifies that the work order description semantically correlates with the triggering alert's
+    fault_type or diagnostic message. Prevents using an unrelated real alert to ground arbitrary actions.
+
+    KNOWN LIMITATION:
+    Grounding currently validates topical correlation via keyword/token matching.
+    This defends against accidental or naive hallucinations, but does NOT defend
+    against an adversarially-worded justification engineered to match keywords
+    for an unrelated fault (e.g. citing 'vibration-induced coolant seal leak' to
+    justify an unrelated coolant repair against a vibration alert).
+    Structured `grounding_alert_id` enforcement with server-side taxonomy matching
+    is the stronger primary fix, tracked as a follow-up hardening task.
+    """
+    if not alert_fault_type and not alert_msg:
+        return True
+
+    text_lower = text.lower()
+
+    if alert_fault_type:
+        ft = alert_fault_type.lower()
+        if ft in text_lower:
+            return True
+        keywords = FAULT_TYPE_CORRELATION_MAP.get(ft, set())
+        if any(kw in text_lower for kw in keywords):
+            return True
+
+    if alert_msg:
+        msg_words = [w for w in alert_msg.lower().replace(",", " ").replace(".", " ").split() if len(w) > 3]
+        if any(w in text_lower for w in msg_words):
+            return True
+
+    return False
+
+
 def create_work_order(
-    machine_id: str, action: str, urgency: str = "Medium", notes: str = "", justification: str = ""
+    machine_id: str,
+    action: str,
+    urgency: str = "Medium",
+    notes: str = "",
+    justification: str = "",
+    grounding_alert_id: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Autonomously create a maintenance work order for a machine."""
+    """
+    Autonomously create a maintenance work order for a machine with strict telemetry grounding.
+
+    NOTE ON GROUNDING ENFORCEMENT:
+    `grounding_alert_id` is currently advisory/optional. If provided, the check strictly binds
+    validation to that specific pipeline alert ID. If omitted, the check falls back to scanning
+    all verified High/Critical pipeline alerts for the machine in the last 24 hours and evaluates
+    topical keyword correlation against the fault_type taxonomy.
+    """
     valid_urgency = {"Low", "Medium", "High", "Critical"}
     if urgency not in valid_urgency:
         urgency = "Medium"
@@ -163,25 +240,68 @@ def create_work_order(
             # 2. Telemetry Grounding Validation (for High/Critical)
             if urgency in ("High", "Critical"):
                 alert_rows = conn.execute(
-                    "SELECT severity FROM alerts WHERE machine_id = %s AND time >= NOW() - INTERVAL '1 day' AND source = 'ai_pipeline'",
+                    "SELECT severity, fault_type, message, id FROM alerts WHERE machine_id = %s AND time >= NOW() - INTERVAL '1 day' AND source = 'ai_pipeline'",
                     (machine_id,)
                 ).fetchall()
-                
-                has_critical = any(r[0] == "Critical" for r in alert_rows)
-                has_high = any(r[0] == "High" for r in alert_rows)
-                
-                valid = True
-                if urgency == "Critical" and not has_critical:
-                    valid = False
-                elif urgency == "High" and not (has_critical or has_high):
-                    valid = False
-                    
-                if not valid:
+
+                parsed_alerts = []
+                for r in alert_rows:
+                    sev = r[0] if len(r) > 0 else ""
+                    ftype = r[1] if len(r) > 1 else None
+                    msg = r[2] if len(r) > 2 else ""
+                    aid = str(r[3]) if len(r) > 3 else None
+                    parsed_alerts.append({"severity": sev, "fault_type": ftype, "message": msg, "id": aid})
+
+                # A. Check if explicit grounding_alert_id was supplied
+                if grounding_alert_id:
+                    matched = [a for a in parsed_alerts if a["id"] == str(grounding_alert_id)]
+                    if not matched:
+                        rejection_msg = f"Rejected: Grounding alert {grounding_alert_id} not found in recent verified pipeline alerts for {machine_id}."
+                        conn.execute(
+                            "INSERT INTO work_order_audit_log (id, timestamp, machine_id, action, urgency, justification, validation_result) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                            (str(uuid.uuid4()), now, machine_id, action, urgency, justification, "Rejected: Invalid Grounding Alert ID")
+                        )
+                        conn.commit()
+                        return {"error": rejection_msg}
+                    candidate_alerts = matched
+                else:
+                    # Filter candidate alerts by required severity
+                    if urgency == "Critical":
+                        candidate_alerts = [a for a in parsed_alerts if a["severity"] == "Critical"]
+                    else:  # High
+                        candidate_alerts = [a for a in parsed_alerts if a["severity"] in ("Critical", "High")]
+
+                if not candidate_alerts:
                     rejection_msg = f"Rejected: No supporting {urgency} alert found for {machine_id} in the last 24h."
-                    snapshot = json.dumps({"recent_alerts": [r[0] for r in alert_rows]})
+                    snapshot = json.dumps({"recent_alerts": [a["severity"] for a in parsed_alerts]})
                     conn.execute(
                         "INSERT INTO work_order_audit_log (id, timestamp, machine_id, action, urgency, justification, validation_result, real_data_snapshot) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                        (str(uuid.uuid4()), now, machine_id, action, urgency, justification, "Rejected: Grounding Failed", snapshot)
+                        (str(uuid.uuid4()), now, machine_id, action, urgency, justification, "Rejected: Grounding Failed (Severity)", snapshot)
+                    )
+                    conn.commit()
+                    return {"error": rejection_msg}
+
+                # B. Fault-Type Correlation Check: Action/justification must correlate with at least one matching alert
+                wo_text = f"{action} {justification} {notes}"
+                correlating_alerts = [
+                    a for a in candidate_alerts
+                    if _alert_correlates_with_work_order(a["fault_type"], a["message"], wo_text)
+                ]
+
+                if not correlating_alerts:
+                    found_types = [a["fault_type"] for a in candidate_alerts if a["fault_type"]]
+                    rejection_msg = (
+                        f"Rejected: Grounding check failed. Work order fault description does not correlate with "
+                        f"supporting {urgency} alert fault_type(s): {found_types or ['unspecified']}."
+                    )
+                    snapshot = json.dumps({
+                        "action": action,
+                        "justification": justification,
+                        "candidate_alert_fault_types": found_types,
+                    })
+                    conn.execute(
+                        "INSERT INTO work_order_audit_log (id, timestamp, machine_id, action, urgency, justification, validation_result, real_data_snapshot) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                        (str(uuid.uuid4()), now, machine_id, action, urgency, justification, "Rejected: Grounding Fault Type Mismatch", snapshot)
                     )
                     conn.commit()
                     return {"error": rejection_msg}
@@ -215,6 +335,7 @@ def create_work_order(
     except Exception as e:
         logger.error(f"create_work_order error: {e}")
         return {"error": str(e)}
+
 
 
 # ---------------------------------------------------------------------------
@@ -271,9 +392,11 @@ TOOL_DECLARATIONS = [
                 },
                 "notes": {"type": "string", "description": "Additional context or diagnosis notes"},
                 "justification": {"type": "string", "description": "Explicit justification citing specific real recent alerts or telemetry data supporting this action and urgency"},
+                "grounding_alert_id": {"type": "string", "description": "Optional alert ID from get_recent_alerts that grounds this work order"},
             },
             "required": ["machine_id", "action", "justification"],
         },
+
     },
 ]
 

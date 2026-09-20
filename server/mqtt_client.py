@@ -1,11 +1,30 @@
 import os
 import json
 import logging
-from typing import Dict, Any, Callable
+from pathlib import Path
+from typing import Dict, Any, Callable, Optional, Set, Union
 from pydantic import BaseModel, Field, ValidationError
 import paho.mqtt.client as mqtt
 
 logger = logging.getLogger("DigitalTwin")
+
+
+def load_registered_machines() -> Set[str]:
+    """Load canonical machine registry from config/machines.json."""
+    candidate_paths = [
+        Path(__file__).resolve().parent.parent / "config" / "machines.json",
+        Path(__file__).resolve().parent / "config" / "machines.json",
+    ]
+    for p in candidate_paths:
+        if p.exists():
+            try:
+                with open(p, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                    return set(cfg.get("machines", {}).keys())
+            except Exception as e:
+                logger.error(f"Error loading machines config from {p}: {e}")
+    return {"M001", "M002", "M003", "M004"}
+
 
 class VibrationPayload(BaseModel):
     x: float
@@ -20,11 +39,17 @@ class TelemetryPayload(BaseModel):
     current: float = Field(ge=0)
 
 class MQTTClientManager:
-    def __init__(self, ingest_callback: Callable[[str, Dict[str, Any]], None]):
+    def __init__(
+        self,
+        ingest_callback: Callable[[str, Dict[str, Any]], None],
+        valid_machine_ids: Optional[Union[Set[str], Callable[[], Set[str]]]] = None,
+    ):
         """
         ingest_callback takes (machine_id, reading) and integrates it into the DataService.
+        valid_machine_ids: Set of allowed machine IDs or callable returning allowed machine IDs.
         """
         self.ingest_callback = ingest_callback
+        self._valid_machine_ids_supplier = valid_machine_ids
         self.broker = os.environ.get("MQTT_BROKER_HOST", "localhost")
         self.port = int(os.environ.get("MQTT_BROKER_PORT", 1883))
         self.username = os.environ.get("MQTT_USERNAME")
@@ -55,6 +80,14 @@ class MQTTClientManager:
         self.client.on_connect = self.on_connect
         self.client.on_disconnect = self.on_disconnect
         self.client.on_message = self.on_message
+
+    def get_registered_machines(self) -> Set[str]:
+        """Resolves current registered machine IDs from supplier or config/machines.json."""
+        if callable(self._valid_machine_ids_supplier):
+            return set(self._valid_machine_ids_supplier())
+        if isinstance(self._valid_machine_ids_supplier, (set, list, tuple)):
+            return set(self._valid_machine_ids_supplier)
+        return load_registered_machines()
         
     def start(self):
         try:
@@ -88,10 +121,20 @@ class MQTTClientManager:
                 return
                 
             machine_id = parts[1]
+
+            # Security Enforcement: Reject unknown machines before deserialization
+            registered = self.get_registered_machines()
+            if machine_id not in registered:
+                logger.warning(
+                    f"[SECURITY WARNING] Dropped MQTT message on topic '{msg.topic}': "
+                    f"Machine ID '{machine_id}' is not registered in the system registry {sorted(list(registered))}."
+                )
+                return
             
             # Parse JSON
             payload_str = msg.payload.decode('utf-8')
             raw_dict = json.loads(payload_str)
+
             
             # Validate with Pydantic
             telemetry = TelemetryPayload(**raw_dict)

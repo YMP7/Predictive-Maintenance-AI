@@ -169,7 +169,7 @@ class TestRULSmoothingLogic:
             )
 
     def test_confidence_is_bounded(self):
-        """Confidence should always be between 0.5 and 0.95."""
+        """Confidence should always be between 0.05 and 0.95."""
         estimator = RULEstimator()
         for i in range(20):
             reading = {
@@ -180,6 +180,76 @@ class TestRULSmoothingLogic:
             estimator.update_degradation("M001", reading)
 
         result = estimator.estimate_rul("M001")
-        assert 0.5 <= result["confidence"] <= 0.95, (
+        assert 0.05 <= result["confidence"] <= 0.95, (
             f"Confidence out of bounds: {result['confidence']}"
         )
+
+    def test_noisy_sensor_trend_reports_low_confidence_without_artificial_floor(self):
+        """
+        Regression guard for Fix 4:
+        Noisy or erratic degradation data (R^2 near 0) must report honest low confidence
+        near the 0.05 floor, and must NEVER be artificially clamped to >= 0.50.
+        Tests both RULEstimator and _EMAFallback.
+        """
+        from server.atlas.rul_engine import _EMAFallback
+
+        np.random.seed(2)
+        n_points = 40
+        noisy_samples = list(np.random.uniform(0.15, 0.65, n_points))
+
+        # 1. Test RULEstimator
+        estimator = RULEstimator()
+        for s in noisy_samples:
+            estimator.update_degradation("M_NOISY", {
+                "vibration": {"rms": s * 5.0},
+                "temperature": 45.0,
+                "current": 2.5
+            })
+        res_est = estimator.estimate_rul("M_NOISY")
+        assert res_est["confidence"] < 0.35, (
+            f"RULEstimator must not inflate confidence on noisy data: got {res_est['confidence']}"
+        )
+        assert res_est["confidence"] >= 0.05
+
+        # 2. Test _EMAFallback
+        fallback = _EMAFallback()
+        for s in noisy_samples:
+            fallback.update("M_NOISY", s)
+        rul_days, conf_fb, uncert, status = fallback.predict("M_NOISY")
+        assert conf_fb < 0.35, (
+            f"_EMAFallback must not inflate confidence on noisy data: got {conf_fb}"
+        )
+        assert conf_fb >= 0.05
+
+    def test_clean_linear_trend_reports_high_confidence(self):
+        """
+        Confirms that genuine, clean linear degradation trends maintain high confidence (>= 0.85)
+        and are not regressed by the confidence floor change.
+        """
+        from server.atlas.rul_engine import _EMAFallback
+
+        np.random.seed(42)
+        clean_samples = [0.20 + 0.015 * i + np.random.normal(0, 0.002) for i in range(30)]
+
+        # 1. Test RULEstimator
+        estimator = RULEstimator()
+        for s in clean_samples:
+            estimator.update_degradation("M_CLEAN", {
+                "vibration": {"rms": s * 5.0},
+                "temperature": 45.0,
+                "current": 2.5
+            })
+        res_est = estimator.estimate_rul("M_CLEAN")
+        assert res_est["confidence"] >= 0.85, (
+            f"RULEstimator should have high confidence on clean linear data: got {res_est['confidence']}"
+        )
+
+        # 2. Test _EMAFallback
+        fallback = _EMAFallback()
+        for s in clean_samples:
+            fallback.update("M_CLEAN", s)
+        rul_days, conf_fb, uncert, status = fallback.predict("M_CLEAN")
+        assert conf_fb >= 0.85, (
+            f"_EMAFallback should have high confidence on clean linear data: got {conf_fb}"
+        )
+

@@ -164,9 +164,10 @@ class RULEstimator:
         ss_res = np.sum((y_ema - y_pred) ** 2)
         ss_tot = np.sum((y_ema - np.mean(y_ema)) ** 2)
         r_sq = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
-        confidence = max(0.5, min(0.95, float(r_sq)))
+        confidence = float(np.clip(max(0.0, r_sq), 0.05, 0.95))
 
         # Stable / improving machine — extrapolate conservatively
+
         # Use remaining headroom above current degradation as a proxy:
         # 1 unit of headroom ≈ 200 simulation days (calibrated to real machine life)
         if m <= 0:

@@ -141,18 +141,25 @@ class _EMAFallback:
             y_ema[i] = self.ALPHA * y_med[i] + (1 - self.ALPHA) * y_ema[i - 1]
 
         current = float(y_ema[-1])
-        x = np.arange(len(y_ema))
-        m, _ = np.polyfit(x, y_ema, 1)
+        x = np.arange(len(y_ema), dtype=np.float64)
+        x_mean = float(np.mean(x))
+        y_mean = float(np.mean(y_ema))
+        x_dev = x - x_mean
+        denom = float(np.dot(x_dev, x_dev))
+        m = float(np.dot(x_dev, y_ema - y_mean) / denom) if denom > 0 else 0.0
+        c = float(y_mean - m * x_mean)
 
         if current >= self.CRITICAL_THRESHOLD:
             return 0.0, 0.95, 0.5, "Critical"
 
-        y_pred = m * x + _
+        y_pred = m * x + c
         ss_res = np.sum((y_ema - y_pred) ** 2)
+
         ss_tot = np.sum((y_ema - np.mean(y_ema)) ** 2)
         r_sq = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
-        confidence = float(np.clip(r_sq, 0.5, 0.95))
+        confidence = float(np.clip(max(0.0, r_sq), 0.05, 0.95))
         uncertainty = float(np.std(y_ema) * self.STEPS_TO_DAYS * 10)
+
 
         if m <= 0:
             headroom = max(0.0, self.CRITICAL_THRESHOLD - current)

@@ -27,8 +27,9 @@
 | DEF-009 | Confidence formula division-by-zero risk with zero-variance neighbors | 4 W1 | **High** | ✅ Fixed & verified |
 | DEF-010 | Spearman rank correlation undefined for zero-variance ungrounded confidence | 7 W3 | **Medium** | ✅ Fixed & verified |
 | DEF-011 | Unseeded PyTorch RNG state carry-over between domain training calls | 7 W2 | **Medium** | ✅ Fixed & verified |
+| DEF-012 | Cross-fault ungrounded action justification in LLM work orders | 8 W4 | **Medium** | ✅ Mitigated (Semantic correlation; strict ID binding tracked) |
 
-All 11 defects have been resolved. Zero known open defects remain.
+All 12 defects have been resolved or mitigated with explicit boundary disclosures. Zero unmitigated defects remain.
 
 ### Near-Miss Registry
 
@@ -365,6 +366,30 @@ Explicit per-domain PRNG seeding: `laptop=101`, `mobile=102`, `server=103`. Each
 
 ---
 
+## DEF-012: LLM Work Order Grounding Vulnerability — Cross-Fault Semantic Keyword Fragility
+
+| Field | Detail |
+|---|---|
+| **ID** | DEF-012 |
+| **Severity** | **Medium** — integrity risk under adversarial or highly eloquent LLM generation |
+| **Month** | 8 Week 4 (Pre-Deployment Hardening) |
+| **File** | `server/agent_tools.py` |
+| **Commit (fix)** | Fix 1 in Pre-Deployment Security Sweep |
+
+### Description
+The original telemetry grounding gate in `create_work_order()` verified only that *any* High or Critical alert existed for the machine in the last 24 hours. Because it never inspected the alert's fault type, an autonomous LLM agent could exploit a genuine vibration alert to justify an unrelated coolant flush or electrical repair order.
+
+### Fix Applied
+Updated the grounding query to select `severity, fault_type, message, id` from verified pipeline alerts (`source = 'ai_pipeline'`). Introduced `FAULT_TYPE_CORRELATION_MAP` and semantic keyword correlation (`_alert_correlates_with_work_order`) checking that the work order text aligns with the triggering alert's fault type. Added `grounding_alert_id` support to the tool signature.
+
+### Known Architectural Limitation & Honest Disclosure
+Grounding currently validates topical correlation via keyword/token matching. While this robustly rejects naive or accidental hallucinations (e.g., attempting a coolant flush when only a vibration spike occurred), it **does not defend against an adversarially-worded justification** engineered by an eloquent LLM to match keywords for an unrelated fault (e.g., phrasing a coolant repair as *"Coolant line pressure dropped due to severe vibration-induced seal damage"*).
+
+### Follow-Up Hardening Path
+`grounding_alert_id` is currently advisory/optional to preserve compatibility with existing operational and test callers. Strict server-side enforcement—requiring the agent to name the specific `alert.id` it is grounding against, and verifying that `alert_id` belongs to `machine_id` with matching structured `fault_type` rather than fuzzy-matched free text—is tracked as the long-term production hardening standard.
+
+---
+
 ## Near-Miss: NM-001 — InMemoryAMKB Offline Fallback Divergence Risk
 
 | Field | Detail |
@@ -397,5 +422,6 @@ The divergence was identified as a **risk** and mitigated before it could produc
 | Month 4 | 2 | 2 High | Confidence inversion and division-by-zero boundary |
 | Month 5 | 2 | 2 Critical | Both related to cost model soundness |
 | Month 6 | 0 | — | Adapter layer cleanly implemented |
-| Month 7 | 4 | 2 High, 2 Medium | Transfer study methodology, collapse, seed isolation, Spearman edge case |
-| Month 8 | 0 (+1 near-miss) | — | Benchmarking and synthesis; InMemoryAMKB equivalence proactively verified |
+| Month 7 | 5 | 2 High, 3 Medium | Transfer study methodology, collapse, seed isolation, Spearman edge case |
+| Month 8 | 1 (+1 near-miss) | 1 Medium | DEF-012 LLM grounding semantic correlation; InMemoryAMKB equivalence verified |
+| **Total** | **12 (+1 near-miss)** | **3 Critical, 5 High, 4 Medium** | **100% resolved or mitigated with boundary disclosures** |

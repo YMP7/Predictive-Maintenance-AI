@@ -99,3 +99,77 @@ def test_tls_enabled_in_production():
             manager = MQTTClientManager(MagicMock())
             assert manager.tls_enabled is True
             mock_tls_set.assert_called_once()
+
+
+def test_mqtt_rejects_unregistered_machine_id(mock_mqtt_manager, caplog):
+    """
+    Security test: Unregistered machine_id extracted from topic must be rejected
+    before JSON deserialization or ingestion, logging a security warning.
+    """
+    manager, ingest_cb = mock_mqtt_manager
+
+    msg = MagicMock()
+    msg.topic = "factory/ROGUE_UNKNOWN_MACHINE/telemetry"
+    valid_data = {
+        "timestamp": "2026-07-08T12:00:00Z",
+        "vibration": {"x": 0.5, "y": 0.6, "z": 0.2, "rms": 0.8},
+        "temperature": 45.0,
+        "current": 2.5
+    }
+    msg.payload = json.dumps(valid_data).encode("utf-8")
+
+    manager.on_message(manager.client, None, msg)
+
+    # Ingestion callback must NEVER be called
+    ingest_cb.assert_not_called()
+    assert "[SECURITY WARNING]" in caplog.text
+    assert "ROGUE_UNKNOWN_MACHINE" in caplog.text
+    assert "not registered" in caplog.text
+
+
+def test_mqtt_accepts_registered_machine_id(mock_mqtt_manager):
+    """
+    Legitimate registered machine_id must pass through smoothly and reach ingest_callback.
+    """
+    manager, ingest_cb = mock_mqtt_manager
+
+    msg = MagicMock()
+    msg.topic = "factory/M002/telemetry"
+    valid_data = {
+        "timestamp": "2026-07-08T12:00:00Z",
+        "vibration": {"x": 0.3, "y": 0.4, "z": 0.1, "rms": 0.5},
+        "temperature": 42.0,
+        "current": 2.1
+    }
+    msg.payload = json.dumps(valid_data).encode("utf-8")
+
+    manager.on_message(manager.client, None, msg)
+
+    ingest_cb.assert_called_once()
+    args, _ = ingest_cb.call_args
+    assert args[0] == "M002"
+    assert args[1]["temperature"] == 42.0
+
+
+def test_plaintext_password_files_not_tracked_in_git():
+    """
+    Git hygiene test: Confirms that pwfile.raw or any *.raw credential file
+    under mosquitto/config/ is not present in git tracking index.
+    """
+    import subprocess
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    res = subprocess.run(
+        ["git", "ls-files", "mosquitto/config/"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True
+    )
+    tracked_files = [line.strip() for line in res.stdout.splitlines() if line.strip()]
+    raw_files = [f for f in tracked_files if f.endswith(".raw")]
+
+    assert not raw_files, f"Plaintext password files must not be tracked in git index! Found: {raw_files}"
+    assert "mosquitto/config/pwfile.raw" not in tracked_files
+

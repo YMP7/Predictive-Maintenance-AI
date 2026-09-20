@@ -89,6 +89,8 @@ digital_twin.db
 .real_passwords.txt
 mosquitto/data/
 mosquitto/log/
+mosquitto/config/*.raw
+mosquitto/config/pwfile.raw
 new_passwords.txt
 cookies.txt
 
@@ -96,7 +98,9 @@ cookies.txt
 .playwright-mcp/
 .vite/
 assets_temp/
+scratch/
 /*.png
+
 
 # Large data and models
 data/cmapss/*.txt

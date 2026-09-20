@@ -44,8 +44,8 @@ def test_critical_work_order_requires_approval(_mock_database):
         mock_cursor = MagicMock()
         if "COUNT" in query:
             mock_cursor.fetchone.return_value = [0]
-        elif "SELECT severity FROM alerts" in query:
-            mock_cursor.fetchall.return_value = [("Critical",)]
+        elif "FROM alerts" in query and "ai_pipeline" in query:
+            mock_cursor.fetchall.return_value = [("Critical", "bearing_wear", "High bearing wear detected", "alert-uuid-1")]
         else:
             mock_cursor.fetchone.return_value = None
             mock_cursor.fetchall.return_value = []
@@ -53,7 +53,7 @@ def test_critical_work_order_requires_approval(_mock_database):
         
     _mock_database.execute.side_effect = execute_side_effect
     
-    res = create_work_order("M001", "Fix bearing", "Critical", justification="High temp alert")
+    res = create_work_order("M001", "Fix bearing", "Critical", justification="High bearing wear detected")
     
     assert "error" not in res
     assert res["status"] == "Pending Approval"
@@ -102,7 +102,57 @@ def test_grounding_check_rejects_non_pipeline_alerts(_mock_database):
     
     # Verify that the query executed to check alerts included the source filter
     queries = [call[0][0] for call in _mock_database.execute.call_args_list]
-    grounding_query = next((q for q in queries if "SELECT severity FROM alerts" in q), None)
+    grounding_query = next((q for q in queries if "FROM alerts" in q and "severity" in q), None)
     
     assert grounding_query is not None, "Grounding query was not executed"
     assert "source = 'ai_pipeline'" in grounding_query, "Grounding check is missing the provenance source filter!"
+
+
+def test_work_order_rejects_mismatched_fault_type(_mock_database):
+    """
+    Fabricated or mismatched justification citing an unrelated fault type is rejected.
+    Exploit scenario: Machine has a genuine Critical vibration alert, but the agent
+    attempts to justify an unrelated coolant flush without any thermal/coolant alert.
+    """
+    from server.agent_tools import create_work_order
+    
+    def execute_side_effect(query, params):
+        mock_cursor = MagicMock()
+        if "COUNT" in query:
+            mock_cursor.fetchone.return_value = [0]
+        elif "FROM alerts" in query and "ai_pipeline" in query:
+            # Genuine Critical alert exists, but specifically for vibration_high
+            mock_cursor.fetchall.return_value = [
+                ("Critical", "vibration_high", "Severe spindle vibration spike (rms=4.8)", "alert-vib-001")
+            ]
+        else:
+            mock_cursor.fetchone.return_value = None
+            mock_cursor.fetchall.return_value = []
+        return mock_cursor
+        
+    _mock_database.execute.side_effect = execute_side_effect
+    
+    # 1. Exploit attempt: Action & justification cite coolant leak/pressure, completely unrelated to vibration
+    res_exploit = create_work_order(
+        machine_id="M001",
+        action="Flush coolant loop and replace valve",
+        urgency="Critical",
+        justification="Coolant line pressure dropped below operating minimum",
+    )
+    
+    assert "error" in res_exploit
+    assert "Grounding check failed" in res_exploit["error"]
+    assert "does not correlate with supporting Critical alert" in res_exploit["error"]
+    assert "vibration_high" in res_exploit["error"]
+    
+    # 2. Legitimate attempt: Action & justification genuinely correlate with vibration_high
+    res_valid = create_work_order(
+        machine_id="M001",
+        action="Balance spindle and replace drive bearing",
+        urgency="Critical",
+        justification="Severe vibration spike and accelerometer oscillation detected on spindle",
+    )
+    
+    assert "error" not in res_valid
+    assert res_valid["status"] == "Pending Approval"
+

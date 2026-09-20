@@ -59,14 +59,19 @@ class DataService:
         
         # Load machine info from config
         self.machine_info = {}
-        config_path = os.path.join(os.path.dirname(__file__), "config", "machines.json")
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, 'r') as f:
-                    config = json.load(f)
-                    self.machine_info = config.get("machines", {})
-            except Exception as e:
-                logger.error(f"Error loading machines config: {e}")
+        candidate_paths = [
+            os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "machines.json"),
+            os.path.join(os.path.dirname(__file__), "config", "machines.json"),
+        ]
+        for config_path in candidate_paths:
+            if os.path.exists(config_path):
+                try:
+                    with open(config_path, 'r') as f:
+                        config = json.load(f)
+                        self.machine_info = config.get("machines", {})
+                        break
+                except Exception as e:
+                    logger.error(f"Error loading machines config from {config_path}: {e}")
                 
         # Fill default info if configuration failed
         for mid in ["M001", "M002", "M003", "M004"]:
@@ -82,10 +87,14 @@ class DataService:
 
         # Initialize MQTT client if configured
         if os.environ.get("MQTT_BROKER_HOST"):
-            self.mqtt_client = MQTTClientManager(ingest_callback=self.ingest_telemetry)
+            self.mqtt_client = MQTTClientManager(
+                ingest_callback=self.ingest_telemetry,
+                valid_machine_ids=lambda: set(self.machine_info.keys())
+            )
             self.mqtt_client.start()
         else:
             self.mqtt_client = None
+
 
     def _load_historical_data(self):
         try:
