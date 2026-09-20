@@ -251,6 +251,7 @@ class DomainService:
             "cycle": reading.cycle,
             "rul_label": reading.rul_label,
             "rul_cycles": prediction.rul_cycles,
+            "normalized_rul": round(prediction.rul_cycles if domain != "cmapss" else (prediction.rul_cycles / 125.0), 4),
             "rul_days": prediction.rul_days,
             "confidence": prediction.confidence,
             "uncertainty": prediction.uncertainty,
