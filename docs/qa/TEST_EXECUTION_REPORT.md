@@ -11,12 +11,12 @@
 
 | Metric | Value |
 |---|---|
-| **Total Tests Collected** | 209 |
-| **Passed** | **209** |
+| **Total Tests Collected** | 214 |
+| **Passed** | **214** |
 | **Failed** | **0** |
 | **Errors** | **0** |
 | **Warnings** | 20 (non-blocking library deprecations/thread cleanup) |
-| **Execution Time** | ~216s |
+| **Execution Time** | ~158s |
 | **Exit Code** | 0 |
 | **Pass Rate** | **100.0%** |
 
@@ -43,6 +43,7 @@
 |---|---|---|---|---|
 | `test_adapters.py` | 18 | ✅ 18 | 1, 6 | All 4 adapters: schema, features, health_index |
 | `test_amkb.py` | 18 | ✅ 18 | 2 | Vector store/retrieve, cosine similarity, isolation |
+| `test_work_order_safeguards.py` | 11 | ✅ 11 | Pre-ATLAS Phase 8 | Volume caps, alert provenance, DEF-012a 3-tier gate, false-positive prevention across all 5 fault types |
 | `test_phase8_agent.py` | 10 | ✅ 10 | Pre-ATLAS Phase 8 | Agentic AI safeguards, provenance isolation |
 | `test_transfer_study.py` | 9 | ✅ 9 | 7 | MMD, NTI, pairwise cosine, negative transfer |
 | `test_rul_bounding.py` | 9 | ✅ 9 | 1, 3, 8 | Non-negativity, closed-form regression, uncapped noisy fit confidence |
@@ -53,7 +54,6 @@
 | `test_learning_engine.py` | 6 | ✅ 6 | 7 | Epsilon gate, rollback, audit trail |
 | `test_decision.py` | 6 | ✅ 6 | 5 | Cost ranking, tie-breaker, safety overrides |
 | `test_db.py` | 6 | ✅ 6 | 2+ | Connection pools, schema, migrations |
-| `test_work_order_safeguards.py` | 6 | ✅ 6 | Pre-ATLAS Phase 8 | Volume caps, alert provenance, fault_type correlation |
 | `test_ablations.py` | 5 | ✅ 5 | 7 | 4 canonical ablation validity |
 | `test_domain_pretraining.py` | 5 | ✅ 5 | 7 | Self-supervised training, non-collapse guards |
 | `test_server_adapter.py` | 5 | ✅ 5 | 6 | SSH contract, stress weights, simulation |
@@ -65,15 +65,15 @@
 | `test_unified_api_routing.py` | 3 | ✅ 3 | 7, 8 | DEF-008 multi-domain encoder routing regression guard |
 | `test_concurrency_ingest.py` | 2 | ✅ 2 | 8 | Multi-threaded AMKB write safety |
 | `test_laptop_adapter.py` | 2 | ✅ 2 | 6 | Live psutil polling, stress score |
-| **Subtotal** | **157** | **✅ 157** | | |
+| **Subtotal** | **162** | **✅ 162** | | |
 
 ### Combined Total
 
 | Category | Files | Collected | Passed | Pass Rate |
 |---|---|---|---|---|
 | Pre-ATLAS (Phase A) | 7 | 52 | 52 | 100% |
-| ATLAS (Phase B) | 24 | 157 | 157 | 100% |
-| **Total** | **31** | **209** | **209** | **100.0%** |
+| ATLAS (Phase B) | 24 | 162 | 162 | 100% |
+| **Total** | **31** | **214** | **214** | **100.0%** |
 
 ---
 

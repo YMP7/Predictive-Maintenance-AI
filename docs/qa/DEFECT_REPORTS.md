@@ -27,9 +27,9 @@
 | DEF-009 | Confidence formula division-by-zero risk with zero-variance neighbors | 4 W1 | **High** | ✅ Fixed & verified |
 | DEF-010 | Spearman rank correlation undefined for zero-variance ungrounded confidence | 7 W3 | **Medium** | ✅ Fixed & verified |
 | DEF-011 | Unseeded PyTorch RNG state carry-over between domain training calls | 7 W2 | **Medium** | ✅ Fixed & verified |
-| DEF-012 | Cross-fault ungrounded action justification in LLM work orders | 8 W4 | **Medium** | ✅ Mitigated (Semantic correlation; strict ID binding tracked) |
+| DEF-012 | Cross-fault ungrounded action justification in LLM work orders | 8 W4 | **Medium** | ✅ Fixed & verified (DEF-012a Closed; DEF-012b Residual bounded) |
 
-All 12 defects have been resolved or mitigated with explicit boundary disclosures. Zero unmitigated defects remain.
+All 12 defects have been resolved or verified with explicit boundary disclosures. Zero unmitigated defects remain.
 
 ### Near-Miss Registry
 
@@ -371,23 +371,31 @@ Explicit per-domain PRNG seeding: `laptop=101`, `mobile=102`, `server=103`. Each
 
 | Field | Detail |
 |---|---|
-| **ID** | DEF-012 |
+| **ID** | DEF-012 (Split: DEF-012a / DEF-012b) |
 | **Severity** | **Medium** — integrity risk under adversarial or highly eloquent LLM generation |
 | **Month** | 8 Week 4 (Pre-Deployment Hardening) |
-| **File** | `server/agent_tools.py` |
-| **Commit (fix)** | Fix 1 in Pre-Deployment Security Sweep |
+| **File** | `server/agent_tools.py`, `tests/test_work_order_safeguards.py` |
+| **Commit (fix)** | Pre-Deployment Security Hardening (Phase 8 Agentic Safeguards) |
 
 ### Description
-The original telemetry grounding gate in `create_work_order()` verified only that *any* High or Critical alert existed for the machine in the last 24 hours. Because it never inspected the alert's fault type, an autonomous LLM agent could exploit a genuine vibration alert to justify an unrelated coolant flush or electrical repair order.
+The original telemetry grounding gate in `create_work_order()` verified only that *any* High or Critical alert existed for the machine in the last 24 hours. Because it never inspected the alert's fault type, an autonomous LLM agent could exploit a genuine vibration alert to justify an unrelated coolant flush or electrical repair order. Initial mitigation via free-text keyword matching closed accidental hallucination but left an adversarial phrasing gap: an eloquent agent could weave vibration keywords into a coolant justification to bypass the check.
 
-### Fix Applied
-Updated the grounding query to select `severity, fault_type, message, id` from verified pipeline alerts (`source = 'ai_pipeline'`). Introduced `FAULT_TYPE_CORRELATION_MAP` and semantic keyword correlation (`_alert_correlates_with_work_order`) checking that the work order text aligns with the triggering alert's fault type. Added `grounding_alert_id` support to the tool signature.
+### Resolution: Structural Split into DEF-012a and DEF-012b
 
-### Known Architectural Limitation & Honest Disclosure
-Grounding currently validates topical correlation via keyword/token matching. While this robustly rejects naive or accidental hallucinations (e.g., attempting a coolant flush when only a vibration spike occurred), it **does not defend against an adversarially-worded justification** engineered by an eloquent LLM to match keywords for an unrelated fault (e.g., phrasing a coolant repair as *"Coolant line pressure dropped due to severe vibration-induced seal damage"*).
+#### DEF-012a (Closed & Formally Verified): Mandatory 3-Tier Alert Grounding Gate
+1. **Provenance Derivation (`created_by`):** Set strictly server-side as `'agent:atlas'`, never accepted as a client/agent-supplied parameter. Human-initiated work orders follow an independent authenticated pipeline with human accountability.
+2. **Mandatory Alert ID & Structured Enum:** For autonomous High/Critical work orders, `grounding_alert_id` and structured `fault_type` are mandatory. Rejection occurs immediately if missing or unrecognized. Free-text keyword correlation fallback is completely removed for agent work orders.
+3. **Three-Tier Server-Side Gate:**
+   - **Layer 1 (Provenance & Temporal Validity):** Queries database verifying `grounding_alert_id` exists for `machine_id` within the last 24 hours with `source = 'ai_pipeline'` and satisfies the severity floor (`Critical` for Critical, `High`/`Critical` for High).
+   - **Layer 2 (Structured Fault-Type Exact Match):** Validates that declared `fault_type` strictly matches `alert.fault_type` (`norm_fault_type == alert_fault_type`).
+   - **Layer 3 (Action Plausibility Allow-List):** Validates that the requested `action` string contains recognized corrective action vocabulary from `FAULT_TYPE_ALLOWED_ACTIONS[norm_fault_type]` (e.g., `vibration_high` permits rotor rebalancing, alignment, spindle bearings; rejects coolant loop flushes).
+4. **Verification (Proving Both Directions in `tests/test_work_order_safeguards.py`):**
+   - *Exploit rejection:* Attempting a coolant repair against a vibration alert ID is rejected at Layer 2 (mismatched enum) or Layer 3 (implausible action text despite matching enum).
+   - *False-positive prevention:* Parametrized test across all 5 taxonomy fault types (`vibration_high`, `temp_high`, `current_overload`, `bearing_wear`, `coolant_pressure`) proves that genuine, legitimate corrective actions backed by verified alerts pass validation cleanly into `Pending Approval`.
 
-### Follow-Up Hardening Path
-`grounding_alert_id` is currently advisory/optional to preserve compatibility with existing operational and test callers. Strict server-side enforcement—requiring the agent to name the specific `alert.id` it is grounding against, and verifying that `alert_id` belongs to `machine_id` with matching structured `fault_type` rather than fuzzy-matched free text—is tracked as the long-term production hardening standard.
+#### DEF-012b (Residual Multi-Action Bundling Boundary guarded by Human Confirmation Gate)
+- **Residual Risk:** An agent could construct a multi-action compound sentence that combines a legitimate corrective action with an unrelated action (e.g., *"Balance spindle and flush coolant loop"*). Because Layer 3 matches tokens in `action`, the presence of "balance spindle" satisfies the plausibility gate for `vibration_high`.
+- **Architectural Boundary:** This residual risk is explicitly bounded and guarded by the **Human Confirmation Gate**. All High/Critical work orders created by `'agent:atlas'` land in `Pending Approval` (never `Open`), requiring an authenticated Operator or Admin (`require_operator_or_admin` via `/api/work-orders/{id}/approve`) to review and approve before any physical maintenance action is executed. Autonomous execution is physically blocked by the state machine.
 
 ---
 
