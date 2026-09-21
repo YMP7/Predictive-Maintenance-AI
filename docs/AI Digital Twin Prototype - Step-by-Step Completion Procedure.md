@@ -1237,7 +1237,7 @@ docker logs ai-digital-twin
 **Actions**:
 ```bash
 # Create monitoring script
-cat > setup_monitoring.sh << 'EOF'
+cat > scripts/setup_monitoring.sh << 'EOF'
 #!/bin/bash
 
 # Create log directory
@@ -1284,8 +1284,8 @@ chmod +x /usr/local/bin/monitor-ai-digital-twin.sh
 echo "Monitoring configured successfully"
 EOF
 
-chmod +x setup_monitoring.sh
-./setup_monitoring.sh
+chmod +x scripts/setup_monitoring.sh
+./scripts/setup_monitoring.sh
 ```
 
 **Success Criteria**: Monitoring and logging configured
@@ -1719,7 +1719,7 @@ echo "Demo video script created"
 **Actions**:
 ```bash
 # Create final verification script
-cat > final_verification.sh << 'EOF'
+cat > scripts/final_verification.sh << 'EOF'
 #!/bin/bash
 
 echo "AI Digital Twin Prototype - Final Verification"
@@ -1779,8 +1779,8 @@ echo -e "\n=============================================="
 echo "Verification complete!"
 EOF
 
-chmod +x final_verification.sh
-./final_verification.sh
+chmod +x scripts/final_verification.sh
+./scripts/final_verification.sh
 ```
 
 **Success Criteria**: All components verified and working
@@ -1825,13 +1825,13 @@ chmod +x final_verification.sh
 - [x] Demo scenario classes created (`demo_scenarios.py`)
 - [ ] Standalone user guide (USER_GUIDE.md) not yet written
 - [ ] Standalone admin guide (ADMIN_GUIDE.md) not yet written
-- [ ] Final verification script (`final_verification.sh`) not yet created
+- [x] Final verification script (`scripts/final_verification.sh`) created
 - [ ] Demonstration video not yet recorded
 
 ### Remaining Work
 
 1. Write USER_GUIDE.md and ADMIN_GUIDE.md as standalone files
-2. Create and run `final_verification.sh`
+2. Run `scripts/final_verification.sh`
 3. Record or script the demonstration video
 4. Collect labeled field data for ML model training
 5. Complete operator UAT and live provider testing

@@ -3,16 +3,21 @@
 echo "AI Digital Twin Prototype - Final Verification"
 echo "=============================================="
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT" || { echo "✗ Failed to navigate to project root: $PROJECT_ROOT"; exit 1; }
+
 # Determine Python command
 PYTHON_CMD="python"
 if command -v python3 >/dev/null 2>&1; then
     PYTHON_CMD="python3"
 fi
 echo "Using Python command: $PYTHON_CMD"
+echo "Working directory: $(pwd)"
 
 # Check Python modules
 echo -e "\n1. Checking Python modules..."
-$PYTHON_CMD -c "import sensor_simulator, ai_agent, data_service; print('✓ All Python modules OK')" || { echo "✗ Python modules failed to import"; exit 1; }
+$PYTHON_CMD -c "from dotenv import load_dotenv; load_dotenv(); import sys; sys.path.insert(0, 'server'); import sensor_simulator, ai_agent, data_service; print('✓ All Python modules OK')" || { echo "✗ Python modules failed to import"; exit 1; }
 
 # Check Node.js packages
 echo -e "\n2. Checking Node.js packages..."
@@ -29,6 +34,10 @@ echo -e "\n3. Checking configuration files..."
 # Test Python components
 echo -e "\n4. Testing Python components..."
 $PYTHON_CMD -c "
+from dotenv import load_dotenv
+load_dotenv()
+import sys
+sys.path.insert(0, 'server')
 from sensor_simulator import MultiMachineSimulator
 from ai_agent import AIAgent
 
@@ -44,7 +53,7 @@ print('✓ Python components working')
 
 # Test backend API
 echo -e "\n5. Testing backend API..."
-$PYTHON_CMD backend_api.py &
+$PYTHON_CMD server/backend_api.py &
 BACKEND_PID=$!
 sleep 3
 

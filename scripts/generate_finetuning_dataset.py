@@ -68,7 +68,8 @@ def generate_entry():
     }
 
 if __name__ == "__main__":
-    output_file = "dataset_finetuning.jsonl"
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    output_file = os.path.join(repo_root, "data", "dataset_finetuning.jsonl")
     num_samples = 500
     
     with open(output_file, "w") as f:

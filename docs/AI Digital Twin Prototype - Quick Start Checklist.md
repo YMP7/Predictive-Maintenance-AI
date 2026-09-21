@@ -230,7 +230,7 @@ Without credentials, the system logs simulated delivery. Do not claim live deliv
 
 ## 12. Linux Host Monitoring
 
-`setup_monitoring.sh` installs:
+`scripts/setup_monitoring.sh` installs:
 
 - A five-minute container/API health check
 - Automatic container restart
@@ -240,7 +240,7 @@ Without credentials, the system logs simulated delivery. Do not claim live deliv
 Run as root on the Linux Docker host:
 
 ```bash
-sudo bash setup_monitoring.sh
+sudo bash scripts/setup_monitoring.sh
 ```
 
 This script is not intended for native Windows hosts.

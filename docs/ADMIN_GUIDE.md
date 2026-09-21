@@ -120,7 +120,7 @@ tail -f logs/agent.log
 ```
 
 ### Log Rotation (Linux Systems)
-On production environments, configure log rotation by copying the configuration from `setup_monitoring.sh` to `/etc/logrotate.d/ai-digital-twin` to prevent log files from exhausting disk space.
+On production environments, configure log rotation by copying the configuration from `scripts/setup_monitoring.sh` to `/etc/logrotate.d/ai-digital-twin` to prevent log files from exhausting disk space.
 
 ### SQLite Database Maintenance
 The system stores telemetry data and alert logs in a local SQLite file (default: `./data/digital_twin.db`).
