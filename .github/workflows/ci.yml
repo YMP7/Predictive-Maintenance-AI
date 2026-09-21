@@ -30,7 +30,7 @@ jobs:
       env:
         TSDB_PASSWORD: devpassword123
       run: |
-        docker compose up -d timescaledb mosquitto
+        docker compose up -d timescaledb
         
         # Wait for database to be ready
         echo "Waiting for TimescaleDB to be ready..."
