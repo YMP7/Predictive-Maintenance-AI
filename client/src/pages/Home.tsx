@@ -1,6 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { Activity, Cpu, ShieldCheck, ArrowRight, BarChart3, Zap, Sun, Moon } from 'lucide-react';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '../hooks/useTheme';
 
 const MachineAnimation = lazy(() => import('../components/MachineAnimation'));
 

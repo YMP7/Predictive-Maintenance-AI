@@ -15,7 +15,7 @@ def utc_timestamp() -> str:
 class FaultDetector:
     def __init__(self):
         self.thresholds = {}
-        config_path = os.path.join(os.path.dirname(__file__), "config", "machines.json")
+        config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "machines.json")
         if os.path.exists(config_path):
             try:
                 with open(config_path, 'r') as f:

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Search, Sun, Moon, LogOut, Cpu, Activity } from 'lucide-react';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useTheme } from '../../hooks/useTheme';
 
 interface AtlasHeaderProps {
   activeView: string;

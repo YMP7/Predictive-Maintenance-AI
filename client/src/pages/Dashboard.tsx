@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useDashboardData, useMachineDetails } from '../hooks/useDashboardData';
 import { MachineCard } from '../components/MachineCard';
 import AgentChat from '../components/AgentChat';
-import { apiFetch } from '../lib/api';
+import { apiFetch, errorMessage } from '../lib/api';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
 } from 'recharts';
@@ -120,7 +120,7 @@ export const Dashboard: React.FC = () => {
   const [selectedLang, setSelectedLang] = useState('en');
   const [selectedMachine, setSelectedMachine] = useState<string | null>('M001');
   const { summary, loading: summaryLoading, error: summaryError } = useDashboardData(2000);
-  const { telemetry, loading: _detailsLoading } = useMachineDetails(selectedMachine, 2000);
+  const { telemetry } = useMachineDetails(selectedMachine, 2000);
   const [injectionStatus, setInjectionStatus] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
 
@@ -227,8 +227,8 @@ export const Dashboard: React.FC = () => {
       });
       setInjectionStatus({ message: `${t.injectSuccess} (${faultMode})`, type: 'success' });
       setTimeout(() => setInjectionStatus(null), 3000);
-    } catch (err: any) {
-      setInjectionStatus({ message: err.message || "Connection error.", type: 'error' });
+    } catch (err: unknown) {
+      setInjectionStatus({ message: errorMessage(err, 'Connection error.'), type: 'error' });
       setTimeout(() => setInjectionStatus(null), 3000);
     }
   };
@@ -501,19 +501,23 @@ export const Dashboard: React.FC = () => {
                       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
                         <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>VIBRATION RMS</div>
                         <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-bright)' }}>
-                          {telemetry.length > 0 && telemetry[telemetry.length - 1]?.vibration_rms ? `${telemetry[telemetry.length - 1].vibration_rms.toFixed(2)} mm/s` : '--'}
+                          {telemetry.length > 0 && (telemetry[telemetry.length - 1]?.vibration_rms ?? telemetry[telemetry.length - 1]?.vibration?.rms) != null
+                            ? `${(telemetry[telemetry.length - 1]?.vibration_rms ?? telemetry[telemetry.length - 1]?.vibration?.rms ?? 0).toFixed(2)} mm/s`
+                            : '--'}
                         </div>
                       </div>
                       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
                         <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>TEMPERATURE</div>
                         <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-bright)' }}>
-                          {telemetry.length > 0 && telemetry[telemetry.length - 1]?.temperature ? `${telemetry[telemetry.length - 1].temperature.toFixed(1)} °C` : '--'}
+                          {telemetry.length > 0 && telemetry[telemetry.length - 1]?.temperature != null ? `${telemetry[telemetry.length - 1].temperature.toFixed(1)} °C` : '--'}
                         </div>
                       </div>
                       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
                         <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>CURRENT DRAW</div>
                         <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-bright)' }}>
-                          {telemetry.length > 0 && telemetry[telemetry.length - 1]?.current_draw ? `${telemetry[telemetry.length - 1].current_draw.toFixed(2)} A` : '--'}
+                          {telemetry.length > 0 && (telemetry[telemetry.length - 1]?.current_draw ?? telemetry[telemetry.length - 1]?.current) != null
+                            ? `${(telemetry[telemetry.length - 1]?.current_draw ?? telemetry[telemetry.length - 1]?.current ?? 0).toFixed(2)} A`
+                            : '--'}
                         </div>
                       </div>
                     </div>

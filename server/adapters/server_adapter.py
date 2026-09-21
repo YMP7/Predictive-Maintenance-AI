@@ -110,7 +110,11 @@ class ServerAdapter(MachineAdapter):
 
         try:
             client = paramiko.SSHClient()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            client.load_system_host_keys()
+            known_hosts = os.environ.get("SSH_KNOWN_HOSTS_FILE")
+            if known_hosts:
+                client.load_host_keys(known_hosts)
+            client.set_missing_host_key_policy(paramiko.RejectPolicy())
             client.connect(
                 hostname=self._host,
                 port=self._port,

@@ -18,7 +18,7 @@ class SensorSimulator:
         
         # Load thresholds if config exists
         self.thresholds = {"vibration": 1.5, "temperature": 60.0, "current": 3.5}
-        config_path = os.path.join(os.path.dirname(__file__), "config", "machines.json")
+        config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "machines.json")
         if os.path.exists(config_path):
             try:
                 with open(config_path, 'r') as f:

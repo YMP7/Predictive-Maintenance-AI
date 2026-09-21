@@ -103,8 +103,6 @@ class AMKB:
             return self._pool
         try:
             from psycopg_pool import ConnectionPool
-            from dotenv import load_dotenv
-            load_dotenv()
         except ImportError as e:
             raise RuntimeError(
                 "psycopg_pool is required. Install: pip install 'psycopg[binary]' psycopg_pool"

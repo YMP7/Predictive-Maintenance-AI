@@ -6,15 +6,11 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 import numpy as np
-from dotenv import load_dotenv
 
 from server.sensor_simulator import MultiMachineSimulator
 from server.ai_agent import AIAgent
 from server.mqtt_client import MQTTClientManager
 from server.database import pool
-
-# Load environment variables
-load_dotenv()
 
 # Configure logging
 log_level_str = os.environ.get("LOG_LEVEL", "INFO").upper()
