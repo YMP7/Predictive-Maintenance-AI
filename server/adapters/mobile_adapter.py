@@ -64,6 +64,15 @@ def get_latest_browser_push(machine_id: str = "mobile_device_1") -> Optional[Dic
     return None
 
 
+def clear_browser_telemetry() -> None:
+    """Clear registered browser telemetry (useful for test isolation)."""
+    global _latest_browser_push, _latest_browser_push_time, _browser_pushes, _browser_push_times
+    _browser_pushes.clear()
+    _browser_push_times.clear()
+    _latest_browser_push = None
+    _latest_browser_push_time = 0.0
+
+
 class MobileAdapter(MachineAdapter):
     """
     Adapter for mobile Android and Windows Phone (Lumia) telemetry.

@@ -25,12 +25,15 @@ jobs:
         pip install -r requirements.txt pytest httpx
         # torch (CPU wheels) is required by the ATLAS world model / RUL tests
         pip install -r requirements-ml.txt --extra-index-url https://download.pytorch.org/whl/cpu
+
+    - name: Generate MQTT password file
+      run: python scripts/generate_mqtt_passwords.py
         
     - name: Start Infrastructure (TimescaleDB & Mosquitto)
       env:
         TSDB_PASSWORD: devpassword123
       run: |
-        docker compose up -d timescaledb
+        docker compose up -d timescaledb mosquitto
         
         # Wait for database to be ready
         echo "Waiting for TimescaleDB to be ready..."

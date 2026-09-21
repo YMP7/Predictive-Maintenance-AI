@@ -24,7 +24,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from server.adapters.laptop_adapter import LaptopAdapter
-from server.adapters.mobile_adapter import MobileAdapter, push_browser_telemetry
+from server.adapters.mobile_adapter import MobileAdapter, push_browser_telemetry, clear_browser_telemetry
 from server.backend_api import app, atlas_api_startup
 
 
@@ -93,29 +93,33 @@ def test_mobile_source_and_version_dynamically_grounded():
     Guarantees that transport source labels and device platform metadata are dynamically
     derived from genuine telemetry packets rather than invariant placeholder strings.
     """
-    adapter = MobileAdapter()
+    clear_browser_telemetry()
+    try:
+        adapter = MobileAdapter()
 
-    # Case A: Synthetic fallback stream
-    sim_reading = adapter.get_reading("mobile_device_1")
-    assert sim_reading.metadata["simulated"] is True
-    assert "Synthetic" in sim_reading.metadata["source"]
+        # Case A: Synthetic fallback stream
+        sim_reading = adapter.get_reading("mobile_device_1")
+        assert sim_reading.metadata["simulated"] is True
+        assert "Synthetic" in sim_reading.metadata["source"]
 
-    # Case B: Dynamic Web Bridge telemetry push
-    dynamic_source_str = f"Lumia Web Bridge Unit Test v{int(time.time())}"
-    push_browser_telemetry({
-        "machine_id": "mobile_device_1",
-        "battery_percent": 84.0,
-        "temperature_c": 33.0,
-        "current_ma": 310.0,
-        "source": dynamic_source_str,
-        "platform": "windows_phone"
-    })
-    live_reading = adapter.get_reading("mobile_device_1")
-    assert live_reading.metadata["simulated"] is False
-    assert live_reading.metadata["source"] == dynamic_source_str, (
-        f"Source must dynamically reflect incoming packet source: {live_reading.metadata['source']}"
-    )
-    assert live_reading.operational_ctx["platform"] == "windows_phone"
+        # Case B: Dynamic Web Bridge telemetry push
+        dynamic_source_str = f"Lumia Web Bridge Unit Test v{int(time.time())}"
+        push_browser_telemetry({
+            "machine_id": "mobile_device_1",
+            "battery_percent": 84.0,
+            "temperature_c": 33.0,
+            "current_ma": 310.0,
+            "source": dynamic_source_str,
+            "platform": "windows_phone"
+        })
+        live_reading = adapter.get_reading("mobile_device_1")
+        assert live_reading.metadata["simulated"] is False
+        assert live_reading.metadata["source"] == dynamic_source_str, (
+            f"Source must dynamically reflect incoming packet source: {live_reading.metadata['source']}"
+        )
+        assert live_reading.operational_ctx["platform"] == "windows_phone"
+    finally:
+        clear_browser_telemetry()
 
 
 def test_uptime_derived_from_dynamic_clock_not_static(client):
