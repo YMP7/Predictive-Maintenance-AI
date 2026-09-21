@@ -1,3 +1,11 @@
+FROM node:20-slim AS frontend
+
+WORKDIR /build
+COPY client/package.json client/package-lock.json ./
+RUN npm ci
+COPY client ./
+RUN npm run build
+
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -15,7 +23,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY server ./server
 COPY scripts ./scripts
 COPY config ./config
-COPY client/dist ./client/dist
+COPY --from=frontend /build/dist ./client/dist
 
 RUN mkdir -p /app/data /app/logs \
     && adduser --disabled-password --gecos "" appuser \

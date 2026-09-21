@@ -61,6 +61,13 @@ if _cors_env:
 else:
     cors_origins = ["http://localhost:3000"]
 
+if "*" in cors_origins:
+    raise RuntimeError(
+        "FATAL: CORS_ORIGINS=* cannot be combined with cookie authentication — any site "
+        "could then issue credentialed requests. List the exact frontend origins, e.g. "
+        "CORS_ORIGINS=https://app.example.com,http://localhost:3000"
+    )
+
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,

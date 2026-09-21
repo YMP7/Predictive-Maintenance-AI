@@ -85,11 +85,16 @@ if client_dist.exists():
             "Pragma": "no-cache",
             "Expires": "0",
         }
-        requested_file = client_dist / full_path
-        if full_path and requested_file.is_file():
-            if requested_file.suffix == ".html":
-                return FileResponse(requested_file, headers=no_cache_headers)
-            return FileResponse(requested_file)
+        if full_path:
+            requested_file = (client_dist / full_path).resolve()
+            try:
+                requested_file.relative_to(client_dist.resolve())
+            except ValueError:
+                raise HTTPException(status_code=404, detail="Not found")
+            if requested_file.is_file():
+                if requested_file.suffix == ".html":
+                    return FileResponse(requested_file, headers=no_cache_headers)
+                return FileResponse(requested_file)
 
         return FileResponse(client_dist / "index.html", headers=no_cache_headers)
 

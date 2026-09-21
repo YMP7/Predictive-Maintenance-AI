@@ -189,9 +189,9 @@ Laptop's lower cross-domain RMSE ($0.0858$ vs. within-domain $0.0961$) is **not*
 
 ---
 
-## 4. The 12-Defect Forensic Narrative (+ 2 Near-Misses)
+## 4. The 13-Defect Forensic Narrative (+ 2 Near-Misses)
 
-ATLAS was engineered via structured refutation. All 12 defects (DEF-001 through DEF-012b) and 2 near-misses (NM-001/002) were discovered through deliberate stress-testing and verified with permanent regression tests:
+ATLAS was engineered via structured refutation. All 13 defects (DEF-001 through DEF-013) and 2 near-misses (NM-001/002) were discovered through deliberate stress-testing and verified with permanent regression tests:
 
 ```
 [ DEF-001 ] ──► [ DEF-002 ] ──► [ DEF-003 ] ──► [ DEF-004 ] ──► [ DEF-005 ] ──► [ DEF-006 ]
@@ -221,6 +221,7 @@ Human Gate      LLM Grounding   RNG Leakage      Spearman Zero   Div-by-Zero    
 | **DEF-011** | **Medium** | 7 W2 | Unseeded PyTorch RNG state carry-over between domain pretraining calls caused non-reproducible run-to-run drift. | Isolated pretraining runs with explicit deterministic domain seeds (`laptop: 101`, `mobile: 102`, `server: 103`) in `server/atlas/pretrain_domain.py`. |
 | **DEF-012a**| **Medium** | 8 W4 | LLM agent tool used loose keyword fallback to create ungrounded work orders (e.g. citing a vibration alert to justify flushing coolant). | Enforced mandatory alert existence check, structured `fault_type` exact enum match, and `FAULT_TYPE_ALLOWED_ACTIONS` allow-list in `server/agent_tools.py:245-280`. |
 | **DEF-012b**| **Medium** | 8 W4 | Multi-action bundling residual risk (e.g., agent submits `"Inspect spindle and flush coolant"`). | Formally bounded residual risk by the Human Confirmation Gate (`POST /api/work-orders/{id}/approve` in `server/backend_api.py:382-415`). |
+| **DEF-013** | **Critical** | 8 W4 | SPA static catch-all route `/{full_path:path}` in `server/integrated_server.py` used unverified path concatenation (`client_dist / full_path`), allowing unauthenticated directory traversal (e.g. `GET /../../.env`) to read arbitrary local host files. | Added canonical path resolution and directory boundary validation (`requested_file.relative_to(client_dist.resolve())`), rejecting path traversal with HTTP 404; verified in `tests/test_static_serving.py`. |
 | **NM-001**  | Near-Miss | 8 W3 | `InMemoryAMKB` offline fallback could silently diverge from pgvector `<=>` cosine distance. | Added mathematical equivalence regression tests proving $< 10^{-5}$ drift (`tests/test_evaluation_cli.py`). |
 | **NM-002**  | Near-Miss | Phase 5 | Plaintext MQTT development credentials committed in git history (`mosquitto/config/pwfile.raw`). | Untracked file, gitignored `.raw`, implemented in-memory PBKDF2 `$7$` generator, and recorded standing precondition for public release. |
 
