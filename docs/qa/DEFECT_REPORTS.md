@@ -28,8 +28,9 @@
 | DEF-010 | Spearman rank correlation undefined for zero-variance ungrounded confidence | 7 W3 | **Medium** | ✅ Fixed & verified |
 | DEF-011 | Unseeded PyTorch RNG state carry-over between domain training calls | 7 W2 | **Medium** | ✅ Fixed & verified |
 | DEF-012 | Cross-fault ungrounded action justification in LLM work orders | 8 W4 | **Medium** | ✅ Fixed & verified (DEF-012a Closed; DEF-012b Residual bounded) |
+| DEF-013 | SPA static file path traversal arbitrary file read | 8 W4 | **Critical** | ✅ Fixed & verified |
 
-All 12 defects have been resolved or verified with explicit boundary disclosures. Zero unmitigated defects remain.
+All 13 defects have been resolved or verified with explicit boundary disclosures. Zero unmitigated defects remain.
 
 ### Near-Miss Registry
 
@@ -485,6 +486,48 @@ To maintain rigorous transparency regarding telemetry provenance and prevent unv
 
 ---
 
+## DEF-013: SPA Static File Path Traversal Arbitrary File Read
+
+| Field | Detail |
+|---|---|
+| **ID** | DEF-013 |
+| **Severity** | **Critical** — unauthenticated arbitrary local file disclosure (CWE-22) |
+| **Month** | 8 Week 4 (Pre-Defense Security Audit) |
+| **File** | `server/integrated_server.py` |
+| **Commit (fix)** | Security hardening patch |
+
+### Description
+The SPA static catch-all route `/{full_path:path}` in `server/integrated_server.py` constructed file paths using naive path concatenation `requested_file = client_dist / full_path` without canonicalizing or checking whether the resulting target path escaped the `client/dist` root directory. When handling unauthenticated HTTP requests with directory traversal sequences (e.g., `GET /../../.env` or `GET /../../../../../../etc/passwd`), the operating system resolved the relative path segments, allowing arbitrary file read of environment secrets, passwords, or system files.
+
+### Root Cause
+Missing directory boundary jail validation on user-supplied URL path parameters in the custom SPA fallback handler.
+
+### How Found
+Pre-defense security audit and penetration test review focusing on static file serving and authentication boundaries.
+
+### Fix Applied
+Enforced canonical path resolution and strict directory containment checks:
+```python
+if full_path:
+    requested_file = (client_dist / full_path).resolve()
+    try:
+        requested_file.relative_to(client_dist.resolve())
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Not found")
+    if requested_file.is_file():
+        if requested_file.suffix == ".html":
+            return FileResponse(requested_file, headers=no_cache_headers)
+        return FileResponse(requested_file)
+
+return FileResponse(client_dist / "index.html", headers=no_cache_headers)
+```
+Any attempt to traverse outside `client_dist` triggers `relative_to` to raise `ValueError`, immediately returning an HTTP 404 response.
+
+### Verification
+Created dedicated automated test suite `tests/test_static_serving.py` issuing raw ASGI requests with path traversal payloads (`/../../.env`, `/../../../../../../etc/passwd`, `/assets/../../../../../../etc/hostname`). Verified 100% rejection with HTTP 404 and confirmed sensitive file contents are never leaked.
+
+---
+
 ## Updated Defect Trend Analysis
 
 | Month | Defects Found | Severity Breakdown | Notes |
@@ -496,6 +539,7 @@ To maintain rigorous transparency regarding telemetry provenance and prevent unv
 | Month 5 | 2 | 2 Critical | Both related to cost model soundness |
 | Month 6 | 0 | — | Adapter layer cleanly implemented |
 | Month 7 | 5 | 2 High, 3 Medium | Transfer study methodology, collapse, seed isolation, Spearman edge case |
-| Month 8 | 1 (+2 near-misses) | 1 Medium | DEF-012 LLM grounding; NM-001 AMKB equivalence; NM-002 MQTT credentials |
-| **Total** | **12 (+2 near-misses)** | **3 Critical, 5 High, 4 Medium** | **100% resolved or mitigated with boundary disclosures** |
+| Month 8 | 2 (+2 near-misses) | 1 Critical, 1 Medium | DEF-012 LLM grounding; DEF-013 SPA path traversal; NM-001 AMKB equivalence; NM-002 MQTT credentials |
+| **Total** | **13 (+2 near-misses)** | **4 Critical, 5 High, 4 Medium** | **100% resolved or mitigated with boundary disclosures** |
+
 

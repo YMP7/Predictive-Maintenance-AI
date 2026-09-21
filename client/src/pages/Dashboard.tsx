@@ -540,7 +540,7 @@ export const Dashboard: React.FC = () => {
                     {canInjectFault && (
                       <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--status-warning)', fontFamily: 'var(--font-mono)' }}>
-                          {t.faultInjection} (OPERATOR PRIVILEGE)
+                          {t.faultInjection} (ADMIN PRIVILEGE)
                         </div>
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                           {['Bearing Wear', 'Imbalance', 'Overheating', 'Misalignment', 'Normal'].map((mode) => (
