@@ -51,6 +51,8 @@ from server.adapters.cmapss_adapter import CMAPSSAdapter
 from server.adapters.laptop_adapter import LaptopAdapter
 from server.adapters.mobile_adapter import MobileAdapter
 from server.adapters.server_adapter import ServerAdapter
+from server.adapters.modbus_adapter import ModbusAdapter
+from server.adapters.modbus_simulator import ModbusSimulator
 from server.atlas.world_model import UntrainedModelError, WorldModel, WorldModelConfig
 
 
@@ -141,15 +143,18 @@ class MinimalVibrationAdapter(MachineAdapter):
         "mobile",
         "server",
         "hello_world",
+        "modbus",
     ],
-    ids=["CMAPSSAdapter", "LaptopAdapter", "MobileAdapter", "ServerAdapter", "HelloWorldAdapter"],
+    ids=["CMAPSSAdapter", "LaptopAdapter", "MobileAdapter", "ServerAdapter", "HelloWorldAdapter", "ModbusAdapter"],
 )
 def adapter_instance(request) -> Generator[Tuple[str, MachineAdapter], None, None]:
     """
-    Parametrized fixture providing connected instances of all 4 existing adapters
-    and the minimal Hello World reference adapter, ensuring thorough cleanup.
+    Parametrized fixture providing connected instances of all 4 existing adapters,
+    the minimal Hello World reference adapter, and the Phase 2 ModbusAdapter,
+    ensuring thorough cleanup.
     """
     domain = request.param
+    sim = None
 
     if domain == "cmapss":
         data_file = Path("data/cmapss/train_FD001.txt")
@@ -164,6 +169,15 @@ def adapter_instance(request) -> Generator[Tuple[str, MachineAdapter], None, Non
         adapter = ServerAdapter()
     elif domain == "hello_world":
         adapter = MinimalVibrationAdapter()
+    elif domain == "modbus":
+        sim = ModbusSimulator(port=0, machine_id="cnc_spindle_01")
+        sim.start()
+        adapter = ModbusAdapter(
+            host=sim.host,
+            port=sim.port,
+            machine_ids=[sim.machine_id],
+            domain_id="modbus_machine",
+        )
     else:
         raise ValueError(f"Unknown fixture domain: {domain}")
 
@@ -172,6 +186,8 @@ def adapter_instance(request) -> Generator[Tuple[str, MachineAdapter], None, Non
         yield domain, adapter
     finally:
         adapter.disconnect()
+        if sim is not None:
+            sim.stop()
 
 
 # ---------------------------------------------------------------------------
@@ -407,21 +423,21 @@ class TestDEF008GuardrailDynamicWorldModel:
           2. adapter.describe()['is_trained'] is present and strictly False
           3. adapter.assert_trained() raises UntrainedDomainModelError
         """
-        fresh_adapter = MinimalVibrationAdapter()
-        assert hasattr(fresh_adapter, "is_trained"), "MachineAdapter missing required is_trained attribute"
-        assert fresh_adapter.is_trained is False, (
-            "DEF-008 VIOLATION: Freshly instantiated adapter reported is_trained=True before training!"
-        )
+        for fresh_adapter in [MinimalVibrationAdapter(), ModbusAdapter()]:
+            assert hasattr(fresh_adapter, "is_trained"), f"[{fresh_adapter.domain_id}] Missing is_trained attribute"
+            assert fresh_adapter.is_trained is False, (
+                f"DEF-008 VIOLATION: [{fresh_adapter.domain_id}] Reported is_trained=True before training!"
+            )
 
-        desc = fresh_adapter.describe()
-        assert "is_trained" in desc, "adapter.describe() missing required 'is_trained' key"
-        assert desc["is_trained"] is False, (
-            "DEF-008 VIOLATION: adapter.describe()['is_trained'] is True for untrained adapter"
-        )
+            desc = fresh_adapter.describe()
+            assert "is_trained" in desc, f"[{fresh_adapter.domain_id}] describe() missing 'is_trained'"
+            assert desc["is_trained"] is False, (
+                f"DEF-008 VIOLATION: [{fresh_adapter.domain_id}] describe()['is_trained'] is True for untrained adapter"
+            )
 
-        with pytest.raises(UntrainedDomainModelError) as exc_info:
-            fresh_adapter.assert_trained()
-        assert "is_trained=False" in str(exc_info.value)
+            with pytest.raises(UntrainedDomainModelError) as exc_info:
+                fresh_adapter.assert_trained()
+            assert "is_trained=False" in str(exc_info.value)
 
     def test_existing_domain_adapters_report_is_trained_true(self) -> None:
         """

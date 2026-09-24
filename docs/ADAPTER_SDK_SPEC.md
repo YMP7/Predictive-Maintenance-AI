@@ -429,3 +429,74 @@ A passing suite certifies:
 - Feature dimension consistency between descriptor and output payload.
 - Safe lifecycle idempotency and resource cleanup.
 - Full compliance with DEF-002, DEF-007, DEF-008, DEF-009, and DEF-013 guardrails.
+
+---
+
+## 10. Phase 2: Industrial Modbus TCP Protocol Adapter
+
+Phase 2 introduces the first generic industrial protocol adapter: [`ModbusAdapter`](file:///server/adapters/modbus_adapter.py) communicating with physical or simulated assets via Modbus TCP (IEC 61158 / Modbus-IDA), paired with an in-process [`ModbusSimulator`](file:///server/adapters/modbus_simulator.py).
+
+### 10.1 Key Architectural Decision: Config-Driven Register Mapping (Layer 2)
+
+Rather than hardcoding register meanings in Python code, `ModbusAdapter` accepts a **Register Map** configuration. This decouples the network protocol from asset telemetry:
+
+```json
+[
+  {
+    "name": "temperature_c",
+    "register": 40001,
+    "scale": 0.1,
+    "offset": 0.0,
+    "unit": "degC",
+    "min_val": 15.0,
+    "max_val": 100.0,
+    "register_type": "holding"
+  },
+  {
+    "name": "vibration_mms",
+    "register": 40002,
+    "scale": 0.001,
+    "offset": 0.0,
+    "unit": "mm/s",
+    "min_val": 0.0,
+    "max_val": 10.0,
+    "register_type": "holding"
+  }
+]
+```
+
+#### Address Resolution Table
+
+| Conventional Notation | Function Code | Protocol Address (`address`) | Description |
+|:----------------------|:--------------|:-----------------------------|:------------|
+| `40001` – `49999`     | FC03 / FC16   | `register - 40001` (0..9998) | 16-bit Holding Register |
+| `30001` – `39999`     | FC04          | `register - 30001` (0..9998) | 16-bit Input Register |
+| `0` – `9999`          | Configurable  | `register` (direct offset)   | Direct 0-based offset |
+
+### 10.2 ModbusSimulator Capabilities
+
+`ModbusSimulator` provides an in-process, hardware-free Modbus TCP server:
+- **Dynamic Port Binding**: `ModbusSimulator(port=0)` binds to an available OS ephemeral port.
+- **Three Operational Regimes**:
+  - `idle`: Minimal temperature, low vibration (0.15 mm/s), 0 RPM.
+  - `nominal`: Standard operational load, 45.0 °C, 1.25 mm/s, 3600 RPM.
+  - `degraded`: Thermal overload (78.0 °C), severe harmonic vibration (5.60 mm/s), 22.0 A current.
+- **Physical Noise Perturbation (`sim.step()`)**: Applies Gaussian jitter across cycles to prevent latent representation collapse (DEF-007).
+- **CLI Utility**: Executable directly via `python scripts/run_modbus_sim.py --port 5020 --state nominal`.
+
+### 10.3 Dynamic World Model Sizing (Layer 3) & DEF-008 Compliance
+
+When onboarding a Modbus machine, `WorldModelConfig` is sized dynamically from the register map:
+
+```python
+reading = adapter.get_reading("cnc_spindle_01")
+cfg = WorldModelConfig(
+    domain=adapter.domain_id,
+    feature_dim=len(reading.features),  # Dynamically matched to register channels
+    is_trained=adapter.is_trained,      # Strictly False until trained checkpoint exists
+)
+model = WorldModel(cfg)
+
+# DEF-008: Calling predict() before training raises UntrainedModelError
+model.predict(window)  # -> UntrainedModelError: DEF-008 prohibits silent zero-shot inference
+```

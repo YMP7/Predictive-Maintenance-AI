@@ -254,6 +254,10 @@ class MachineAdapter(abc.ABC):
         return self._status
 
     @property
+    def connected(self) -> bool:
+        return self._connected
+
+    @property
     def is_trained(self) -> bool:
         """
         DEF-008 Guardrail:
