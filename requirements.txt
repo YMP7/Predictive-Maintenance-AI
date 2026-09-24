@@ -31,6 +31,7 @@ matplotlib>=3.8,<4.0
 faiss-cpu>=1.8,<2.0
 pgvector>=0.2,<1.0
 paramiko>=3.4,<4.0   # SSH transport for ServerAdapter (Month 6)
+pymodbus>=3.8,<4.0   # Modbus TCP transport for ModbusAdapter (Phase 2)
 
 # -----------------------------------------------------------------------
 # NOTE: torch is intentionally NOT listed here.
