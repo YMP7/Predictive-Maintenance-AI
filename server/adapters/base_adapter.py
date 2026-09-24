@@ -253,6 +253,32 @@ class MachineAdapter(abc.ABC):
     def status(self) -> AdapterStatus:
         return self._status
 
+    @property
+    def is_trained(self) -> bool:
+        """
+        DEF-008 Guardrail:
+        Returns True only if a verified, trained WorldModel checkpoint exists on disk
+        for this adapter's domain (data/models/{domain}_world_model.pt or best_model.pt).
+        Returns False for newly registered, untrained, or zero-shot domains.
+        """
+        from pathlib import Path
+        models_dir = Path(__file__).resolve().parent.parent.parent / "data" / "models"
+        if self.domain_id == "cmapss":
+            return (models_dir / "best_model.pt").exists() or (models_dir / "cmapss_world_model.pt").exists()
+        return (models_dir / f"{self.domain_id}_world_model.pt").exists()
+
+    def assert_trained(self) -> None:
+        """
+        DEF-008 Guardrail:
+        Asserts that the adapter's domain has a trained WorldModel checkpoint.
+        Raises UntrainedDomainModelError if the domain is untrained.
+        """
+        if not self.is_trained:
+            raise UntrainedDomainModelError(
+                f"Domain '{self.domain_id}' is marked is_trained=False (no trained WorldModel found). "
+                "DEF-008 guardrail strictly prohibits silent zero-shot fallback substitution."
+            )
+
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
@@ -303,6 +329,7 @@ class MachineAdapter(abc.ABC):
             "machine_ids": self.machine_ids,
             "status":      self._status.value,
             "connected":   self._connected,
+            "is_trained":  self.is_trained,
         }
 
     def __repr__(self) -> str:

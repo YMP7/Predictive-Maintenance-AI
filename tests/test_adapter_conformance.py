@@ -399,6 +399,76 @@ class TestDEF008GuardrailDynamicWorldModel:
         out = loaded.predict(sample)
         assert out.state_vector.shape == (32,)
 
+    def test_fresh_untrained_adapter_reports_is_trained_false(self) -> None:
+        """
+        DEF-008 Adapter Guardrail:
+        Instantiates a fresh, deliberately-untrained adapter and asserts:
+          1. adapter.is_trained is present and strictly False
+          2. adapter.describe()['is_trained'] is present and strictly False
+          3. adapter.assert_trained() raises UntrainedDomainModelError
+        """
+        fresh_adapter = MinimalVibrationAdapter()
+        assert hasattr(fresh_adapter, "is_trained"), "MachineAdapter missing required is_trained attribute"
+        assert fresh_adapter.is_trained is False, (
+            "DEF-008 VIOLATION: Freshly instantiated adapter reported is_trained=True before training!"
+        )
+
+        desc = fresh_adapter.describe()
+        assert "is_trained" in desc, "adapter.describe() missing required 'is_trained' key"
+        assert desc["is_trained"] is False, (
+            "DEF-008 VIOLATION: adapter.describe()['is_trained'] is True for untrained adapter"
+        )
+
+        with pytest.raises(UntrainedDomainModelError) as exc_info:
+            fresh_adapter.assert_trained()
+        assert "is_trained=False" in str(exc_info.value)
+
+    def test_existing_domain_adapters_report_is_trained_true(self) -> None:
+        """
+        All 4 existing domains have verified trained checkpoints under data/models/
+        and must report is_trained=True both on the property and in describe().
+        """
+        existing_adapters = [
+            CMAPSSAdapter(subset="FD001", split="train", max_units=2),
+            LaptopAdapter(),
+            MobileAdapter(),
+            ServerAdapter(),
+        ]
+        for ad in existing_adapters:
+            assert hasattr(ad, "is_trained"), f"[{ad.domain_id}] Missing is_trained property"
+            assert ad.is_trained is True, f"[{ad.domain_id}] Expected is_trained=True with existing checkpoint"
+            desc = ad.describe()
+            assert "is_trained" in desc, f"[{ad.domain_id}] Missing 'is_trained' in describe()"
+            assert desc["is_trained"] is True, f"[{ad.domain_id}] Expected describe()['is_trained']=True"
+            # Must not raise
+            ad.assert_trained()
+
+    def test_untrained_adapter_cannot_silently_route_inference(self) -> None:
+        """
+        DEF-008 End-to-End Dynamic Instantiation Guardrail:
+        An untrained adapter plugged into a dynamic WorldModel pipeline MUST fail loudly
+        if inference is attempted without prior training.
+        """
+        adapter = MinimalVibrationAdapter()
+        adapter.connect()
+        reading = adapter.get_reading("pump_01")
+        adapter.disconnect()
+
+        # Build dynamic WorldModelConfig directly from the adapter's reported training state
+        cfg = WorldModelConfig(
+            domain=adapter.domain_id,
+            feature_dim=len(reading.features),
+            is_trained=adapter.is_trained,  # Strictly False
+        )
+        assert cfg.is_trained is False
+
+        model = WorldModel(cfg)
+        test_window = np.zeros((30, len(reading.features)), dtype=np.float32)
+
+        # Model must strictly refuse silent inference
+        with pytest.raises(UntrainedModelError):
+            model.predict(test_window)
+
 
 # ---------------------------------------------------------------------------
 # 6. Defect Prevention Regression Guardrails (DEF-002, DEF-007, DEF-009, DEF-013)
