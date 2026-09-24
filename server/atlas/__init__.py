@@ -10,12 +10,13 @@ Month 4:  SimulationEngine, DecisionGraph
 Month 5:  ExplainabilityEngine, LearningEngine
 """
 
-from server.atlas.world_model import WorldModel, WorldModelConfig
+from server.atlas.world_model import WorldModel, WorldModelConfig, UntrainedModelError
 from server.atlas.rul_engine import RULEngine, RULPrediction
 
 __all__ = [
     "WorldModel",
     "WorldModelConfig",
+    "UntrainedModelError",
     "RULEngine",
     "RULPrediction",
 ]

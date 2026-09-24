@@ -16,7 +16,12 @@ Available adapters:
 from server.adapters.base_adapter import (
     NormalizedReading,
     AdapterStatus,
+    DomainType,
     MachineAdapter,
+    AdapterError,
+    UnknownMachineError,
+    ConfigurationPathTraversalError,
+    UntrainedDomainModelError,
     DatasetNotFoundError,
     AdapterConnectionError,
 )
@@ -28,7 +33,12 @@ from server.adapters.server_adapter import ServerAdapter
 __all__ = [
     "NormalizedReading",
     "AdapterStatus",
+    "DomainType",
     "MachineAdapter",
+    "AdapterError",
+    "UnknownMachineError",
+    "ConfigurationPathTraversalError",
+    "UntrainedDomainModelError",
     "DatasetNotFoundError",
     "AdapterConnectionError",
     "CMAPSSAdapter",

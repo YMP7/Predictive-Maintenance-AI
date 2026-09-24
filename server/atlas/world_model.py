@@ -87,6 +87,17 @@ class PredictionOutput:
     state_vector: Any
     attn_weights: Optional[Any] = None
 
+class UntrainedModelError(RuntimeError):
+    """
+    Raised when an untrained WorldModel is queried for inference without explicit opt-in.
+
+    DEF-008 Guardrail:
+    Prevents live APIs, adapters, and cognition pipelines from silently substituting
+    an untrained or zero-shot projection while reporting success.
+    """
+    pass
+
+
 @dataclass
 class WorldModelConfig:
     """Hyperparameters for the WorldModel.
@@ -106,6 +117,7 @@ class WorldModelConfig:
     seq_len:        int   = 30    # Input window length (cycles)
     max_rul:        float = 125.0 # RUL cap (must match CMAPSSAdapter.MAX_RUL_CAP)
     domain:         str   = "cmapss"
+    is_trained:     bool  = False # DEF-008 guardrail: default False until trained/loaded
 
     # Derived
     @property
@@ -222,6 +234,7 @@ if _TORCH_AVAILABLE:
         def predict(
             self,
             window: np.ndarray,
+            allow_untrained: bool = False,
         ) -> PredictionOutput:
             """
             Convenience: run one window through the model.
@@ -230,6 +243,10 @@ if _TORCH_AVAILABLE:
             ----------
             window : np.ndarray, shape (seq_len, feature_dim)
                      A single observation window (feature-normalised).
+            allow_untrained : bool, default False
+                     Explicit opt-in to evaluate with untrained/zero-shot weights.
+                     DEF-008 Guardrail: By default, raises UntrainedModelError
+                     if self.config.is_trained is False.
 
             Returns
             -------
@@ -238,6 +255,13 @@ if _TORCH_AVAILABLE:
               state_vector: np.ndarray, shape (state_dim=32,)
               attn_weights: np.ndarray, shape (seq_len,)
             """
+            if not getattr(self.config, "is_trained", False) and not allow_untrained:
+                raise UntrainedModelError(
+                    f"WorldModel for domain '{self.config.domain}' is not trained (is_trained=False). "
+                    "DEF-008 guardrail prohibits silent zero-shot inference. "
+                    "Train the domain model first, load a trained checkpoint, or explicitly pass allow_untrained=True."
+                )
+
             self.eval()
             with torch.no_grad():
                 x = torch.tensor(window, dtype=torch.float32)
@@ -275,6 +299,7 @@ if _TORCH_AVAILABLE:
                     "seq_len":     self.config.seq_len,
                     "max_rul":     self.config.max_rul,
                     "domain":      self.config.domain,
+                    "is_trained":  True,
                 },
             }, str(target))
             logger.info(f"WorldModel saved to {target}")
@@ -284,7 +309,9 @@ if _TORCH_AVAILABLE:
         def load(cls, path: Path) -> "WorldModel":
             """Load a saved checkpoint."""
             checkpoint = torch.load(str(path), map_location="cpu", weights_only=True)
-            cfg = WorldModelConfig(**checkpoint["config"])
+            cfg_dict = dict(checkpoint["config"])
+            cfg_dict["is_trained"] = True  # Loaded from valid checkpoint on disk
+            cfg = WorldModelConfig(**cfg_dict)
             model = cls(cfg)
             model.load_state_dict(checkpoint["model_state_dict"], strict=True)
             model.eval()
@@ -312,7 +339,13 @@ else:
             self.config = config
             logger.warning("WorldModel operating in STUB mode (PyTorch not installed).")
 
-        def predict(self, window: np.ndarray) -> PredictionOutput:
+        def predict(self, window: np.ndarray, allow_untrained: bool = False) -> PredictionOutput:
+            if not getattr(self.config, "is_trained", False) and not allow_untrained:
+                raise UntrainedModelError(
+                    f"WorldModel stub for domain '{self.config.domain}' is not trained (is_trained=False). "
+                    "DEF-008 guardrail prohibits silent zero-shot inference. "
+                    "Pass allow_untrained=True to explicitly permit stub fallback."
+                )
             # Return a naive linear-trend estimate as fallback
             if window.shape[0] > 1:
                 health_col = window[:, 0]
@@ -328,7 +361,7 @@ else:
 
         @classmethod
         def load(cls, path) -> "WorldModel":
-            return cls(WorldModelConfig())
+            return cls(WorldModelConfig(is_trained=True))
 
         @classmethod
         def load_for_domain(cls, domain: str) -> None:
