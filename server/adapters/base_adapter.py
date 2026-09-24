@@ -19,10 +19,43 @@ from typing import Any, Dict, List, Optional
 
 
 # ---------------------------------------------------------------------------
-# Exceptions
+# Exceptions (ATLAS Adapter SDK Specification v1.0.0)
 # ---------------------------------------------------------------------------
 
-class DatasetNotFoundError(FileNotFoundError):
+class AdapterError(Exception):
+    """Base exception for all MachineAdapter operations."""
+    pass
+
+
+class UnknownMachineError(KeyError, ValueError, AdapterError):
+    """
+    Raised when an adapter is queried with an unrecognized machine_id.
+    Subclasses both KeyError and ValueError for seamless backwards compatibility.
+    """
+    def __init__(self, machine_id: str, domain: str = ""):
+        self.machine_id = machine_id
+        self.domain = domain
+        prefix = f"[{domain}] " if domain else ""
+        super().__init__(f"{prefix}Unknown machine_id: '{machine_id}'")
+
+
+class ConfigurationPathTraversalError(ValueError, AdapterError):
+    """
+    Raised when adapter configuration or register map loading detects path traversal
+    attempting to escape the designated configuration root directory (DEF-013 guard).
+    """
+    pass
+
+
+class UntrainedDomainModelError(RuntimeError, AdapterError):
+    """
+    Raised when an untrained WorldModel is queried for inference without explicit opt-in
+    (DEF-008 guardrail: prohibits silent zero-shot fallback substitution).
+    """
+    pass
+
+
+class DatasetNotFoundError(FileNotFoundError, AdapterError):
     """Raised when a required dataset file (e.g., C-MAPSS) is missing."""
 
     def __init__(self, dataset: str, expected_path: str, instructions: str = ""):
@@ -35,7 +68,7 @@ class DatasetNotFoundError(FileNotFoundError):
         super().__init__(msg)
 
 
-class AdapterConnectionError(ConnectionError):
+class AdapterConnectionError(ConnectionError, AdapterError):
     """Raised when a live adapter (Termux, SSH, etc.) cannot reach its source."""
 
     def __init__(self, domain: str, reason: str, fallback_active: bool = False):
