@@ -121,7 +121,7 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 - **4 patent candidates** (labeled candidates for post-implementation evaluation, NOT filed claims): (1) simulation-coupled cost-weighted Decision Graph, (2) Machine DNA representation (pending prior-art search), (3) AMKB-grounded explainability method, (4) adapter-based cross-domain cognition pipeline.
 - **Open-source release:** the ATLAS Cross-Domain Benchmark (normalized data from all 4 domains + eval scripts) as a standalone citable artifact.
 - **Ablations planned (final list, 4):** RUL-alone vs. full pipeline · AMKB-grounded vs. ungrounded explainability · cost-weighted vs. naive-threshold Decision Graph · single-domain vs. cross-domain-informed World Model.
-- **Academic Grounding & Literature Mapping:** All 36 core literature papers (Attention-LSTM RUL, AMKB dynamic memory, Monte Carlo decision optimization, XAI/digital twins, and domain adaptation) are formally mapped to codebase modules and thesis chapters in [`docs/LITERATURE_MAPPING.md`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/LITERATURE_MAPPING.md).
+- **Academic Grounding & Literature Mapping:** All 36 core literature papers (Attention-LSTM RUL, AMKB dynamic memory, Monte Carlo decision optimization, XAI/digital twins, and domain adaptation) are formally mapped to codebase modules and thesis chapters in [`docs/LITERATURE_MAPPING.md`](docs/LITERATURE_MAPPING.md).
 
 ---
 

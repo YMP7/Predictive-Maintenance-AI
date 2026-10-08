@@ -18,7 +18,7 @@ Every view, interactive element, dropdown, drawer, button, and dynamic visualiza
 4. **Post-interaction screenshot**
 5. **Architectural & safety invariant proof**
 
-All 47 visual evidence artifacts referenced herein were generated live during this verification cycle and are permanently preserved in [`docs/screenshots/`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/).
+All 47 visual evidence artifacts referenced herein were generated live during this verification cycle and are permanently preserved in [`docs/screenshots/`](screenshots).
 
 ---
 
@@ -113,7 +113,7 @@ The table below provides rigorous proof of operation for each primary interactiv
 
 ### 4.1 Check 1: Three-Tier Telemetry Provenance Badging (Laptop & Mobile)
 **Status:** **VERIFIED & OPERATIONAL**  
-**Evidence Screenshots:** [`07_domain_laptop_monitoring.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/07_domain_laptop_monitoring.png), [`09_domain_mobile_monitoring.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/09_domain_mobile_monitoring.png)  
+**Evidence Screenshots:** [`07_domain_laptop_monitoring.png`](screenshots/07_domain_laptop_monitoring.png), [`09_domain_mobile_monitoring.png`](screenshots/09_domain_mobile_monitoring.png)  
 **Captured Endpoints:** `GET /api/atlas/domain/laptop/status` [200], `GET /api/atlas/domain/mobile/status` [200]
 
 #### Laptop Domain (Host OS Telemetry & Model Input Architecture)
@@ -144,7 +144,7 @@ The Mobile domain operates under a parallel contract:
 
 ### 4.2 Check 2: Attribution Manifold Guard on Non-14 Feature Domains
 **Status:** **VERIFIED & HONESTLY LABELED**  
-**Evidence Screenshots:** [`17_explainability_cmapss.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/17_explainability_cmapss.png), [`19_explainability_attribution_unavailable_laptop.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/19_explainability_attribution_unavailable_laptop.png)  
+**Evidence Screenshots:** [`17_explainability_cmapss.png`](screenshots/17_explainability_cmapss.png), [`19_explainability_attribution_unavailable_laptop.png`](screenshots/19_explainability_attribution_unavailable_laptop.png)  
 **Captured Endpoints:** `POST /api/explain` with payload `{"domain": "laptop", "window": [...]}`
 
 When an operator switches the Explainability view to the Laptop domain (shape `(30, 5)`), the backend explicitly rejects the request with an explanatory payload rather than crashing or returning fabricated feature weights:
@@ -166,7 +166,7 @@ The frontend captures `attribution_unavailable_reason` and immediately renders a
 
 ### 4.3 Check 3: Decision Graph 4-Action Ranking & Near-Failure Safety Override
 **Status:** **VERIFIED & OPERATIONAL**  
-**Evidence Screenshots:** [`21_decision_graph_normal_case.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/21_decision_graph_normal_case.png), [`24_decision_graph_safety_override_unit10.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/24_decision_graph_safety_override_unit10.png)  
+**Evidence Screenshots:** [`21_decision_graph_normal_case.png`](screenshots/21_decision_graph_normal_case.png), [`24_decision_graph_safety_override_unit10.png`](screenshots/24_decision_graph_safety_override_unit10.png)  
 **Captured Endpoints:** `POST /api/decide` with `unit_1` vs `unit_10`
 
 #### Normal Case (`unit_1` — Mid-Life Ingestion)
@@ -195,7 +195,7 @@ The frontend captures `attribution_unavailable_reason` and immediately renders a
 
 ### 4.4 Check 4: Adapter Status Indicators & Server Simulation Honesty
 **Status:** **VERIFIED & OPERATIONAL**  
-**Evidence Screenshots:** [`07_domain_laptop_monitoring.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/07_domain_laptop_monitoring.png), [`09_domain_mobile_monitoring.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/09_domain_mobile_monitoring.png), [`12_domain_server_monitoring.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/12_domain_server_monitoring.png)  
+**Evidence Screenshots:** [`07_domain_laptop_monitoring.png`](screenshots/07_domain_laptop_monitoring.png), [`09_domain_mobile_monitoring.png`](screenshots/09_domain_mobile_monitoring.png), [`12_domain_server_monitoring.png`](screenshots/12_domain_server_monitoring.png)  
 **Captured Endpoints:** `GET /api/atlas/domain/server/status` [200]
 
 The system exhibits total transparency regarding the provenance of data sources across all four domains:
@@ -210,7 +210,7 @@ The Server domain does not pretend to be physical server blade hardware; its ada
 
 ### 4.5 Check 5: Autonomous Agent Safety Flow & Human Confirmation Gate
 **Status:** **VERIFIED & OPERATIONAL**  
-**Evidence Screenshots:** [`39_agent_chat_ungrounded_rejection.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/39_agent_chat_ungrounded_rejection.png), [`40_agent_chat_work_order_pending.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/40_agent_chat_work_order_pending.png), [`41_work_order_approved_open.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/41_work_order_approved_open.png)  
+**Evidence Screenshots:** [`39_agent_chat_ungrounded_rejection.png`](screenshots/39_agent_chat_ungrounded_rejection.png), [`40_agent_chat_work_order_pending.png`](screenshots/40_agent_chat_work_order_pending.png), [`41_work_order_approved_open.png`](screenshots/41_work_order_approved_open.png)  
 **Captured Endpoints:** `POST /api/agent/chat` [200], `POST /api/work-orders/{id}/approve` [200]
 
 The full 4-layer autonomous agent safety flow was executed sequentially:
@@ -258,53 +258,53 @@ The complete set of 42 high-resolution verification screenshots captured during 
 
 | Artifact Name | Scope / View | Visual Highlights |
 |---|---|---|
-| [`01_header_nav_monitoring_initial.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/01_header_nav_monitoring_initial.png) | Header & Monitoring | Initial dashboard load, dark theme, nominal status, C-MAPSS unit 1. |
-| [`02_theme_toggle_light.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/02_theme_toggle_light.png) | Global Shell | High-contrast light mode styling across navigation and charts. |
-| [`03_cmd_palette_before.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/03_cmd_palette_before.png) | Global Shell | Viewport prior to Command Palette invocation. |
-| [`04_cmd_palette_after.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/04_cmd_palette_after.png) | Command Palette | Accessible modal overlay with fast search across all 8 modules. |
-| [`05_monitoring_sensor_s7.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/05_monitoring_sensor_s7.png) | MonitoringView | Sensor `s7` time-series canvas and rolling feature statistics. |
-| [`06_domain_switch_laptop_before.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/06_domain_switch_laptop_before.png) | MonitoringView | Pre-switch state on C-MAPSS domain. |
-| [`07_domain_laptop_monitoring.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/07_domain_laptop_monitoring.png) | MonitoringView | Windows Laptop host OS adapter: 5 channels & Tier (c) thermal callout. |
-| [`08_domain_switch_mobile_before.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/08_domain_switch_mobile_before.png) | MonitoringView | Hover state prior to selecting Mobile domain card. |
-| [`09_domain_mobile_monitoring.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/09_domain_mobile_monitoring.png) | MonitoringView | Android Mobile device 1 (Wi-Fi): 16 channels, battery & IMU feeds. |
-| [`10_domain_mobile_device_2_usb.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/10_domain_mobile_device_2_usb.png) | MonitoringView | Android Mobile device 2 (USB): tethered live sensor telemetry. |
-| [`11_domain_switch_server_before.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/11_domain_switch_server_before.png) | MonitoringView | Viewport prior to Server domain switch. |
-| [`12_domain_server_monitoring.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/12_domain_server_monitoring.png) | MonitoringView | Cloud Server domain: `CALIBRATED SIMULATION` adapter badge. |
-| [`13_nav_cognition_before.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/13_nav_cognition_before.png) | Navigation | Viewport prior to Cognition & DNA navigation. |
-| [`14_nav_cognition_after.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/14_nav_cognition_after.png) | CognitionView | 16-dim DNA radar plot, AMKB citations, and healthy context vector. |
-| [`15_cognition_reevaluate_after.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/15_cognition_reevaluate_after.png) | CognitionView | Post-re-evaluation state reflecting real-time `/api/context` call. |
-| [`16_nav_explainability_before.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/16_nav_explainability_before.png) | Navigation | Viewport prior to Explainability navigation. |
-| [`17_explainability_cmapss.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/17_explainability_cmapss.png) | ExplainabilityView | 14-channel occlusion attribution waterfall plot (`s2`, `s11`, `s15`). |
-| [`18_explainability_laptop_switch_before.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/18_explainability_laptop_switch_before.png) | ExplainabilityView | Pre-switch state before selecting Laptop on Explainability view. |
-| [`19_explainability_attribution_unavailable_laptop.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/19_explainability_attribution_unavailable_laptop.png) | ExplainabilityView | Non-14 feature dimension manifold guard alert banner. |
-| [`20_nav_decision_before.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/20_nav_decision_before.png) | Navigation | Viewport prior to Decision Support navigation. |
-| [`21_decision_graph_normal_case.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/21_decision_graph_normal_case.png) | DecisionSupportView | Normal unit 1 decision ranking: `CONTINUE_OPERATION` recommended. |
-| [`22_decision_graph_unit5_before.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/22_decision_graph_unit5_before.png) | DecisionSupportView | Intermediate unit inspection (`unit_5`). |
-| [`23_decision_graph_unit4_before.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/23_decision_graph_unit4_before.png) | DecisionSupportView | Intermediate unit inspection (`unit_4`). |
-| [`24_decision_graph_safety_override_unit10.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/24_decision_graph_safety_override_unit10.png) | DecisionSupportView | Safety Constraint Override active on `unit_10`: `REPLACE_IMMEDIATELY`. |
-| [`25_decision_resimulate_after.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/25_decision_resimulate_after.png) | DecisionSupportView | Re-simulated 1,000 Monte Carlo trajectories with updated cost bounds. |
-| [`26_nav_transfer_before.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/26_nav_transfer_before.png) | Navigation | Viewport prior to Transfer Study navigation. |
-| [`27_transfer_study_view.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/27_transfer_study_view.png) | TransferStudyView | 4x4 Cosine Similarity Matrix, 4x4 MMD Divergence, and NTI diagnostics. |
-| [`28_transfer_study_refresh_after.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/28_transfer_study_refresh_after.png) | TransferStudyView | Post-refresh validation of cross-domain divergence statistics. |
-| [`29_nav_ablations_before.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/29_nav_ablations_before.png) | Navigation | Viewport prior to Ablation Suite navigation. |
-| [`30_ablations_suite_view.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/30_ablations_suite_view.png) | AblationsView | 47.17% cost reduction ($3,440 vs $1,817.50), zero-miss safety parity. |
-| [`31_ablations_refresh_after.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/31_ablations_refresh_after.png) | AblationsView | Verified live sync of ablation metrics against backend research cache. |
-| [`32_nav_diagnostics_before.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/32_nav_diagnostics_before.png) | Navigation | Viewport prior to Diagnostics navigation. |
-| [`33_diagnostics_view.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/33_diagnostics_view.png) | DiagnosticsView | Latency waterfall (21.78 ms end-to-end), process RSS, CPU counters. |
-| [`34_diagnostics_refresh_after.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/34_diagnostics_refresh_after.png) | DiagnosticsView | Live refresh of host OS process metrics via `psutil`. |
-| [`35_diagnostics_retrain_completed.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/35_diagnostics_retrain_completed.png) | DiagnosticsView | Candidate model rejected by Safety Gate (RMSE 59.14 vs baseline 15.42). |
-| [`36_nav_legacy_iot_before.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/36_nav_legacy_iot_before.png) | Navigation | Viewport prior to Phase A IoT Lab navigation. |
-| [`37_legacy_iot_view.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/37_legacy_iot_view.png) | Phase A IoT Lab | 4-machine fleet (`M001`–`M004`) with telemetry graphs and fault controls. |
-| [`37b_fault_injection_before.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/37b_fault_injection_before.png) | Phase A IoT Lab | Viewport prior to clicking Bearing Wear fault button. |
-| [`37c_fault_injection_rbac_403_rejection.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/37c_fault_injection_rbac_403_rejection.png) | Phase A IoT Lab | Live proof of RBAC: `403 Not enough privileges` banner. |
-| [`37c_fault_injection_admin_privilege_label.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/37c_fault_injection_admin_privilege_label.png) | Phase A IoT Lab | Updated header displaying `(ADMIN PRIVILEGE)` accurately matching backend RBAC. |
-| [`37d_legacy_iot_hindi_localized.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/37d_legacy_iot_hindi_localized.png) | Phase A IoT Lab | Multilingual Bhashini Hindi translation: `कंपन प्रवृत्ति`. |
-| [`38a_agent_chat_before_open.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/38a_agent_chat_before_open.png) | Global Drawer | Viewport prior to opening Agent Chat slide-over. |
-| [`38_agent_chat_open.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/38_agent_chat_open.png) | Agent Chat | Agent drawer opened with live context on machine `M002`. |
-| [`39_agent_chat_ungrounded_rejection.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/39_agent_chat_ungrounded_rejection.png) | Agent Chat | Grounding boundary rejection of casual chit-chat. |
-| [`40_agent_chat_work_order_pending.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/40_agent_chat_work_order_pending.png) | Agent Chat | Autonomous work order creation in `Pending Approval` with Hold to Approve. |
-| [`41_work_order_approved_open.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/41_work_order_approved_open.png) | Agent Chat | Human Confirmation Gate completed: order status transitioned to `Open`. |
-| [`42_multi_domain_overview_fullpage.png`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/screenshots/42_multi_domain_overview_fullpage.png) | Full Application | Complete multi-domain composite state showing all systems synchronized. |
+| [`01_header_nav_monitoring_initial.png`](screenshots/01_header_nav_monitoring_initial.png) | Header & Monitoring | Initial dashboard load, dark theme, nominal status, C-MAPSS unit 1. |
+| [`02_theme_toggle_light.png`](screenshots/02_theme_toggle_light.png) | Global Shell | High-contrast light mode styling across navigation and charts. |
+| [`03_cmd_palette_before.png`](screenshots/03_cmd_palette_before.png) | Global Shell | Viewport prior to Command Palette invocation. |
+| [`04_cmd_palette_after.png`](screenshots/04_cmd_palette_after.png) | Command Palette | Accessible modal overlay with fast search across all 8 modules. |
+| [`05_monitoring_sensor_s7.png`](screenshots/05_monitoring_sensor_s7.png) | MonitoringView | Sensor `s7` time-series canvas and rolling feature statistics. |
+| [`06_domain_switch_laptop_before.png`](screenshots/06_domain_switch_laptop_before.png) | MonitoringView | Pre-switch state on C-MAPSS domain. |
+| [`07_domain_laptop_monitoring.png`](screenshots/07_domain_laptop_monitoring.png) | MonitoringView | Windows Laptop host OS adapter: 5 channels & Tier (c) thermal callout. |
+| [`08_domain_switch_mobile_before.png`](screenshots/08_domain_switch_mobile_before.png) | MonitoringView | Hover state prior to selecting Mobile domain card. |
+| [`09_domain_mobile_monitoring.png`](screenshots/09_domain_mobile_monitoring.png) | MonitoringView | Android Mobile device 1 (Wi-Fi): 16 channels, battery & IMU feeds. |
+| [`10_domain_mobile_device_2_usb.png`](screenshots/10_domain_mobile_device_2_usb.png) | MonitoringView | Android Mobile device 2 (USB): tethered live sensor telemetry. |
+| [`11_domain_switch_server_before.png`](screenshots/11_domain_switch_server_before.png) | MonitoringView | Viewport prior to Server domain switch. |
+| [`12_domain_server_monitoring.png`](screenshots/12_domain_server_monitoring.png) | MonitoringView | Cloud Server domain: `CALIBRATED SIMULATION` adapter badge. |
+| [`13_nav_cognition_before.png`](screenshots/13_nav_cognition_before.png) | Navigation | Viewport prior to Cognition & DNA navigation. |
+| [`14_nav_cognition_after.png`](screenshots/14_nav_cognition_after.png) | CognitionView | 16-dim DNA radar plot, AMKB citations, and healthy context vector. |
+| [`15_cognition_reevaluate_after.png`](screenshots/15_cognition_reevaluate_after.png) | CognitionView | Post-re-evaluation state reflecting real-time `/api/context` call. |
+| [`16_nav_explainability_before.png`](screenshots/16_nav_explainability_before.png) | Navigation | Viewport prior to Explainability navigation. |
+| [`17_explainability_cmapss.png`](screenshots/17_explainability_cmapss.png) | ExplainabilityView | 14-channel occlusion attribution waterfall plot (`s2`, `s11`, `s15`). |
+| [`18_explainability_laptop_switch_before.png`](screenshots/18_explainability_laptop_switch_before.png) | ExplainabilityView | Pre-switch state before selecting Laptop on Explainability view. |
+| [`19_explainability_attribution_unavailable_laptop.png`](screenshots/19_explainability_attribution_unavailable_laptop.png) | ExplainabilityView | Non-14 feature dimension manifold guard alert banner. |
+| [`20_nav_decision_before.png`](screenshots/20_nav_decision_before.png) | Navigation | Viewport prior to Decision Support navigation. |
+| [`21_decision_graph_normal_case.png`](screenshots/21_decision_graph_normal_case.png) | DecisionSupportView | Normal unit 1 decision ranking: `CONTINUE_OPERATION` recommended. |
+| [`22_decision_graph_unit5_before.png`](screenshots/22_decision_graph_unit5_before.png) | DecisionSupportView | Intermediate unit inspection (`unit_5`). |
+| [`23_decision_graph_unit4_before.png`](screenshots/23_decision_graph_unit4_before.png) | DecisionSupportView | Intermediate unit inspection (`unit_4`). |
+| [`24_decision_graph_safety_override_unit10.png`](screenshots/24_decision_graph_safety_override_unit10.png) | DecisionSupportView | Safety Constraint Override active on `unit_10`: `REPLACE_IMMEDIATELY`. |
+| [`25_decision_resimulate_after.png`](screenshots/25_decision_resimulate_after.png) | DecisionSupportView | Re-simulated 1,000 Monte Carlo trajectories with updated cost bounds. |
+| [`26_nav_transfer_before.png`](screenshots/26_nav_transfer_before.png) | Navigation | Viewport prior to Transfer Study navigation. |
+| [`27_transfer_study_view.png`](screenshots/27_transfer_study_view.png) | TransferStudyView | 4x4 Cosine Similarity Matrix, 4x4 MMD Divergence, and NTI diagnostics. |
+| [`28_transfer_study_refresh_after.png`](screenshots/28_transfer_study_refresh_after.png) | TransferStudyView | Post-refresh validation of cross-domain divergence statistics. |
+| [`29_nav_ablations_before.png`](screenshots/29_nav_ablations_before.png) | Navigation | Viewport prior to Ablation Suite navigation. |
+| [`30_ablations_suite_view.png`](screenshots/30_ablations_suite_view.png) | AblationsView | 47.17% cost reduction ($3,440 vs $1,817.50), zero-miss safety parity. |
+| [`31_ablations_refresh_after.png`](screenshots/31_ablations_refresh_after.png) | AblationsView | Verified live sync of ablation metrics against backend research cache. |
+| [`32_nav_diagnostics_before.png`](screenshots/32_nav_diagnostics_before.png) | Navigation | Viewport prior to Diagnostics navigation. |
+| [`33_diagnostics_view.png`](screenshots/33_diagnostics_view.png) | DiagnosticsView | Latency waterfall (21.78 ms end-to-end), process RSS, CPU counters. |
+| [`34_diagnostics_refresh_after.png`](screenshots/34_diagnostics_refresh_after.png) | DiagnosticsView | Live refresh of host OS process metrics via `psutil`. |
+| [`35_diagnostics_retrain_completed.png`](screenshots/35_diagnostics_retrain_completed.png) | DiagnosticsView | Candidate model rejected by Safety Gate (RMSE 59.14 vs baseline 15.42). |
+| [`36_nav_legacy_iot_before.png`](screenshots/36_nav_legacy_iot_before.png) | Navigation | Viewport prior to Phase A IoT Lab navigation. |
+| [`37_legacy_iot_view.png`](screenshots/37_legacy_iot_view.png) | Phase A IoT Lab | 4-machine fleet (`M001`–`M004`) with telemetry graphs and fault controls. |
+| [`37b_fault_injection_before.png`](screenshots/37b_fault_injection_before.png) | Phase A IoT Lab | Viewport prior to clicking Bearing Wear fault button. |
+| [`37c_fault_injection_rbac_403_rejection.png`](screenshots/37c_fault_injection_rbac_403_rejection.png) | Phase A IoT Lab | Live proof of RBAC: `403 Not enough privileges` banner. |
+| [`37c_fault_injection_admin_privilege_label.png`](screenshots/37c_fault_injection_admin_privilege_label.png) | Phase A IoT Lab | Updated header displaying `(ADMIN PRIVILEGE)` accurately matching backend RBAC. |
+| [`37d_legacy_iot_hindi_localized.png`](screenshots/37d_legacy_iot_hindi_localized.png) | Phase A IoT Lab | Multilingual Bhashini Hindi translation: `कंपन प्रवृत्ति`. |
+| [`38a_agent_chat_before_open.png`](screenshots/38a_agent_chat_before_open.png) | Global Drawer | Viewport prior to opening Agent Chat slide-over. |
+| [`38_agent_chat_open.png`](screenshots/38_agent_chat_open.png) | Agent Chat | Agent drawer opened with live context on machine `M002`. |
+| [`39_agent_chat_ungrounded_rejection.png`](screenshots/39_agent_chat_ungrounded_rejection.png) | Agent Chat | Grounding boundary rejection of casual chit-chat. |
+| [`40_agent_chat_work_order_pending.png`](screenshots/40_agent_chat_work_order_pending.png) | Agent Chat | Autonomous work order creation in `Pending Approval` with Hold to Approve. |
+| [`41_work_order_approved_open.png`](screenshots/41_work_order_approved_open.png) | Agent Chat | Human Confirmation Gate completed: order status transitioned to `Open`. |
+| [`42_multi_domain_overview_fullpage.png`](screenshots/42_multi_domain_overview_fullpage.png) | Full Application | Complete multi-domain composite state showing all systems synchronized. |
 
 ---
 
