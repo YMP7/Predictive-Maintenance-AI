@@ -1,0 +1,22 @@
+# Citation metadata. Contains only what the repository itself demonstrates;
+# no unpublished performance or novelty claims.
+# MAINTAINER: confirm author name split and add co-authors before publishing.
+cff-version: 1.2.0
+message: "If you use this software, please cite it using these metadata."
+type: software
+title: "ATLAS: AI-Powered Digital Twin & Predictive Maintenance System"
+abstract: >-
+  Software for predictive maintenance: machine adapters normalize telemetry
+  from datasets and devices, an LSTM world model with additive attention
+  estimates remaining useful life, and an operator dashboard displays the
+  results.
+authors:
+  - given-names: Monish
+    family-names: Prasanna
+repository-code: "https://github.com/YMP7/Predictive-Maintenance-AI"
+keywords:
+  - predictive maintenance
+  - digital twin
+  - remaining useful life
+  - C-MAPSS
+version: "1.1.0-dev"

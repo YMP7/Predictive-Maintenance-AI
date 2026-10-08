@@ -1,0 +1,16 @@
+# Default owner for everything.
+*                               @YMP7
+
+# IP-hold modules (see docs/PUBLIC_PRIVATE_BOUNDARY.md). Changes need owner review.
+/server/atlas/simulation.py     @YMP7
+/server/atlas/decision.py       @YMP7
+/server/atlas/machine_dna.py    @YMP7
+/server/atlas/explain.py        @YMP7
+/server/atlas/adaptive_context.py @YMP7
+/server/agent_tools.py          @YMP7
+
+# Public SDK contract and its gate.
+/server/adapters/base_adapter.py        @YMP7
+/tests/test_adapter_conformance.py      @YMP7
+/scripts/check_public_boundary.py       @YMP7
+/.github/                               @YMP7
