@@ -1,0 +1,9 @@
+# Ruff baseline: bug-class rules only (syntax errors, undefined names,
+# invalid comparisons). These are clean as of v1.1 and gate CI.
+# Style rules (F401 unused-import, E402, ...) currently report 338 findings
+# on the existing tree; widen `select` in a dedicated cleanup PR.
+target-version = "py310"
+extend-exclude = ["notebooks", "scratch", "assets_temp", ".worktrees", "client"]
+
+[lint]
+select = ["E9", "F63", "F7", "F82"]
