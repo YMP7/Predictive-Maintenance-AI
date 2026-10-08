@@ -1,7 +1,7 @@
 # Default owner for everything.
 *                               @YMP7
 
-# IP-hold modules (see docs/PUBLIC_PRIVATE_BOUNDARY.md). Changes need owner review.
+# Engine-internal modules (not part of the public SDK). Changes need owner review.
 /server/atlas/simulation.py     @YMP7
 /server/atlas/decision.py       @YMP7
 /server/atlas/machine_dna.py    @YMP7

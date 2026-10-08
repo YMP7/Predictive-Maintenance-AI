@@ -2,16 +2,16 @@
 scripts/check_public_boundary.py — Public/private module boundary gate
 ======================================================================
 Proves that the public surface (Adapter SDK, adapters, conformance suite)
-builds and passes WITHOUT the IP-hold modules.
+builds and passes WITHOUT the engine-internal modules.
 
 Two checks:
-  1. Static: no public file imports an IP-hold module (AST scan, so imports
+  1. Static: no public file imports an engine-internal module (AST scan, so imports
      inside functions and try-blocks are caught too).
   2. Dynamic: the public test set runs under pytest with an import blocker
-     installed. Any import of an IP-hold module raises ImportError, so a
+     installed. Any import of an engine-internal module raises ImportError, so a
      transitive dependency fails the run instead of passing silently.
 
-The IP-hold list mirrors docs/PUBLIC_PRIVATE_BOUNDARY.md. Keep them in sync.
+The engine-internal list is maintained by the project owner (see CODEOWNERS).
 
 Usage:
     python scripts/check_public_boundary.py            # static + dynamic
@@ -28,9 +28,9 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-# Modules implementing the patent-candidate methods. Matching is by prefix,
+# Engine-internal modules that are not part of the public SDK. Matching is by prefix,
 # so submodules are blocked too.
-IP_HOLD_MODULES = (
+ENGINE_INTERNAL_MODULES = (
     "server.atlas.simulation",
     "server.atlas.decision",
     "server.atlas.machine_dna",
@@ -54,8 +54,8 @@ PUBLIC_TESTS = (
 )
 
 
-def _is_ip_hold(name: str) -> bool:
-    return any(name == m or name.startswith(m + ".") for m in IP_HOLD_MODULES)
+def _is_engine_internal(name: str) -> bool:
+    return any(name == m or name.startswith(m + ".") for m in ENGINE_INTERNAL_MODULES)
 
 
 def _imported_names(tree: ast.AST) -> list[tuple[int, str]]:
@@ -76,16 +76,16 @@ def static_check() -> list[str]:
     for path in files:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for lineno, name in _imported_names(tree):
-            if _is_ip_hold(name):
-                violations.append(f"{path.relative_to(PROJECT_ROOT)}:{lineno}: imports IP-hold module '{name}'")
+            if _is_engine_internal(name):
+                violations.append(f"{path.relative_to(PROJECT_ROOT)}:{lineno}: imports engine-internal module '{name}'")
     print(f"[static] scanned {len(files)} public files, {len(violations)} violation(s)")
     return violations
 
 
 class _IPHoldBlocker(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):
-        if _is_ip_hold(fullname):
-            raise ImportError(f"IP-hold module '{fullname}' is not available in the public build")
+        if _is_engine_internal(fullname):
+            raise ImportError(f"engine-internal module '{fullname}' is not available in the public build")
         return None
 
 
@@ -93,10 +93,10 @@ def dynamic_check(extra_args: list[str]) -> int:
     import pytest
 
     sys.meta_path.insert(0, _IPHoldBlocker())
-    for mod in [m for m in sys.modules if _is_ip_hold(m)]:
+    for mod in [m for m in sys.modules if _is_engine_internal(m)]:
         del sys.modules[mod]
     args = [str(PROJECT_ROOT / t) for t in PUBLIC_TESTS] + ["-q", "-p", "no:cacheprovider", *extra_args]
-    print(f"[dynamic] running public test set with IP-hold imports blocked: {list(PUBLIC_TESTS)}")
+    print(f"[dynamic] running public test set with engine-internal imports blocked: {list(PUBLIC_TESTS)}")
     return int(pytest.main(args))
 
 

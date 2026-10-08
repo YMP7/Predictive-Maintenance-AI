@@ -68,7 +68,7 @@ jobs:
 
   adapter-conformance:
     # Required gate for adapter PRs. Runs the SDK conformance suite with the
-    # IP-hold modules import-blocked, proving the public surface stands alone.
+    # engine-internal modules import-blocked, proving the public SDK stands alone.
     # Contributors can narrow it locally with: pytest tests/test_adapter_conformance.py --adapter <id>
     name: Adapter SDK conformance (public boundary)
     runs-on: ubuntu-latest
