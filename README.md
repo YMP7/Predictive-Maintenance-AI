@@ -175,4 +175,4 @@ See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
 ## License
 
-The repository currently contains an MIT [LICENSE](LICENSE) file. Licensing is under review; see [docs/LICENSE_OPTIONS.md](docs/LICENSE_OPTIONS.md).
+Licensed under the [Apache License 2.0](LICENSE). Versions published before 2026-10-09 were released under MIT. See [docs/LICENSE_OPTIONS.md](docs/LICENSE_OPTIONS.md) for how this was chosen.

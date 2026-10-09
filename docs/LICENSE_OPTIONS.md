@@ -1,9 +1,6 @@
 # License Options
 
-**Status:** decision pending with the project owner. No license change has been
-made. This is an engineering summary, **not legal advice**. Patent and
-licensing consequences depend on jurisdiction and should be confirmed with a
-patent attorney before anything is published or relicensed.
+**Status:** decided 2026-10-09 by the project owner: **Apache-2.0**, replacing MIT. This is an engineering summary, **not legal advice**.
 
 ## Starting point (facts, measured 2026-10-08)
 
@@ -63,7 +60,6 @@ prior art and no one, including the owner, can patent it. It is cheap and
 fast, and fits if the goal is freedom to operate rather than exclusivity. It
 is irreversible.
 
-## Decision needed
+## Decision
 
-Choose one license (or the open-core combination) for the public part.
-Until then, v1.1 does not add or change any license file.
+Apache-2.0, chosen 2026-10-09. No patent filing is planned for the published code, so the express patent grant (§3) costs nothing and gives users and contributors patent clarity. Copies obtained before 2026-10-09 remain available under MIT.
