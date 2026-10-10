@@ -36,6 +36,7 @@ from server.atlas.transfer_study import (
     CANONICAL_DOMAINS,
     MODELS_DIR,
     DomainProvenance,
+    SemanticRetrievalTransferResult,
     TransferStudyEngine,
     TransferStudyResult,
 )

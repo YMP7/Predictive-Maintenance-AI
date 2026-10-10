@@ -16,7 +16,12 @@ Available adapters:
 from server.adapters.base_adapter import (
     NormalizedReading,
     AdapterStatus,
+    DomainType,
     MachineAdapter,
+    AdapterError,
+    UnknownMachineError,
+    ConfigurationPathTraversalError,
+    UntrainedDomainModelError,
     DatasetNotFoundError,
     AdapterConnectionError,
 )
@@ -24,15 +29,25 @@ from server.adapters.cmapss_adapter import CMAPSSAdapter
 from server.adapters.laptop_adapter import LaptopAdapter
 from server.adapters.mobile_adapter import MobileAdapter
 from server.adapters.server_adapter import ServerAdapter
+from server.adapters.modbus_adapter import ModbusAdapter, ModbusRegisterChannel
+from server.adapters.modbus_simulator import ModbusSimulator
 
 __all__ = [
     "NormalizedReading",
     "AdapterStatus",
+    "DomainType",
     "MachineAdapter",
+    "AdapterError",
+    "UnknownMachineError",
+    "ConfigurationPathTraversalError",
+    "UntrainedDomainModelError",
     "DatasetNotFoundError",
     "AdapterConnectionError",
     "CMAPSSAdapter",
     "LaptopAdapter",
     "MobileAdapter",
     "ServerAdapter",
+    "ModbusAdapter",
+    "ModbusRegisterChannel",
+    "ModbusSimulator",
 ]
