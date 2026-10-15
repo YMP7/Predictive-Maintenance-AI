@@ -43,7 +43,6 @@ ai_agent.py
 alert_handler.py
 backend_api.py
 data_service.py
-data_sync.py
 integrated_server.py
 sensor_simulator.py
 config/machines.json
@@ -56,7 +55,7 @@ docker-compose.yml
 Python syntax check:
 
 ```powershell
-python -m py_compile sensor_simulator.py ai_agent.py alert_handler.py data_service.py data_sync.py backend_api.py integrated_server.py
+python -m py_compile sensor_simulator.py ai_agent.py alert_handler.py data_service.py backend_api.py integrated_server.py
 ```
 
 ## 4. Install Dependencies

@@ -99,7 +99,7 @@ docker ps
 ```
 The services will be exposed at:
 * Backend API: `http://localhost:8000`
-* Frontend Dashboard: `http://localhost:3000`
+* Frontend Dashboard: `http://localhost:8000`
 
 ---
 

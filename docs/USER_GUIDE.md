@@ -7,7 +7,7 @@ Welcome to the AI Digital Twin Predictive Maintenance System. This guide helps m
 ## 1. Quick Start
 
 ### Accessing the Dashboard
-1. Open your web browser and navigate to `http://localhost:3000`.
+1. Open your web browser and navigate to `http://localhost:8000`.
 2. You will be greeted by the **Home Page**, which provides a high-level system overview.
 3. Click the **"Launch Dashboard"** button in the navigation bar or home screen to access the real-time monitoring interface.
 
