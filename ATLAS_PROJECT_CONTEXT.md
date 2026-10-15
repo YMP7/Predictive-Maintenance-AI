@@ -85,7 +85,7 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 | Machine Adapter Layer | `CMAPSSAdapter`, `LaptopAdapter`, `MobileAdapter`, `ServerAdapter` — one shared interface | C-MAPSS: build-first (Month 1). Others: Month 6 |
 | World Model | LSTM(hidden=64) → `to_state` Linear(64→32) → **32-dim state vector**. State vector is the primary output consumed by AMKB and Machine DNA downstream. | Month 1 |
 | AMKB (Adaptive Machine Knowledge Base) | Vector-indexed store (FAISS/pgvector): experiences, failures, usage history, decisions. Embedding dim = **32** (matches state vector) | Month 2 |
-| Machine DNA | Compressed per-unit embedding: health pattern, thermal profile, power signature, failure signature. Dim = **32** | Month 2 |
+| Machine DNA | Compressed per-unit embedding: health pattern, thermal profile, power signature, failure signature. Dim = **16** | Month 2 |
 | Adaptive Context Engine | Domain-native context features; synthetic fields explicitly labeled where used | Rolled into relevant months |
 | Prediction Engine (RUL) | Sequence model, scored with RMSE + C-MAPSS's standard asymmetric PHM scoring function | Month 3 |
 | Simulation Engine | Monte Carlo rollout using RUL model's predictive uncertainty | Month 4 |
@@ -93,7 +93,7 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 | Explainability Engine | Feature attribution + AMKB-retrieved-trajectory citations | Month 5 |
 | Learning Engine | Batch retraining on logged outcomes only | Month 5 |
 
-**Critical dimension note:** the canonical state vector dimension throughout ATLAS is **32**. AMKB experience embeddings are `vector(32)`. Machine DNA embeddings are `vector(32)`. WorldModel `to_state` output is 32-dim. This is fixed — do not change without updating all three subsystems simultaneously.
+**Critical dimension note:** the canonical state vector dimension throughout ATLAS is **32**. AMKB experience embeddings are `vector(32)`. Machine DNA embeddings are `vector(16)` (compressed fingerprint, `DNA_DIM=16`, deliberately distinct from the 32-dim state vector). WorldModel `to_state` output is 32-dim. The 32-dim state is fixed — do not change without updating WorldModel and AMKB simultaneously.
 
 ---
 
@@ -128,7 +128,7 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 ## 6. Current Status
 *(Update this section whenever real progress is made — this is the handoff source of truth)*
 
-- **Current phase:** Month 7 Complete (Continuous Learning, Transfer Study, Full Pipeline Ablations, and Cross-Domain Contract Audits) — Transitioning to Month 8 (System Benchmarking & Synthesis).
+- **Current phase:** Month 7 Complete (Batch Retraining, Transfer Study, Full Pipeline Ablations, and Cross-Domain Contract Audits) — Transitioning to Month 8 (System Benchmarking & Synthesis).
 - **Immediate Task:** Begin Month 8: End-to-End System Performance Benchmark (`docs/ATLAS_BENCHMARK.md`).
 
 **Sequencing decision in effect:** AI core built first on C-MAPSS (Months 1–5); adapters for Laptop/Mobile/Server built and verified in Month 6; adaptive learning and cross-domain transfer verified in Month 7.
@@ -229,7 +229,7 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 - [x] **Week 3 — DONE:** High-fidelity Linux Enterprise Server Adapter (`server/adapters/server_adapter.py`).
 - [x] **Week 4 — DONE:** Heterogeneous streaming service & cross-domain background telemetry loop (`server/atlas/domain_service.py`).
 
-**Weekly checklist (Month 7 - Continuous Learning, Cross-Domain Transfer & Ablations):**
+**Weekly checklist (Month 7 - Batch Retraining, Cross-Domain Transfer & Ablations):**
 - [x] **Week 1 — DONE:** `LearningEngine` periodic batch retraining pipeline with 3% epsilon promotion gate and PostgreSQL audit logging.
 - [x] **Week 2 — DONE:** Cross-Domain Representation Discrepancy & Transfer Study (`TRANSFER_STUDY_RESULTS.md`) with non-collapse guards and AMKB latent retrieval transfer.
 - [x] **Week 3 — DONE:** Full Cognition Pipeline Comprehensive Ablation Suite (`ABLATION_STUDY_RESULTS.md`), deterministic seeding (`seed=42`), and dual-axis evaluation.
@@ -395,9 +395,9 @@ atlas/
 │   │   ├── domain_service.py
 │   │   ├── amkb.py              # Month 2
 │   │   ├── machine_dna.py       # Month 2
-│   │   ├── simulation_engine.py # Month 4
-│   │   ├── decision_graph.py    # Month 4
-│   │   ├── explainability.py    # Month 5
+│   │   ├── simulation.py        # Month 4
+│   │   ├── decision.py          # Month 4
+│   │   ├── explain.py           # Month 5
 │   │   └── learning_engine.py   # Month 5
 │   ├── backend_api.py
 │   ├── integrated_server.py
