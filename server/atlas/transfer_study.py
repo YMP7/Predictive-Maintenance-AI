@@ -27,6 +27,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
+from server.adapters.domain_profile import get_profile
+
 logger = logging.getLogger("ATLAS.TransferStudy")
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -313,11 +315,7 @@ class TransferStudyEngine:
         Checks whether a domain has a real, trained WorldModel checkpoint on disk.
         Returns False if only zero-shot / untrained fallback projection is available.
         """
-        if domain == "cmapss":
-            return (self.models_dir / "best_model.pt").exists() or (self.models_dir / "cmapss_world_model.pt").exists()
-
-        target_file = self.models_dir / f"{domain}_world_model.pt"
-        return target_file.exists()
+        return any((self.models_dir / f).exists() for f in get_profile(domain).checkpoints)
 
     def assert_all_domains_trained(self, domains: Optional[List[str]] = None) -> List[str]:
         """

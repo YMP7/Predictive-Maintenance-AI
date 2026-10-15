@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from server.adapters.base_adapter import NormalizedReading
+from server.adapters.domain_profile import get_profile
 from server.adapters.cmapss_adapter import CMAPSSAdapter
 from server.atlas.rul_engine import RULEngine, RULPrediction
 from server.database import pool
@@ -251,7 +252,7 @@ class DomainService:
             "cycle": reading.cycle,
             "rul_label": reading.rul_label,
             "rul_cycles": prediction.rul_cycles,
-            "normalized_rul": round(prediction.rul_cycles if domain != "cmapss" else (prediction.rul_cycles / 125.0), 4),
+            "normalized_rul": round(prediction.rul_cycles / (get_profile(domain).rul_scale or 1.0), 4),
             "rul_days": prediction.rul_days,
             "confidence": prediction.confidence,
             "uncertainty": prediction.uncertainty,

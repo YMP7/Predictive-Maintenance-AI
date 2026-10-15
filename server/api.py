@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 import numpy as np
 from pathlib import Path
 
+from server.adapters.domain_profile import DOMAIN_PROFILES, PRIMARY_DOMAIN
 from server.atlas.amkb import AMKB
 from server.atlas.machine_dna import MachineDNAEngine
 from server.atlas.world_model import WorldModel
@@ -45,22 +46,15 @@ def startup_event():
     
     # 3. Load World Models for all available domains
     domain_models = {}
-    for domain, filename in [
-        ("cmapss", "best_model.pt"),
-        ("laptop", "laptop_world_model.pt"),
-        ("mobile", "mobile_world_model.pt"),
-        ("server", "server_world_model.pt"),
-    ]:
-        p = MODELS_DIR / filename
-        if not p.exists() and domain == "cmapss":
-            p = MODELS_DIR / "cmapss_world_model.pt"
-        if p.exists():
+    for domain, profile in DOMAIN_PROFILES.items():
+        p = next((MODELS_DIR / f for f in profile.checkpoints if (MODELS_DIR / f).exists()), None)
+        if p is not None:
             try:
                 domain_models[domain] = WorldModel.load(p)
             except Exception as e:
                 print(f"Warning: could not load {domain} model from {p}: {e}")
 
-    _world_model = domain_models.get("cmapss")
+    _world_model = domain_models.get(PRIMARY_DOMAIN)
     if _world_model is None:
         raise RuntimeError(f"Primary C-MAPSS WorldModel not found in {MODELS_DIR}")
         
@@ -231,14 +225,14 @@ def retrain_model(req: RetrainRequest):
             lr=req.lr,
         )
         # Serve the promoted checkpoint right away instead of after the next restart.
-        if result.success and result.domain == "cmapss" and _ace is not None:
+        if result.success and result.domain == PRIMARY_DOMAIN and _ace is not None:
             _world_model = WorldModel.load(Path(result.checkpoint_path))
             _ace = AdaptiveContextEngine(
                 _amkb, _dna_engine, _world_model,
-                domain_models={**_ace.domain_models, "cmapss": _world_model},
+                domain_models={**_ace.domain_models, PRIMARY_DOMAIN: _world_model},
             )
             from server.atlas.domain_service import get_domain_service
-            engine = get_domain_service().get_engine("cmapss")
+            engine = get_domain_service().get_engine(PRIMARY_DOMAIN)
             if engine is not None:
                 engine.reload_model()
         return result.to_dict()

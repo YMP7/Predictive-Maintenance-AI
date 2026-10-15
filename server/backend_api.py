@@ -14,6 +14,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
+from server.adapters.domain_profile import DOMAIN_PROFILES
 from server.data_service import get_data_service
 from server import machine_registry
 from server.machine_registry import MachineConfig, NewMachine
@@ -523,8 +524,9 @@ def atlas_model_status():
     model_files = list(models_dir.glob("*_world_model.pt")) if models_dir.exists() else []
     trained_domains = [f.stem.replace("_world_model", "") for f in model_files]
     # The primary C-MAPSS checkpoint is saved as best_model.pt (see server/api.py).
-    if (models_dir / "best_model.pt").exists() and "cmapss" not in trained_domains:
-        trained_domains.append("cmapss")
+    for name, profile in DOMAIN_PROFILES.items():
+        if name not in trained_domains and any((models_dir / f).exists() for f in profile.checkpoints):
+            trained_domains.append(name)
 
     metrics = {}
     for domain in trained_domains:

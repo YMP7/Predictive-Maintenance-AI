@@ -17,6 +17,7 @@ Key Architectural Guarantees:
   6. Audit Trail: Every attempt is persistently logged to PostgreSQL/TimescaleDB `learning_events`.
 """
 
+from server.adapters.domain_profile import get_profile
 import copy
 import json
 import logging
@@ -256,7 +257,7 @@ class LearningEngine:
         lr : Learning rate
         forced_candidate_rmse : Optional test override to test promotion gate without training.
         """
-        if domain != "cmapss":
+        if not get_profile(domain).run_to_failure:
             return LearningResult(
                 domain=domain,
                 trigger_reason=trigger_reason,

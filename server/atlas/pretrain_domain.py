@@ -39,6 +39,8 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
+
+from server.adapters.domain_profile import get_profile
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -194,14 +196,10 @@ class DomainDatasetGenerator:
 
     @classmethod
     def get_dataset(cls, domain: str, n_windows: int = 1250) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        if domain == "laptop":
-            return cls.generate_laptop_windows(n_windows)
-        elif domain == "mobile":
-            return cls.generate_mobile_windows(n_windows)
-        elif domain == "server":
-            return cls.generate_server_windows(n_windows)
-        else:
+        gen = get_profile(domain).pretrain_generator
+        if gen is None:
             raise ValueError(f"Unknown domain for synthetic pretraining: {domain}")
+        return getattr(cls, gen)(n_windows)
 
 
 class DomainPretrainer:

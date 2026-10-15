@@ -18,6 +18,8 @@ class DomainProfile:
     checkpoints: Tuple[str, ...]
     # True when AMKB neighbours carry ground-truth RUL (run-to-failure data).
     run_to_failure: bool = False
+    # Divisor mapping rul_cycles to a 0-1 scale; None when the engine already emits 0-1.
+    rul_scale: Optional[float] = None
     # Synthetic pre-training generator method name on DomainDatasetGenerator, if any.
     pretrain_generator: Optional[str] = None
 
@@ -26,7 +28,7 @@ class DomainProfile:
 PRIMARY_DOMAIN = "cmapss"
 
 DOMAIN_PROFILES: Dict[str, DomainProfile] = {
-    "cmapss": DomainProfile("cmapss", ("best_model.pt", "cmapss_world_model.pt"), run_to_failure=True),
+    "cmapss": DomainProfile("cmapss", ("best_model.pt", "cmapss_world_model.pt"), run_to_failure=True, rul_scale=125.0),
     "laptop": DomainProfile("laptop", ("laptop_world_model.pt",), pretrain_generator="generate_laptop_windows"),
     "mobile": DomainProfile("mobile", ("mobile_world_model.pt",), pretrain_generator="generate_mobile_windows"),
     "server": DomainProfile("server", ("server_world_model.pt",), pretrain_generator="generate_server_windows"),

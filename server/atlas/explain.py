@@ -3,6 +3,7 @@ from typing import List, Dict, Optional
 import numpy as np
 import logging
 
+from server.adapters.domain_profile import get_profile
 from server.atlas.adaptive_context import AdaptiveContext, NeighborContext
 
 logger = logging.getLogger(__name__)
@@ -115,7 +116,7 @@ class ExplanationEngine:
         similarities = []
         for n in neighbors:
             if getattr(n, "rul", None) is None:
-                if context.domain == "cmapss":
+                if get_profile(context.domain).run_to_failure:
                     raise ValueError("Neighbors must contain true RUL for citations, not predicted RUL")
                 # Month 6 Update: Filter out live-domain neighbors (e.g. laptop)
                 # that have no known failure time, ensuring we only cite 
