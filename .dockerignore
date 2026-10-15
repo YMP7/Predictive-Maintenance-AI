@@ -10,6 +10,9 @@ venv/
 env/
 logs/
 data/
+!data/models
+!data/cmapss
+!data/*.json
 client/node_modules/
 client/src/
 client/public/

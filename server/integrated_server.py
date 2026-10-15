@@ -1,4 +1,5 @@
 import os
+import server  # triggers SSL fallback patch for Windows cert store
 from dotenv import load_dotenv
 load_dotenv()
 os.environ["KMP_DUPLICATE_LIB_OK"] = os.environ.get("KMP_DUPLICATE_LIB_OK", "TRUE")
@@ -19,7 +20,7 @@ import uvicorn
 
 from server.data_service import get_data_service
 from server.backend_api import app
-from server.atlas.domain_service import get_domain_service
+from server.atlas.domain_service import KNOWN_DOMAINS, get_domain_service
 
 logger = logging.getLogger("DigitalTwin")
 service = get_data_service()
@@ -53,10 +54,8 @@ async def lifespan(_app):
     atlas_api_startup()
 
     # ATLAS: register all 4 domain adapters and start multi-domain streaming
-    atlas_service.register_cmapss(subset="FD001", max_units=20)
-    atlas_service.register_laptop()
-    atlas_service.register_mobile()
-    atlas_service.register_server()
+    for domain in KNOWN_DOMAINS:
+        atlas_service.ensure_registered(domain)
     atlas_service.start()
 
     try:
@@ -85,8 +84,9 @@ if client_dist.exists():
             "Pragma": "no-cache",
             "Expires": "0",
         }
-        requested_file = client_dist / full_path
-        if full_path and requested_file.is_file():
+        requested_file = (client_dist / full_path).resolve()
+        # Never serve anything outside the build folder (blocks ../ and absolute paths).
+        if full_path and requested_file.is_relative_to(client_dist.resolve()) and requested_file.is_file():
             if requested_file.suffix == ".html":
                 return FileResponse(requested_file, headers=no_cache_headers)
             return FileResponse(requested_file)

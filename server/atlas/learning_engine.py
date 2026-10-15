@@ -7,8 +7,9 @@ validation gating to mathematically prevent regressions from corrupting producti
 
 Key Architectural Guarantees:
   1. Non-Online Boundary: Strictly batch-driven retraining; online parameter updating is banned.
-  2. Candidate vs. Active Promotion Gate: A candidate model is trained in isolation and must satisfy
-     `RMSE_candidate <= RMSE_baseline * (1 + epsilon_tol)` before being promoted to production.
+  2. Candidate vs. Best-Ever Promotion Gate: A candidate model is trained in isolation and must satisfy
+     `RMSE_candidate <= RMSE_best_ever * (1 + epsilon_tol)` on a held-out validation slice of the
+     training data (never the test split) before being promoted to production.
   3. Empirical Tolerance (epsilon_tol = 0.03): 3% tolerance band justified by Month 3 5-seed
      empirical variance (14.98 +/- 0.13, max spread ~2.3%) to absorb CPU non-deterministic gradient noise.
   4. Atomic Checkpoint Promotion: Overwrites production checkpoints atomically via tempfile + os.replace().
@@ -17,6 +18,7 @@ Key Architectural Guarantees:
 """
 
 import copy
+import json
 import logging
 import os
 import time
@@ -188,6 +190,22 @@ class LearningEngine:
         finally:
             adapter.disconnect()
 
+    def _split(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Fixed 90/10 train/validation split of the training windows.
+
+        The promotion gate scores on this validation slice; the FD001 test split is
+        kept for final reporting only, so it never influences which model is kept.
+        """
+        X, y = self._load_cmapss_data()
+        idx = np.random.default_rng(0).permutation(len(X))
+        n_val = max(1, int(len(X) * 0.1))
+        # shortcut: splits windows, not units, so one engine can sit on both sides; split by unit if the npz gains unit ids.
+        return X[idx[n_val:]], y[idx[n_val:]], X[idx[:n_val]], y[idx[:n_val]]
+
+    def _validation_rmse(self, model: WorldModel) -> float:
+        _, _, X_val, y_val = self._split()
+        return self.evaluate_model(model, X_val, y_val)
+
     def _log_learning_event(self, result: LearningResult) -> None:
         """Persists audit record into TimescaleDB / PostgreSQL learning_events table."""
         try:
@@ -259,7 +277,7 @@ class LearningEngine:
             rmse_before = 999.0
         else:
             active_model = WorldModel.load(self.model_path)
-            rmse_before = self.evaluate_cmapss_benchmark(active_model)
+            rmse_before = self._validation_rmse(active_model)
 
         # 2. Train candidate model on isolated copy
         candidate_model = copy.deepcopy(active_model)
@@ -270,7 +288,7 @@ class LearningEngine:
             n_samples = 0
             epochs_run = epochs
         else:
-            X_train, y_train = self._load_cmapss_data()
+            X_train, y_train, _, _ = self._split()
             n_samples = len(X_train)
             epochs_run = epochs
 
@@ -293,11 +311,16 @@ class LearningEngine:
                     optimizer.step()
 
             # 3. Evaluate candidate model
-            rmse_after = self.evaluate_cmapss_benchmark(candidate_model)
+            rmse_after = self._validation_rmse(candidate_model)
 
-        # 4. Check Candidate vs. Active Promotion Gate
-        # Condition: rmse_after <= rmse_before * (1.0 + epsilon_tol)
-        max_acceptable_rmse = rmse_before * (1.0 + self.epsilon_tol)
+        # 4. Check Candidate vs. Best-Ever Promotion Gate
+        # Anchored to the best RMSE ever promoted, not the current model, so the
+        # 3% tolerance cannot compound across runs (10 x +2.9% would be +33%).
+        gate_file = self.model_path.with_suffix(".gate.json")
+        best_rmse = rmse_before
+        if gate_file.exists():
+            best_rmse = min(best_rmse, float(json.loads(gate_file.read_text())["best_val_rmse"]))
+        max_acceptable_rmse = best_rmse * (1.0 + self.epsilon_tol)
         is_promoted = (rmse_after <= max_acceptable_rmse) or (rmse_before >= 990.0)
 
         saved_path: Optional[str] = None
@@ -318,18 +341,19 @@ class LearningEngine:
                 saved_path = str(self.model_path)
             else:
                 self._atomic_save_checkpoint(candidate_model, self.model_path)
+                gate_file.write_text(json.dumps({"best_val_rmse": min(best_rmse, rmse_after)}))
                 saved_path = str(self.model_path)
 
             success = True
             notes = (
-                f"PROMOTED: Candidate RMSE ({rmse_after:.4f}) <= "
-                f"Baseline ({rmse_before:.4f}) * (1 + {self.epsilon_tol:.2f} = {max_acceptable_rmse:.4f})"
+                f"PROMOTED: Candidate val RMSE ({rmse_after:.4f}) <= "
+                f"Best ({best_rmse:.4f}) * (1 + {self.epsilon_tol:.2f}) = {max_acceptable_rmse:.4f}"
             )
         else:
             success = False
             notes = (
-                f"REJECTED (Rollback Invariant): Candidate RMSE ({rmse_after:.4f}) exceeded "
-                f"acceptable threshold ({max_acceptable_rmse:.4f} = Baseline {rmse_before:.4f} * (1 + {self.epsilon_tol:.2f})). "
+                f"REJECTED (Rollback Invariant): Candidate val RMSE ({rmse_after:.4f}) exceeded "
+                f"acceptable threshold ({max_acceptable_rmse:.4f} = Best {best_rmse:.4f} * (1 + {self.epsilon_tol:.2f})). "
                 f"Production checkpoint was NOT modified."
             )
 

@@ -10,12 +10,18 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# torch is not in requirements.txt: the CPU-only wheel avoids the multi-GB CUDA build.
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir "torch>=2.2,<3.0" --index-url https://download.pytorch.org/whl/cpu
 
 COPY server ./server
 COPY scripts ./scripts
 COPY config ./config
 COPY client/dist ./client/dist
+# The API refuses to start without the C-MAPSS checkpoint; the dashboards read the dataset and result files.
+COPY data/models ./data/models
+COPY data/cmapss ./data/cmapss
+COPY data/*.json ./data/
 
 RUN mkdir -p /app/data /app/logs \
     && adduser --disabled-password --gecos "" appuser \

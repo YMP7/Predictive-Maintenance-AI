@@ -347,6 +347,26 @@ class DomainService:
         with self._lock:
             return self._engines.get(domain)
 
+    def get_adapter(self, domain: str):
+        with self._lock:
+            return self._adapters.get(domain)
+
+    def ensure_registered(self, domain: str) -> None:
+        """Register a known domain on first use; no-op if already registered or unknown."""
+        if self.get_engine(domain) is not None:
+            return
+        register = {
+            "cmapss": lambda: self.register_cmapss(subset="FD001", max_units=20),
+            "laptop": self.register_laptop,
+            "mobile": self.register_mobile,
+            "server": self.register_server,
+        }.get(domain)
+        if register:
+            register()
+
+
+KNOWN_DOMAINS = ("cmapss", "laptop", "mobile", "server")
+
 
 # ---------------------------------------------------------------------------
 # Singleton

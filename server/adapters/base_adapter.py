@@ -12,6 +12,8 @@ Once data crosses into NormalizedReading, the rest of the pipeline is domain-agn
 from __future__ import annotations
 
 import abc
+import functools
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -229,9 +231,37 @@ class MachineAdapter(abc.ABC):
       - An AdapterConnectionError (only acceptable during connect/disconnect)
     """
 
+    # shortcut: one global threshold, override per subclass if its poll/push cadence is slower.
+    STALE_AFTER_S: float = 30.0
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        impl = cls.__dict__.get("get_reading")
+        if impl is None or getattr(impl, "_tracks_liveness", False):
+            return
+
+        @functools.wraps(impl)
+        def get_reading(self, machine_id: str) -> NormalizedReading:
+            reading = impl(self, machine_id)
+            # Only genuine source data counts; simulation fallback must not look "online".
+            if reading.adapter_status == AdapterStatus.LIVE.value:
+                self._last_live[machine_id] = time.monotonic()
+            return reading
+
+        get_reading._tracks_liveness = True  # type: ignore[attr-defined]
+        cls.get_reading = get_reading  # type: ignore[method-assign]
+
     def __init__(self) -> None:
         self._connected: bool = False
         self._status: AdapterStatus = AdapterStatus.DISCONNECTED
+        self._last_live: Dict[str, float] = {}
+
+    def machine_state(self, machine_id: str) -> str:
+        """'online' | 'stale' | 'offline' based on the last genuinely live reading."""
+        t = self._last_live.get(machine_id)
+        if t is None or not self._connected:
+            return "offline"
+        return "online" if time.monotonic() - t < self.STALE_AFTER_S else "stale"
 
     # ------------------------------------------------------------------
     # Properties (must be implemented by subclasses)
@@ -334,6 +364,7 @@ class MachineAdapter(abc.ABC):
             "status":      self._status.value,
             "connected":   self._connected,
             "is_trained":  self.is_trained,
+            "machine_states": {m: self.machine_state(m) for m in self.machine_ids},
         }
 
     def __repr__(self) -> str:

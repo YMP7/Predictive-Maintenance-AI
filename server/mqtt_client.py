@@ -58,8 +58,8 @@ class MQTTClientManager:
         self.tls_enabled = os.environ.get("MQTT_TLS_ENABLED", "false").lower() == "true"
         cors_origins = os.environ.get("CORS_ORIGINS", "")
         
-        # Security enforcement: TLS must be true if running outside localhost
-        if not self.tls_enabled and "localhost" not in cors_origins and cors_origins != "*":
+        # Security enforcement: TLS must be true if running outside localhost ("*" counts as production)
+        if not self.tls_enabled and "localhost" not in cors_origins:
             logger.error("INSECURE CONFIGURATION: MQTT_TLS_ENABLED is false but CORS_ORIGINS implies production.")
             raise ValueError("TLS must be enabled (MQTT_TLS_ENABLED=true) for non-local production MQTT ingestion.")
         

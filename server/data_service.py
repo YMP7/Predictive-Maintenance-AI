@@ -3,11 +3,13 @@ import os
 import json
 import threading
 import logging
+from collections import deque
 from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from typing import Deque, Dict, List, Optional
 import numpy as np
 from dotenv import load_dotenv
 
+from server import machine_registry
 from server.sensor_simulator import MultiMachineSimulator
 from server.ai_agent import AIAgent
 from server.mqtt_client import MQTTClientManager
@@ -44,43 +46,36 @@ class DataService:
         self.agent = AIAgent()
         self.is_running = False
         
-        # In-memory storage
-        # Maps machine_id to List of telemetry readings
-        self.telemetry_cache: Dict[str, List[Dict]] = {
-            "M001": [], "M002": [], "M003": [], "M004": []
-        }
+        # In-memory storage; deques drop the oldest item for free once full
+        # Maps machine_id to its last 1000 telemetry readings (filled below from the registry)
+        self.telemetry_cache: Dict[str, Deque[Dict]] = {}
         # Maps machine_id to latest status dict
         self.status_cache: Dict[str, Dict] = {}
-        # List of all alert dicts
-        self.alerts_log: List[Dict] = []
+        # Last 500 alert dicts
+        self.alerts_log: Deque[Dict] = deque(maxlen=500)
         
         self.loop_thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
         
-        # Load machine info from config
+        # Load machine info from the registry (config/machines.json)
         self.machine_info = {}
-        candidate_paths = [
-            os.path.join(os.path.dirname(os.path.dirname(__file__)), "config", "machines.json"),
-            os.path.join(os.path.dirname(__file__), "config", "machines.json"),
-        ]
-        for config_path in candidate_paths:
-            if os.path.exists(config_path):
-                try:
-                    with open(config_path, 'r') as f:
-                        config = json.load(f)
-                        self.machine_info = config.get("machines", {})
-                        break
-                except Exception as e:
-                    logger.error(f"Error loading machines config from {config_path}: {e}")
-                
-        # Fill default info if configuration failed
-        for mid in ["M001", "M002", "M003", "M004"]:
-            if mid not in self.machine_info:
-                self.machine_info[mid] = {
+        try:
+            self.machine_info = machine_registry.load_machines()
+        except Exception as e:
+            logger.error(f"Error loading machine registry: {e}")
+
+        # Built-in demo machines only when no registry file exists at all, so a machine
+        # an admin deleted does not come back on restart.
+        if not machine_registry.registry_exists():
+            for mid in ["M001", "M002", "M003", "M004"]:
+                self.machine_info.setdefault(mid, {
                     "name": f"Machine {mid}",
                     "type": "General",
                     "location": "Main Hall"
-                }
+                })
+
+        # Every registered machine gets a cache, so admin-added devices keep their history across restarts.
+        self.telemetry_cache = {mid: deque(maxlen=1000) for mid in self.machine_info}
 
         # Load historical data from TimescaleDB into in-memory cache
         self._load_historical_data()
@@ -169,19 +164,20 @@ class DataService:
         except Exception as e:
             logger.error(f"Error saving telemetry to TimescaleDB: {e}")
 
-    def _save_alert_to_db(self, alert: Dict):
+    def _save_alert_to_db(self, alert: Dict, source: str = "ai_pipeline"):
         try:
             with pool.connection() as conn:
                 conn.execute("""
                     INSERT INTO alerts (time, machine_id, type, severity, message, fault_type, source)
-                    VALUES (%s, %s, %s, %s, %s, %s, 'ai_pipeline')
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                 """, (
                     alert["timestamp"],
                     alert["machine_id"],
                     alert["type"],
                     alert["severity"],
                     alert["message"],
-                    alert.get("fault_type", "Normal")
+                    alert.get("fault_type", "Normal"),
+                    source,
                 ))
                 conn.commit()
         except Exception as e:
@@ -210,7 +206,7 @@ class DataService:
         if thread_to_join and thread_to_join.is_alive():
             thread_to_join.join(timeout=5)
 
-    def ingest_telemetry(self, machine_id: str, reading: Dict):
+    def ingest_telemetry(self, machine_id: str, reading: Dict, source: str = "ai_pipeline"):
         try:
             result = self.agent.process_reading(reading)
             
@@ -218,13 +214,8 @@ class DataService:
             with self._lock:
                 # Append status into reading cache
                 reading_cached = {**reading, "status": result["status"]}
-                if machine_id not in self.telemetry_cache:
-                    self.telemetry_cache[machine_id] = []
-                self.telemetry_cache[machine_id].append(reading_cached)
-                # Limit cache size
-                if len(self.telemetry_cache[machine_id]) > 1000:
-                    self.telemetry_cache[machine_id].pop(0)
-                
+                self.telemetry_cache.setdefault(machine_id, deque(maxlen=1000)).append(reading_cached)
+
                 # Update status cache
                 self.status_cache[machine_id] = {
                     "machine_id": machine_id,
@@ -239,17 +230,16 @@ class DataService:
                 
                 # Log alerts
                 if result["alerts"]:
-                    for alert in result["alerts"]:
-                        self.alerts_log.append(alert)
-                        if len(self.alerts_log) > 500:
-                            self.alerts_log.pop(0)
-                            
+                    self.alerts_log.extend(result["alerts"])
+
             # Save to DB outside memory locks
             self._save_telemetry_to_db(machine_id, reading, result["status"])
             if result["alerts"]:
                 for alert in result["alerts"]:
-                    self._save_alert_to_db(alert)
-                    # Route alerts through alert_handler queue
+                    self._save_alert_to_db(alert, source)
+                    # Only real pipeline alerts may page people; simulated ones stay on the dashboard
+                    if source != "ai_pipeline":
+                        continue
                     try:
                         from server.alert_handler import get_alert_handler
                         get_alert_handler().queue_alert(alert)
@@ -258,13 +248,30 @@ class DataService:
         except Exception as e:
             logger.error(f"Error ingesting telemetry for {machine_id}: {e}")
 
+    def apply_registry(self, machines: Dict[str, Dict]) -> None:
+        """Swap in an edited machine registry without a restart."""
+        with self._lock:
+            removed = set(self.machine_info) - set(machines)
+            # Replace rather than mutate: the simulation thread may be iterating the old dict.
+            self.machine_info = dict(machines)
+            self.agent.fault_detector.thresholds = {mid: cfg.get("thresholds", {}) for mid, cfg in machines.items()}
+            for mid in removed:
+                self.status_cache.pop(mid, None)
+                self.telemetry_cache.pop(mid, None)
+
+    def _simulate_once(self):
+        # Only built-in simulated machines get synthetic data; machines added to
+        # config/machines.json without a simulator are real devices fed over MQTT.
+        for machine_id in self.machine_info.keys():
+            if machine_id not in self.simulator.machines:
+                continue
+            reading = self.simulator.get_machine_reading(machine_id)
+            self.ingest_telemetry(machine_id, reading, source="simulation")
+
     def _run_simulation(self, interval: float):
         while self.is_running:
             try:
-                # Generate and process readings
-                for machine_id in self.machine_info.keys():
-                    reading = self.simulator.get_machine_reading(machine_id)
-                    self.ingest_telemetry(machine_id, reading)
+                self._simulate_once()
                 time.sleep(interval)
             except Exception as e:
                 logger.error(f"Error in simulation loop: {e}")
@@ -296,8 +303,8 @@ class DataService:
 
     def get_machine_telemetry(self, machine_id: str, limit: int = 100) -> List[Dict]:
         with self._lock:
-            cache = self.telemetry_cache.get(machine_id, [])
-            return cache[-limit:]
+            cache = self.telemetry_cache.get(machine_id, ())
+            return list(cache)[-limit:]
 
     def get_machine_trends(self, machine_id: str) -> Dict:
         telemetry = self.get_machine_telemetry(machine_id, limit=50)
@@ -335,7 +342,7 @@ class DataService:
 
     def get_recent_alerts(self, limit: int = 50) -> List[Dict]:
         with self._lock:
-            return self.alerts_log[-limit:]
+            return list(self.alerts_log)[-limit:]
 
     def get_alerts_by_machine(self, machine_id: str, limit: int = 20) -> List[Dict]:
         with self._lock:

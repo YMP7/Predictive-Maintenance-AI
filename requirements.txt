@@ -37,7 +37,7 @@ pymodbus>=3.8,<4.0   # Modbus TCP transport for ModbusAdapter (Phase 2)
 # NOTE: torch is intentionally NOT listed here.
 # Install separately (CPU-only, ~200MB instead of multi-GB CUDA default):
 #
-#   pip install torch>=2.2,<3.0 --index-url https://download.pytorch.org/whl/cpu
+#   pip install "torch>=2.2,<3.0" --index-url https://download.pytorch.org/whl/cpu
 #
-# Or just use requirements-ml.txt, which handles this correctly.
+# The Dockerfile already does this.
 # -----------------------------------------------------------------------

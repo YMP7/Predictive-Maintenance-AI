@@ -1,6 +1,7 @@
 import os
-from typing import List, Optional
-from fastapi import FastAPI, HTTPException
+import threading
+from typing import Annotated, List, Optional
+from fastapi import Depends, FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 import numpy as np
 from pathlib import Path
@@ -14,6 +15,8 @@ from server.atlas.simulation import SimulationEngine
 from server.atlas.decision import DecisionGraph
 from server.atlas.learning_engine import LearningEngine, LearningResult
 import dataclasses
+
+from server.auth import require_admin
 
 app = FastAPI(title="ATLAS Adaptive Context API")
 
@@ -94,11 +97,13 @@ class ContextQueryRequest(BaseModel):
     domain: str
     machine_id: str
     cycle: int
-    window: List[List[float]] = Field(
+    # Bounded so one request can't exhaust memory or force a huge vector scan.
+    window: List[Annotated[List[float], Field(max_length=256)]] = Field(
         ...,
+        max_length=512,
         description="A 2D array (seq_len x feature_dim) of float values representing the operational window."
     )
-    k: int = Field(10, description="Number of neighbors to retrieve")
+    k: int = Field(10, ge=1, le=100, description="Number of neighbors to retrieve")
 
 @app.post("/api/context", response_model=AdaptiveContext)
 def get_context(req: ContextQueryRequest):
@@ -199,16 +204,23 @@ def post_decide(req: ContextQueryRequest):
 class RetrainRequest(BaseModel):
     domain: str = "cmapss"
     trigger_reason: str = "manual"
-    epochs: int = 5
-    batch_size: int = 128
-    lr: float = 1e-3
+    epochs: int = Field(5, ge=1, le=50)
+    batch_size: int = Field(128, ge=1, le=1024)
+    lr: float = Field(1e-3, gt=0, le=1)
 
 
-@app.post("/api/learn/retrain")
+_retrain_lock = threading.Lock()
+
+
+@app.post("/api/learn/retrain", dependencies=[Depends(require_admin)])
 def retrain_model(req: RetrainRequest):
     """Triggers a controlled batch retraining run with Candidate-vs-Active validation gating."""
+    global _world_model, _ace
     if _learning_engine is None:
         raise HTTPException(status_code=503, detail="Learning Engine not initialized")
+    # One run at a time: parallel runs waste CPU and the last to finish would overwrite the other.
+    if not _retrain_lock.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="A retraining run is already in progress")
 
     try:
         result = _learning_engine.retrain_domain(
@@ -218,15 +230,28 @@ def retrain_model(req: RetrainRequest):
             batch_size=req.batch_size,
             lr=req.lr,
         )
+        # Serve the promoted checkpoint right away instead of after the next restart.
+        if result.success and result.domain == "cmapss" and _ace is not None:
+            _world_model = WorldModel.load(Path(result.checkpoint_path))
+            _ace = AdaptiveContextEngine(
+                _amkb, _dna_engine, _world_model,
+                domain_models={**_ace.domain_models, "cmapss": _world_model},
+            )
+            from server.atlas.domain_service import get_domain_service
+            engine = get_domain_service().get_engine("cmapss")
+            if engine is not None:
+                engine.reload_model()
         return result.to_dict()
-    except Exception as e:
+    except Exception:
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Retraining failed; see server logs")
+    finally:
+        _retrain_lock.release()
 
 
 @app.get("/api/learn/history")
-def get_learning_history(domain: str = "cmapss", limit: int = 20):
+def get_learning_history(domain: str = "cmapss", limit: int = Query(20, ge=1, le=200)):
     """Fetches learning event audit logs from the database."""
     if _learning_engine is None:
         raise HTTPException(status_code=503, detail="Learning Engine not initialized")

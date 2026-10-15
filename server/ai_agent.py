@@ -6,6 +6,9 @@ from copy import deepcopy
 import numpy as np
 from datetime import datetime, timezone
 from typing import Dict, List, Tuple, Optional
+import logging
+
+logger = logging.getLogger("DigitalTwin")
 
 
 def utc_timestamp() -> str:
@@ -14,16 +17,15 @@ def utc_timestamp() -> str:
 
 class FaultDetector:
     def __init__(self):
-        self.thresholds = {}
-        config_path = os.path.join(os.path.dirname(__file__), "config", "machines.json")
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, 'r') as f:
-                    self.config = json.load(f)
-                    for mid, mcfg in self.config.get("machines", {}).items():
-                        self.thresholds[mid] = mcfg.get("thresholds", {})
-            except Exception:
-                pass
+        # Read from config/machines.json via the registry; the old path (server/config/)
+        # never existed, so per-machine limits were silently replaced by defaults.
+        from server.machine_registry import load_machines
+        self.thresholds: Dict[str, Dict] = {}
+        try:
+            for mid, mcfg in load_machines().items():
+                self.thresholds[mid] = mcfg.get("thresholds", {})
+        except Exception as e:
+            logger.error(f"Could not load machine thresholds: {e}")
 
     def detect_fault(self, reading: Dict) -> Tuple[str, List[str]]:
         machine_id = reading.get("machine_id", "M001")

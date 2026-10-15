@@ -393,6 +393,9 @@
         var xhr = new XMLHttpRequest();
         xhr.open('POST', '/api/atlas/mobile/telemetry', true);
         xhr.setRequestHeader('Content-Type', 'application/json');
+        // Token comes from the URL fragment (/lumia#token=...), which browsers never send to the server
+        var tokenMatch = window.location.hash.match(/token=([^&]+)/);
+        xhr.setRequestHeader('X-Mobile-Bridge-Token', tokenMatch ? decodeURIComponent(tokenMatch[1]) : '');
 
         xhr.onreadystatechange = function() {
           if (xhr.readyState === 4) {

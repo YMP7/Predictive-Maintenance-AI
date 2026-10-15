@@ -16,22 +16,18 @@ class SensorSimulator:
         self.fault_mode = fault_mode
         self.degradation_step = 0
         
-        # Load thresholds if config exists
+        # Warning thresholds from the machine registry (config/machines.json)
         self.thresholds = {"vibration": 1.5, "temperature": 60.0, "current": 3.5}
-        config_path = os.path.join(os.path.dirname(__file__), "config", "machines.json")
-        if os.path.exists(config_path):
-            try:
-                with open(config_path, 'r') as f:
-                    config = json.load(f)
-                    machine_config = config.get("machines", {}).get(machine_id, {})
-                    thresholds = machine_config.get("thresholds", {})
-                    self.thresholds = {
-                        "vibration": thresholds.get("vibration", {}).get("warning", 1.5),
-                        "temperature": thresholds.get("temperature", {}).get("warning", 60.0),
-                        "current": thresholds.get("current", {}).get("warning", 3.5)
-                    }
-            except Exception:
-                pass
+        try:
+            from server.machine_registry import load_machines
+            thresholds = load_machines().get(machine_id, {}).get("thresholds", {})
+            self.thresholds = {
+                "vibration": thresholds.get("vibration", {}).get("warning", 1.5),
+                "temperature": thresholds.get("temperature", {}).get("warning", 60.0),
+                "current": thresholds.get("current", {}).get("warning", 3.5)
+            }
+        except Exception:
+            pass
 
     def get_sensor_reading(self) -> Dict:
         self.degradation_step += 1
