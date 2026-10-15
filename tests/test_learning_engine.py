@@ -57,7 +57,7 @@ def test_rejection_leaves_production_checkpoint_bitwise_identical(temp_checkpoin
     initial_sd = torch.load(str(temp_checkpoint), weights_only=True)["model_state_dict"]
 
     # 2. Trigger retraining with a forced regression (+20% RMSE)
-    with patch.object(engine, "evaluate_cmapss_benchmark", return_value=15.00), \
+    with patch.object(engine, "_validation_rmse", return_value=15.00), \
          patch.object(engine, "_log_learning_event"):
 
         baseline_rmse = 15.00
@@ -93,7 +93,7 @@ def test_promotion_gate_accepts_and_atomically_replaces(temp_checkpoint):
     engine = LearningEngine(model_path=temp_checkpoint, epsilon_tol=0.03)
     initial_hash = compute_file_sha256(temp_checkpoint)
 
-    with patch.object(engine, "evaluate_cmapss_benchmark", return_value=15.00), \
+    with patch.object(engine, "_validation_rmse", return_value=15.00), \
          patch.object(engine, "_log_learning_event"):
 
         baseline_rmse = 15.00
@@ -113,6 +113,30 @@ def test_promotion_gate_accepts_and_atomically_replaces(temp_checkpoint):
     post_hash = compute_file_sha256(temp_checkpoint)
     # Checkpoint should have been atomically updated
     assert post_hash != initial_hash
+
+
+def test_gate_tolerance_does_not_compound_across_runs(temp_checkpoint):
+    """Two promotions of +2.9% each must not walk the model 6% away from its best."""
+    engine = LearningEngine(model_path=temp_checkpoint, epsilon_tol=0.03)
+    with patch.object(engine, "_log_learning_event"):
+        with patch.object(engine, "_validation_rmse", return_value=15.00):
+            first = engine.retrain_domain(domain="cmapss", epochs=1, forced_candidate_rmse=15.00 * 1.029)
+        assert first.success is True
+
+        # The active model is now the slightly worse one; a second +2.9% step must be rejected.
+        with patch.object(engine, "_validation_rmse", return_value=15.00 * 1.029):
+            second = engine.retrain_domain(domain="cmapss", epochs=1, forced_candidate_rmse=15.00 * 1.029 ** 2)
+        assert second.success is False
+        assert "REJECTED (Rollback Invariant)" in second.notes
+
+
+def test_gate_never_scores_on_test_split(temp_checkpoint):
+    """The promotion decision must not read the FD001 test split (that is for reporting only)."""
+    engine = LearningEngine(model_path=temp_checkpoint, epsilon_tol=0.03)
+    with patch.object(engine, "evaluate_cmapss_benchmark", side_effect=AssertionError("test split used")), \
+         patch.object(engine, "_validation_rmse", return_value=15.00), \
+         patch.object(engine, "_log_learning_event"):
+        engine.retrain_domain(domain="cmapss", epochs=1, forced_candidate_rmse=14.0)
 
 
 def test_baseline_evaluation_matches_validated_range():
@@ -142,7 +166,16 @@ def test_learning_history_query():
     assert isinstance(history, list)
 
 
-def test_api_learning_endpoints():
+@pytest.fixture
+def admin_on_atlas_app():
+    """Retrain is admin-only; run these API calls as a signed-in admin."""
+    from server.auth import User, get_current_user
+    api.app.dependency_overrides[get_current_user] = lambda: User(username="test_admin", role="admin")
+    yield
+    api.app.dependency_overrides.pop(get_current_user, None)
+
+
+def test_api_learning_endpoints(admin_on_atlas_app):
     client = TestClient(api.app)
 
     # Mock learning engine inside API

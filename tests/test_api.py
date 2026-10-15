@@ -7,7 +7,7 @@ from server.backend_api import app
 client = TestClient(app)
 
 
-def test_health_and_machine_listing():
+def test_health_and_machine_listing(signed_in):
     health = client.get("/health")
     machines = client.get("/api/machines")
 
@@ -26,7 +26,7 @@ def test_health_and_machine_listing():
         "/api/alerts/machine/UNKNOWN",
     ],
 )
-def test_unknown_machine_returns_404(path):
+def test_unknown_machine_returns_404(signed_in, path):
     response = client.get(path)
     assert response.status_code == 404
 
@@ -38,7 +38,7 @@ def test_unknown_machine_returns_404(path):
         "/api/alerts/recent?limit=501",
     ],
 )
-def test_invalid_numeric_parameters_return_422(path):
+def test_invalid_numeric_parameters_return_422(signed_in, path):
     response = client.get(path)
     assert response.status_code == 422
 

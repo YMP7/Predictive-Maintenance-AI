@@ -34,7 +34,7 @@ def init_api():
 
 
 @pytest.fixture
-def client():
+def client(signed_in):
     return TestClient(app)
 
 

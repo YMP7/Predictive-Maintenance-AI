@@ -355,6 +355,21 @@ class TestAdapterLifecycleContracts:
         adapter.disconnect()
         assert adapter.status == AdapterStatus.DISCONNECTED
 
+    def test_machine_state_online_stale_offline(self, monkeypatch) -> None:
+        adapter = MinimalVibrationAdapter()
+        mid = adapter.machine_ids[0]
+        assert adapter.machine_state(mid) == "offline"  # not connected / never read
+        adapter.connect()
+        adapter.get_reading(mid)
+        assert adapter.machine_state(mid) == "online"
+        assert adapter.describe()["machine_states"][mid] == "online"
+        import server.adapters.base_adapter as ba
+        real = ba.time.monotonic()
+        monkeypatch.setattr(ba.time, "monotonic", lambda: real + adapter.STALE_AFTER_S + 1)
+        assert adapter.machine_state(mid) == "stale"
+        adapter.disconnect()
+        assert adapter.machine_state(mid) == "offline"
+
 
 # ---------------------------------------------------------------------------
 # 5. DEF-008 Guardrail Built-in Verification (Dynamic Model Instantiation)

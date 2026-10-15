@@ -23,7 +23,7 @@ def initialize_atlas():
 
 
 @pytest.fixture
-def client():
+def client(signed_in):
     return TestClient(app)
 
 
