@@ -43,14 +43,14 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   const items = [
     // Views
-    { type: 'view', id: 'monitoring', title: 'Domain Telemetry & Monitoring', desc: 'Live sensor readings across 4 domains', icon: Activity },
+    { type: 'view', id: 'monitoring', title: 'Connected Devices', desc: 'Live sensor readings across 4 domains', icon: Activity },
     { type: 'view', id: 'cognition', title: 'Cognition, Uncertainty & DNA', desc: 'Monte Carlo RUL spread, 16-dim DNA fingerprint', icon: Cpu },
     { type: 'view', id: 'explainability', title: 'Explainability & Attribution', desc: 'Sensor attribution deltas & AMKB citations', icon: Layers },
     { type: 'view', id: 'decision', title: 'Decision Graph & Simulation', desc: 'Ranked candidate actions & safety override triggers', icon: GitCompare },
     { type: 'view', id: 'transfer', title: 'Cross-Domain Transfer Study', desc: 'MMD divergence matrix & Negative Transfer Index', icon: FileText },
     { type: 'view', id: 'ablations', title: 'Ablation Suite Results', desc: 'Cost savings (47.17%) and confidence calibration', icon: FileText },
     { type: 'view', id: 'system', title: 'System Diagnostics & Benchmarks', desc: 'Latency percentiles, memory RSS & pool status', icon: Settings },
-    { type: 'view', id: 'legacy_iot', title: 'Phase A IoT Lab (Legacy)', desc: 'Motor digital twin with fault injection & agent chat', icon: Activity },
+    { type: 'view', id: 'legacy_iot', title: 'Shop Floor Machines', desc: 'MQTT-connected factory machines: 3D fault view, fault tests and maintenance chat', icon: Activity },
 
     // Domains & Units
     { type: 'unit', domain: 'cmapss', id: 'unit_1', title: 'C-MAPSS: Unit 1', desc: 'NASA Turbofan FD001 (High degradation)', icon: Radio },
@@ -87,7 +87,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           maxWidth: '560px',
           background: 'var(--bg-elevated)',
           overflow: 'hidden',
-          boxShadow: '0 16px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 229, 255, 0.15)',
+          boxShadow: '0 16px 40px rgba(0, 0, 0, 0.6)',
           border: '1px solid var(--border-hover)'
         }}
         onClick={e => e.stopPropagation()}

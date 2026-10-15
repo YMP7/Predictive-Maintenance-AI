@@ -300,7 +300,7 @@ export const SystemDiagnosticsView: React.FC<SystemDiagnosticsViewProps> = ({ ac
               fontFamily: 'var(--font-mono)',
               fontWeight: 700,
               background: 'var(--accent-cyan)',
-              color: '#070B12',
+              color: 'var(--bg-primary)',
               borderRadius: 'var(--radius-xs)',
               cursor: retraining ? 'not-allowed' : 'pointer'
             }}
@@ -312,7 +312,7 @@ export const SystemDiagnosticsView: React.FC<SystemDiagnosticsViewProps> = ({ ac
 
         {retrainResult && (
           <div style={{
-            background: retrainResult.promoted ? 'rgba(0, 230, 118, 0.12)' : 'rgba(255, 179, 0, 0.12)',
+            background: retrainResult.promoted ? 'rgba(76, 175, 122, 0.12)' : 'rgba(224, 162, 59, 0.12)',
             border: `1px solid ${retrainResult.promoted ? 'var(--status-normal)' : 'var(--status-warning)'}`,
             borderRadius: 'var(--radius-sm)',
             padding: '14px',

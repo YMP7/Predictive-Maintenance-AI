@@ -1,5 +1,6 @@
 import React from 'react';
 import { Plane, Laptop, Smartphone, Server, Radio, AlertCircle } from 'lucide-react';
+import { statusColor, stressPercent } from '../../lib/status';
 
 export interface DomainSnapshot {
   domain: string;
@@ -35,6 +36,7 @@ export const DomainTicker: React.FC<DomainTickerProps> = ({
   onSelectDomainUnit,
   onSelectDomain
 }) => {
+  const mobileUnit = activeDomain === 'mobile' && activeUnit?.startsWith('mobile_') ? activeUnit : 'mobile_device_1';
   const domainsMeta = [
     {
       id: 'cmapss',
@@ -55,24 +57,14 @@ export const DomainTicker: React.FC<DomainTickerProps> = ({
       snapshotKey: 'laptop',
     },
     {
-      id: 'mobile_wifi',
+      id: 'mobile',
       domain: 'mobile',
-      name: 'Android Mobile (Wi-Fi)',
-      domainLabel: 'Termux / Lumia Bridge',
+      name: 'Android Mobile',
+      domainLabel: mobileUnit === 'mobile_device_2' ? 'ADB Hardware Cable' : 'Termux / Lumia Bridge',
       icon: Smartphone,
-      defaultMachine: 'mobile_device_1',
-      snapshotKey: 'mobile_device_1',
-      badge: 'WIFI',
-    },
-    {
-      id: 'mobile_usb',
-      domain: 'mobile',
-      name: 'Android Mobile (USB)',
-      domainLabel: 'ADB Hardware Cable',
-      icon: Smartphone,
-      defaultMachine: 'mobile_device_2',
-      snapshotKey: 'mobile_device_2',
-      badge: 'USB',
+      defaultMachine: mobileUnit,
+      snapshotKey: mobileUnit,
+      badge: mobileUnit === 'mobile_device_2' ? 'USB' : 'WIFI',
     },
     {
       id: 'server',
@@ -93,21 +85,13 @@ export const DomainTicker: React.FC<DomainTickerProps> = ({
       marginBottom: '16px'
     }} role="region" aria-label="Live Domain Ticker">
       {domainsMeta.map((d) => {
-        const snap = snapshots[d.snapshotKey] || (d.domain === 'mobile' && d.defaultMachine === activeUnit ? snapshots['mobile'] : null) || snapshots[d.domain];
-        const isSelected = activeDomain === d.domain && (
-          d.domain === 'mobile' ? (activeUnit === d.defaultMachine) : true
-        );
+        const snap = snapshots[d.snapshotKey] || snapshots[d.domain];
+        const isSelected = activeDomain === d.domain;
         const Icon = d.icon;
         const adapterStatus = snap?.adapter_status?.toLowerCase() || 'simulation';
         const isLive = adapterStatus === 'connected' || adapterStatus === 'live';
         const isSim = adapterStatus === 'simulation';
 
-        const health = snap?.health_index ?? 1.0;
-        const healthPercent = Math.round(health * 100);
-
-        let healthColor = 'var(--status-normal)';
-        if (health < 0.4) healthColor = 'var(--status-critical)';
-        else if (health < 0.75) healthColor = 'var(--status-warning)';
 
         const handleClick = () => {
           if (onSelectDomainUnit && d.defaultMachine) {
@@ -197,11 +181,11 @@ export const DomainTicker: React.FC<DomainTickerProps> = ({
             <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '4px' }}>
               <div>
                 <div style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                  {snap?.rul_label || (d.id === 'cmapss' ? 'Health Index' : 'Stress Score')}
+                  Stress Score
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '20px', color: healthColor }}>
-                    {healthPercent}%
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '20px', color: statusColor(snap?.status) }}>
+                    {stressPercent(snap?.health_index)}
                   </span>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                     {snap?.status || 'Active'}

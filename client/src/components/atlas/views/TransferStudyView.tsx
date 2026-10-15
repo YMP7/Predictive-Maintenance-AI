@@ -54,8 +54,8 @@ export const TransferStudyView: React.FC = () => {
 
   // Color helper for Cosine Similarity Matrix (range: -0.3 to 1.0)
   const getCosineColor = (val: number) => {
-    if (val === 1.0) return 'rgba(0, 229, 255, 0.4)';
-    if (val > 0.1) return 'rgba(0, 229, 255, 0.2)';
+    if (val === 1.0) return 'rgba(127, 167, 217, 0.45)';
+    if (val > 0.1) return 'rgba(127, 167, 217, 0.22)';
     if (val >= 0) return 'rgba(255, 255, 255, 0.05)';
     // Negative cosine similarity
     return 'rgba(255, 59, 48, 0.25)';
@@ -63,8 +63,8 @@ export const TransferStudyView: React.FC = () => {
 
   // Color helper for MMD Divergence (0 = identical, ~1.23 = high divergence)
   const getMmdColor = (val: number) => {
-    if (val === 0) return 'rgba(0, 230, 118, 0.2)';
-    if (val < 1.0) return 'rgba(255, 179, 0, 0.2)';
+    if (val === 0) return 'rgba(76, 175, 122, 0.2)';
+    if (val < 1.0) return 'rgba(224, 162, 59, 0.2)';
     return 'rgba(255, 59, 48, 0.25)';
   };
 
@@ -373,7 +373,7 @@ export const TransferStudyView: React.FC = () => {
                     padding: '2px 6px',
                     borderRadius: '3px',
                     fontFamily: 'var(--font-mono)',
-                    background: prov?.data_source_type === 'benchmark_ground_truth' ? 'rgba(0, 230, 118, 0.15)' : 'rgba(0, 229, 255, 0.15)',
+                    background: prov?.data_source_type === 'benchmark_ground_truth' ? 'var(--status-live-bg)' : 'var(--accent-cyan-dim)',
                     color: prov?.data_source_type === 'benchmark_ground_truth' ? 'var(--status-normal)' : 'var(--accent-cyan)'
                   }}>
                     {prov?.data_source_type === 'benchmark_ground_truth' ? 'GROUND TRUTH' : 'CALIBRATED SIM'}

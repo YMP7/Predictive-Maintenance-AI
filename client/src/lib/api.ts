@@ -23,11 +23,10 @@ export async function apiFetch<T>(endpoint: string, options?: RequestInit): Prom
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
-      // Clear auth UI state and redirect to login
-      document.cookie = "auth_status=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-      document.cookie = "user_role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-      window.location.href = '/login';
+    // Session missing or expired: back to sign-in, then return here. A failed login itself
+    // is also a 401, so it falls through and its message reaches the form.
+    if (response.status === 401 && endpoint !== '/api/auth/login' && window.location.pathname !== '/login') {
+      window.location.href = `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
     }
     
     let errorMessage = response.statusText;
@@ -38,7 +37,7 @@ export async function apiFetch<T>(endpoint: string, options?: RequestInit): Prom
       } else if (errorData && errorData.message) {
         errorMessage = errorData.message;
       }
-    } catch (e) {
+    } catch {
       // Ignore JSON parse errors for non-JSON responses
     }
     

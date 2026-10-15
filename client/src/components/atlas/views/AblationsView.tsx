@@ -139,7 +139,7 @@ export const AblationsView: React.FC = () => {
             </h3>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ background: 'rgba(0, 230, 118, 0.15)', color: 'var(--status-normal)', border: '1px solid var(--status-normal)', padding: '4px 10px', borderRadius: 'var(--radius-xs)', fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '14px' }}>
+            <span style={{ background: 'rgba(76, 175, 122, 0.15)', color: 'var(--status-normal)', border: '1px solid var(--status-normal)', padding: '4px 10px', borderRadius: 'var(--radius-xs)', fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '14px' }}>
               47.17% FLEET COST REDUCTION
             </span>
           </div>

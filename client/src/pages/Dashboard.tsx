@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useDashboardData, useMachineDetails } from '../hooks/useDashboardData';
 import { MachineCard } from '../components/MachineCard';
 import AgentChat from '../components/AgentChat';
@@ -19,6 +19,12 @@ import DecisionSupportView from '../components/atlas/views/DecisionSupportView';
 import TransferStudyView from '../components/atlas/views/TransferStudyView';
 import AblationsView from '../components/atlas/views/AblationsView';
 import SystemDiagnosticsView from '../components/atlas/views/SystemDiagnosticsView';
+import { recognizeMachine, diagnoseFromFaultType } from '../twin/machineModels';
+import { DASHBOARD_VIEWS } from '../lib/dashboardViews';
+import { useSession } from '../contexts/SessionContext';
+import DevicesView from '../components/atlas/views/DevicesView';
+
+const MachineTwin3D = lazy(() => import('../components/MachineTwin3D'));
 
 const TRANSLATIONS: Record<string, Record<string, string>> = {
   en: {
@@ -105,7 +111,10 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
 
 export const Dashboard: React.FC = () => {
   // ATLAS View & Navigation State
-  const [activeView, setActiveView] = useState<string>('monitoring');
+  const [activeView, setActiveView] = useState<string>(() => {
+    const requested = new URLSearchParams(window.location.search).get('view');
+    return requested && DASHBOARD_VIEWS.includes(requested) ? requested : 'monitoring';
+  });
   const [activeDomain, setActiveDomain] = useState<string>('cmapss');
   const [activeUnit, setActiveUnit] = useState<string>('unit_1');
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState<boolean>(false);
@@ -116,7 +125,7 @@ export const Dashboard: React.FC = () => {
     server: null,
   });
 
-  // Legacy Phase A State
+  // Shop Floor (MQTT machines) state
   const [selectedLang, setSelectedLang] = useState('en');
   const [selectedMachine, setSelectedMachine] = useState<string | null>('M001');
   const { summary, loading: summaryLoading, error: summaryError } = useDashboardData(2000);
@@ -125,9 +134,10 @@ export const Dashboard: React.FC = () => {
   const [chatOpen, setChatOpen] = useState(false);
 
   // Auth & Roles
-  const userRoleMatch = document.cookie.match(/(^|;)\s*user_role=([^;]+)/);
-  const userRole = userRoleMatch ? userRoleMatch[2] : 'operator';
-  const canInjectFault = userRole === 'admin' || userRole === 'operator';
+  // Role comes from the server session (/api/auth/me), not a client cookie.
+  const { role: userRole } = useSession();
+  // The fault endpoint is admin-only on the server, so only admins see the controls.
+  const canInjectFault = userRole === 'admin';
 
   const t = TRANSLATIONS[selectedLang] || TRANSLATIONS.en;
   const currentMachine = summary?.machines.find(m => m.machine_id === selectedMachine);
@@ -218,14 +228,14 @@ export const Dashboard: React.FC = () => {
     }
   };
 
-  const handleInjectFault = async (faultMode: string) => {
+  const handleInjectFault = async (faultMode: string, label: string) => {
     if (!selectedMachine) return;
     try {
       await apiFetch(`/api/machines/${selectedMachine}/fault`, {
         method: 'POST',
         body: JSON.stringify({ fault_mode: faultMode })
       });
-      setInjectionStatus({ message: `${t.injectSuccess} (${faultMode})`, type: 'success' });
+      setInjectionStatus({ message: `${t.injectSuccess} (${label})`, type: 'success' });
       setTimeout(() => setInjectionStatus(null), 3000);
     } catch (err: any) {
       setInjectionStatus({ message: err.message || "Connection error.", type: 'error' });
@@ -264,80 +274,6 @@ export const Dashboard: React.FC = () => {
           onSelectDomainUnit={handleSelectDomainUnit}
           onSelectDomain={handleDomainChange}
         />
-      )}
-
-      {/* Universal Multi-Unit Switcher Strip (Visible for multi-unit domains like Mobile) */}
-      {activeDomain === 'mobile' && activeView !== 'legacy_iot' && (
-        <div
-          className="mission-panel"
-          style={{
-            padding: '10px 16px',
-            marginBottom: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px',
-            borderLeft: '3px solid var(--accent-cyan)'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
-              ACTIVE MOBILE UNIT:
-            </span>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => setActiveUnit('mobile_device_1')}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: 'var(--radius-xs)',
-                  border: activeUnit === 'mobile_device_1' ? '1.5px solid var(--accent-cyan)' : '1px solid var(--border-color)',
-                  background: activeUnit === 'mobile_device_1' ? 'var(--accent-cyan-dim)' : 'var(--bg-elevated)',
-                  color: activeUnit === 'mobile_device_1' ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '12px',
-                  fontWeight: activeUnit === 'mobile_device_1' ? 700 : 500,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                <span className={domainSnapshots['mobile_device_1']?.adapter_status === 'live' ? "pulse-dot" : ""} style={{ width: 8, height: 8, borderRadius: '50%', background: domainSnapshots['mobile_device_1']?.adapter_status === 'live' ? 'var(--status-normal)' : 'var(--text-muted)' }} />
-                <span>mobile_device_1</span>
-                <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'rgba(255,255,255,0.08)', color: 'var(--accent-cyan)', fontWeight: 700 }}>WIFI</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveUnit('mobile_device_2')}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: 'var(--radius-xs)',
-                  border: activeUnit === 'mobile_device_2' ? '1.5px solid var(--accent-cyan)' : '1px solid var(--border-color)',
-                  background: activeUnit === 'mobile_device_2' ? 'var(--accent-cyan-dim)' : 'var(--bg-elevated)',
-                  color: activeUnit === 'mobile_device_2' ? 'var(--accent-cyan)' : 'var(--text-secondary)',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '12px',
-                  fontWeight: activeUnit === 'mobile_device_2' ? 700 : 500,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
-              >
-                <span className={domainSnapshots['mobile_device_2']?.adapter_status === 'live' ? "pulse-dot" : ""} style={{ width: 8, height: 8, borderRadius: '50%', background: domainSnapshots['mobile_device_2']?.adapter_status === 'live' ? 'var(--status-normal)' : 'var(--text-muted)' }} />
-                <span>mobile_device_2</span>
-                <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'rgba(255,255,255,0.08)', color: 'var(--accent-cyan)', fontWeight: 700 }}>USB</span>
-              </button>
-            </div>
-          </div>
-
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-            2 Hardware Units Connected Concurrently
-          </div>
-        </div>
       )}
 
       {/* Primary Dynamic Operational Workspace */}
@@ -387,17 +323,19 @@ export const Dashboard: React.FC = () => {
           <SystemDiagnosticsView activeDomain={activeDomain} />
         )}
 
-        {/* Phase A IoT Lab (Preserved for 100% Backward Compatibility) */}
+        {activeView === 'devices' && <DevicesView />}
+
+        {/* Shop Floor: machines registered in config/machines.json that publish over MQTT */}
         {activeView === 'legacy_iot' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* Phase A Sub-Header */}
+            {/* Shop Floor header */}
             <div className="mission-panel" style={{ padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div>
                 <h2 style={{ fontSize: '16px', fontWeight: 800, margin: 0, color: 'var(--text-bright)' }}>
-                  PHASE A: IOT MOTOR DIGITAL TWIN LAB (HISTORICAL PROTOTYPE)
+                  SHOP FLOOR MACHINES
                 </h2>
                 <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                  4-Machine Fleet Digital Twin (M001–M004) with Fault Injection & Multilingual Bhashini Voice Interface
+                  Machines that report vibration, temperature and current over MQTT. Add one in config/machines.json.
                 </div>
               </div>
 
@@ -437,7 +375,7 @@ export const Dashboard: React.FC = () => {
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 700,
                     background: 'var(--accent-cyan)',
-                    color: '#070B12',
+                    color: 'var(--bg-primary)',
                     borderRadius: 'var(--radius-xs)',
                     cursor: 'pointer'
                   }}
@@ -501,7 +439,7 @@ export const Dashboard: React.FC = () => {
                       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
                         <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>VIBRATION RMS</div>
                         <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-bright)' }}>
-                          {telemetry.length > 0 && telemetry[telemetry.length - 1]?.vibration_rms ? `${telemetry[telemetry.length - 1].vibration_rms.toFixed(2)} mm/s` : '--'}
+                          {telemetry.length > 0 && telemetry[telemetry.length - 1]?.vibration?.rms != null ? `${telemetry[telemetry.length - 1].vibration.rms.toFixed(2)} mm/s` : '--'}
                         </div>
                       </div>
                       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
@@ -513,10 +451,28 @@ export const Dashboard: React.FC = () => {
                       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
                         <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>CURRENT DRAW</div>
                         <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-bright)' }}>
-                          {telemetry.length > 0 && telemetry[telemetry.length - 1]?.current_draw ? `${telemetry[telemetry.length - 1].current_draw.toFixed(2)} A` : '--'}
+                          {telemetry.length > 0 && telemetry[telemetry.length - 1]?.current != null ? `${telemetry[telemetry.length - 1].current.toFixed(2)} A` : '--'}
                         </div>
                       </div>
                     </div>
+
+                    {/* 3D twin generated from the machine's registered type: shows which part is failing and how to fix it */}
+                    <Suspense fallback={<div style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><RefreshCw className="spin" /></div>}>
+                      {(() => {
+                        const recognition = recognizeMachine({
+                          type: currentMachine.machine_info.type,
+                          name: currentMachine.machine_info.name,
+                          channels: ['vibration', 'temperature', 'current'],
+                        });
+                        return (
+                          <MachineTwin3D
+                            key={currentMachine.machine_id}
+                            recognition={recognition}
+                            diagnosis={diagnoseFromFaultType(recognition.model, currentMachine.fault_type, currentMachine.status, currentMachine.detected_issues ?? [], currentMachine.recommendation)}
+                          />
+                        );
+                      })()}
+                    </Suspense>
 
                     {/* Live Charts */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -530,7 +486,7 @@ export const Dashboard: React.FC = () => {
                             <XAxis dataKey="timestamp" stroke="var(--text-muted)" fontSize={10} fontFamily="var(--font-mono)" tickFormatter={(val) => new Date(val).toLocaleTimeString()} />
                             <YAxis stroke="var(--text-muted)" fontSize={10} fontFamily="var(--font-mono)" domain={['auto', 'auto']} />
                             <Tooltip contentStyle={{ background: 'var(--bg-elevated)', borderColor: 'var(--border-hover)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-mono)', fontSize: '11px' }} />
-                            <Line type="monotone" dataKey="vibration_rms" stroke="var(--accent-cyan)" strokeWidth={2} dot={false} isAnimationActive={false} />
+                            <Line type="monotone" dataKey="vibration.rms" stroke="var(--accent-cyan)" strokeWidth={2} dot={false} isAnimationActive={false} />
                           </LineChart>
                         </ResponsiveContainer>
                       </div>
@@ -543,10 +499,10 @@ export const Dashboard: React.FC = () => {
                           {t.faultInjection} (OPERATOR PRIVILEGE)
                         </div>
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          {['Bearing Wear', 'Imbalance', 'Overheating', 'Misalignment', 'Normal'].map((mode) => (
+                          {([['Bearing Wear', 'bearing_wear'], ['Misalignment', 'misalignment'], ['Overheating', 'overheating'], ['Electrical Fault', 'electrical_fault'], ['Normal', 'normal']] as const).map(([label, mode]) => (
                             <button
                               key={mode}
-                              onClick={() => handleInjectFault(mode)}
+                              onClick={() => handleInjectFault(mode, label)}
                               style={{
                                 padding: '6px 12px',
                                 fontSize: '11px',
@@ -558,7 +514,7 @@ export const Dashboard: React.FC = () => {
                                 cursor: 'pointer'
                               }}
                             >
-                              {mode}
+                              {label}
                             </button>
                           ))}
                         </div>

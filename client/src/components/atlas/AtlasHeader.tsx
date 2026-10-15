@@ -33,14 +33,16 @@ export const AtlasHeader: React.FC<AtlasHeaderProps> = ({
   }, []);
 
   const navItems = [
-    { id: 'monitoring', label: 'Domain Telemetry' },
+    { id: 'monitoring', label: 'Connected Devices' },
     { id: 'cognition', label: 'Cognition & DNA' },
     { id: 'explainability', label: 'Explainability' },
     { id: 'decision', label: 'Decision Graph' },
     { id: 'transfer', label: 'Transfer Study' },
     { id: 'ablations', label: 'Ablation Suite' },
     { id: 'system', label: 'Diagnostics' },
-    { id: 'legacy_iot', label: 'Phase A IoT Lab' },
+    { id: 'legacy_iot', label: 'Shop Floor' },
+    // Device management is admin-only; the server enforces it as well.
+    ...(userRole === 'admin' ? [{ id: 'devices', label: 'Manage Devices' }] : []),
   ];
 
   return (
@@ -53,13 +55,13 @@ export const AtlasHeader: React.FC<AtlasHeaderProps> = ({
               width: '32px',
               height: '32px',
               borderRadius: 'var(--radius-sm)',
-              background: 'linear-gradient(135deg, var(--accent-cyan), #0077B6)',
+              background: 'var(--accent-cyan)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               boxShadow: '0 0 16px var(--accent-glow)'
             }}>
-              <Cpu size={18} color="#05080E" />
+              <Cpu size={18} color="var(--bg-primary)" />
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

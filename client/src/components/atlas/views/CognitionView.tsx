@@ -219,7 +219,7 @@ export const CognitionView: React.FC<CognitionViewProps> = ({
                   left: `${Math.min(100, Math.max(0, (p5 / 150) * 100))}%`,
                   width: `${Math.min(100, Math.max(5, ((p95 - p5) / 150) * 100))}%`,
                   height: '100%',
-                  background: 'linear-gradient(90deg, rgba(255, 179, 0, 0.4), rgba(0, 229, 255, 0.8), rgba(0, 230, 118, 0.4))',
+                  background: 'rgba(127, 167, 217, 0.55)',
                   borderRadius: '4px',
                 }}
               />

@@ -3,124 +3,131 @@ import { apiFetch } from '../lib/api';
 import { useTheme } from '../contexts/ThemeContext';
 import { Sun, Moon } from 'lucide-react';
 
+// Only same-site dashboard paths are accepted, so ?next= cannot redirect off the site.
+function nextPath(): string {
+  const next = new URLSearchParams(window.location.search).get('next') ?? '';
+  return next.startsWith('/dashboard') ? next : '/dashboard';
+}
+
+function describeLoginError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : '';
+  if (msg.startsWith('API error 401')) return 'Wrong username or password.';
+  if (msg.startsWith('API error 429')) return 'Too many sign-in attempts. Wait a minute, then try again.';
+  if (msg.startsWith('API error')) return `Sign-in failed (${msg.replace('API error ', '')}).`;
+  return 'Cannot reach the server. Check that the backend is running, then try again.';
+}
+
 const Login: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const response = await apiFetch<any>('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ username, password })
-      });
-      if (response && response.role) {
-        window.location.href = '/dashboard';
-      }
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
+    if (!username.trim() || !password) {
+      setError('Enter your username and password.');
+      return;
     }
+    setBusy(true);
+    setError('');
+    try {
+      const response = await apiFetch<{ role?: string }>('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ username: username.trim(), password }),
+      });
+      if (response?.role) {
+        window.location.href = nextPath();
+        return;
+      }
+      setError('Sign-in failed. Try again.');
+    } catch (err) {
+      setError(describeLoginError(err));
+    }
+    setBusy(false);
   };
 
   return (
-    <div style={{
-      display: 'flex', flexDirection: 'column',
-      minHeight: '100vh', background: 'var(--bg-primary)'
-    }}>
-      {/* Top Nav for Theme Toggle */}
-      <div style={{ padding: '16px 24px', display: 'flex', justifyContent: 'flex-end' }}>
-        <button 
+    <div className="login">
+      <header className="home-bar">
+        <a href="/" className="home-wordmark" aria-label="ATLAS home">
+          ATLAS <span>Predictive maintenance</span>
+        </a>
+        <button
+          type="button"
+          className="home-icon-btn"
           onClick={toggleTheme}
-          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            color: 'var(--text-primary)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            padding: '8px',
-            borderRadius: 'var(--radius-sm)'
-          }}
+          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
         >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
         </button>
-      </div>
+      </header>
 
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '24px' }}>
-        <form onSubmit={handleLogin} className="bezel-outer" style={{ width: '100%', maxWidth: '400px', borderColor: error ? 'var(--status-critical)' : 'var(--border-color)' }}>
-          <div className="bezel-inner" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '32px' }}>
-            <h2 style={{ textAlign: 'center', marginBottom: '16px', fontSize: '20px', fontWeight: 700 }}>Digital Twin Login</h2>
-            
-            {error && <div style={{ color: 'var(--status-critical)', fontSize: '13px', textAlign: 'center', fontWeight: 500 }}>{error}</div>}
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>Username</label>
-              <input 
-                type="text" 
-                value={username} 
-                onChange={(e) => setUsername(e.target.value)}
-                style={{ borderColor: error ? 'var(--status-critical)' : 'var(--border-color)' }}
-                required 
+      <main className="login-main">
+        <form className="login-card" onSubmit={handleLogin} noValidate aria-labelledby="login-title">
+          <h1 id="login-title">Sign in</h1>
+          <p className="login-lede">Use the account your administrator created for you.</p>
+
+          {error && <p className="login-error" role="alert">{error}</p>}
+
+          <div className="login-field">
+            <label htmlFor="login-username">Username</label>
+            <input
+              id="login-username"
+              type="text"
+              name="username"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              aria-invalid={!!error}
+              autoFocus
+              required
+            />
+          </div>
+
+          <div className="login-field">
+            <label htmlFor="login-password">Password</label>
+            <span className="login-password">
+              <input
+                id="login-password"
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                aria-invalid={!!error}
+                required
               />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>Password</label>
-              <input 
-                type="password" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)}
-                style={{ borderColor: error ? 'var(--status-critical)' : 'var(--border-color)' }}
-                required 
-              />
-            </div>
-
-            <button type="submit" className="primary" style={{ marginTop: '16px', padding: '12px', fontWeight: 600 }}>
-              Login
-            </button>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
               <button
                 type="button"
-                onClick={async () => {
-                  setUsername('demo_viewer');
-                  setPassword('demo_viewer_public_pw_123');
-                  try {
-                    const response = await apiFetch<any>('/api/auth/login', {
-                      method: 'POST',
-                      body: JSON.stringify({ username: 'demo_viewer', password: 'demo_viewer_public_pw_123' })
-                    });
-                    if (response && response.role) {
-                      window.location.href = '/dashboard';
-                    }
-                  } catch (err: any) {
-                    setError(err.message || 'Login failed');
-                  }
-                }}
-                style={{
-                  background: 'var(--bg-elevated)',
-                  border: '1px solid var(--border-color)',
-                  color: 'var(--accent-cyan)',
-                  padding: '8px 12px',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
+                className="login-reveal"
+                onClick={() => setShowPassword(s => !s)}
+                aria-pressed={showPassword}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
-                Instant Demo Access (Viewer)
+                {showPassword ? 'Hide' : 'Show'}
               </button>
-
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.4 }}>
-                Demo Credentials: <code style={{ color: 'var(--text-secondary)' }}>demo_viewer / demo_viewer_public_pw_123</code>
-              </div>
-            </div>
+            </span>
           </div>
+
+          <button type="submit" className="home-btn home-btn-primary login-submit" disabled={busy}>
+            {busy ? 'Signing in' : 'Sign in'}
+          </button>
+
+          <p className="login-help">Forgot your password? Ask your administrator to reset it.</p>
         </form>
-      </div>
+      </main>
+
+      <footer className="home-footer">
+        <span>ATLAS predictive maintenance and digital twin</span>
+        <nav aria-label="Footer">
+          <a href="/">Home</a>
+        </nav>
+      </footer>
     </div>
   );
 };

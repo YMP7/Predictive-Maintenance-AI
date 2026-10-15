@@ -331,7 +331,7 @@ export const DecisionSupportView: React.FC<DecisionSupportViewProps> = ({
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '4px',
-                          background: 'rgba(0, 229, 255, 0.15)',
+                          background: 'var(--accent-cyan-dim)',
                           color: 'var(--accent-cyan)',
                           padding: '3px 8px',
                           borderRadius: 'var(--radius-xs)',

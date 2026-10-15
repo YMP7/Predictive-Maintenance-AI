@@ -1,168 +1,139 @@
 import React, { Suspense, lazy } from 'react';
-import { Activity, Cpu, ShieldCheck, ArrowRight, BarChart3, Zap, Sun, Moon } from 'lucide-react';
+import { Sun, Moon } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
+import { VIEW_GROUPS } from '../lib/dashboardViews';
+import { getModel, RECOGNISED_MODELS } from '../twin/machineModels';
 
-const MachineAnimation = lazy(() => import('../components/MachineAnimation'));
+const TwinViewer = lazy(() => import('../components/MachineTwin3D').then(m => ({ default: m.TwinViewer })));
+
+// The flow is what the code does today: adapters in server/adapters, models in ml/ and server/atlas.
+const FLOW = [
+  { stage: 'Sensors and adapters', detail: 'MQTT sensor feeds from the shop floor, this computer\'s OS telemetry, Android phones over Wi-Fi or USB, server telemetry and NASA C-MAPSS turbofan data.' },
+  { stage: 'Models', detail: 'A fault classifier names the fault type. An Attention-LSTM forecasts remaining useful life with an uncertainty range.' },
+  { stage: 'Dashboard', detail: 'A 3D model of each machine marks the failing part, with the evidence, an explanation and repair steps.' },
+  { stage: 'Alerts', detail: 'When enabled: SMS, voice call or email, in English, Hindi, Telugu, Tamil or Marathi.' },
+];
+
+// Running row number across groups, for the ledger numbering.
+const GROUP_START = VIEW_GROUPS.map((_, i) => VIEW_GROUPS.slice(0, i).reduce((n, g) => n + g.views.length, 0));
 
 const Home: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
+  const signedIn = document.cookie.includes('auth_status=true');
+  const entry = signedIn ? { href: '/dashboard', label: 'Open the dashboard' } : { href: '/login', label: 'Sign in to ATLAS' };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)' }}>
-      
-      {/* Top Nav for Theme Toggle */}
-      <div style={{ padding: '16px 24px', display: 'flex', justifyContent: 'flex-end' }}>
-        <button 
-          onClick={toggleTheme}
-          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            color: 'var(--text-primary)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            padding: '8px',
-            borderRadius: 'var(--radius-sm)'
-          }}
-        >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
-      </div>
-
-      {/* Hero Section */}
-      <header style={{
-        padding: '24px 24px',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: '48px',
-        alignItems: 'center',
-        maxWidth: '1200px',
-        margin: '0 auto',
-        width: '100%'
-      }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', alignItems: 'flex-start' }}>
-          <div className="eyebrow-tag" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Activity size={12} style={{ color: 'var(--accent-primary)' }} />
-            Enterprise Industry 4.0 — Predictive Edge Analytics
-          </div>
-
-          <h1 className="gradient-text" style={{
-            fontSize: 'clamp(32px, 5vw, 56px)',
-            fontWeight: 800,
-            lineHeight: 1.1,
-            textAlign: 'left'
-          }}>
-            AI Digital Twin &amp; Predictive Maintenance
-          </h1>
-
-          <p style={{
-            fontSize: '18px',
-            color: 'var(--text-secondary)',
-            lineHeight: 1.6,
-            textAlign: 'left'
-          }}>
-            Real-time machine health monitoring, fault prediction, and multilingual
-            alert generation for small and medium enterprises.
-          </p>
-
-          <a
-            href="/dashboard"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '14px 32px',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--accent-primary)',
-              color: '#fff',
-              fontWeight: 700,
-              fontSize: '15px',
-              textDecoration: 'none',
-              transition: 'transform 0.15s var(--ease-out), background-color 0.15s var(--ease-out)',
-              boxShadow: '0 0 20px var(--accent-glow)'
-            }}
-            onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.97)'; }}
-            onMouseUp={(e) => { e.currentTarget.style.transform = 'none'; }}
+    <div className="home">
+      <header className="home-bar">
+        <a href="/" className="home-wordmark" aria-label="ATLAS home">
+          ATLAS <span>Predictive maintenance</span>
+        </a>
+        <nav className="home-bar-actions" aria-label="Site">
+          <button
+            type="button"
+            className="home-icon-btn"
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
           >
-            Open Dashboard <ArrowRight size={18} />
-          </a>
-        </div>
-        <div style={{ width: '100%', height: '400px', position: 'relative' }}>
-          <Suspense fallback={
-            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
-              Loading 3D visualization...
-            </div>
-          }>
-            <MachineAnimation />
-          </Suspense>
-        </div>
+            {theme === 'dark' ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+          </button>
+          <a href={entry.href} className="home-btn home-btn-primary">{signedIn ? 'Dashboard' : 'Sign in'}</a>
+        </nav>
       </header>
 
-      {/* Feature Cards */}
-      <section style={{
-        maxWidth: '1100px',
-        width: '100%',
-        margin: '0 auto',
-        padding: '24px',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: '24px'
-      }}>
-        {[
-          {
-            icon: <Cpu size={24} style={{ color: 'var(--accent-primary)' }} />,
-            title: 'Digital Twin Simulation',
-            description: 'Virtual replicas of physical machines with real-time sensor data synchronization and state mirroring.'
-          },
-          {
-            icon: <ShieldCheck size={24} style={{ color: 'var(--status-normal)' }} />,
-            title: 'Predictive Maintenance',
-            description: 'ML-based fault classification and Remaining Useful Life (RUL) estimation to prevent unplanned downtime.'
-          },
-          {
-            icon: <BarChart3 size={24} style={{ color: 'var(--status-warning)' }} />,
-            title: 'Real-time Analytics',
-            description: 'Live vibration, temperature, and current monitoring with trend visualization and anomaly detection.'
-          },
-          {
-            icon: <Zap size={24} style={{ color: 'var(--status-critical)' }} />,
-            title: 'Fault Injection Testing',
-            description: 'Simulate bearing wear, misalignment, overheating, and electrical faults to validate the AI pipeline.'
-          },
-          {
-            icon: <Activity size={24} style={{ color: 'oklch(0.62 0.18 290)' }} />,
-            title: 'Edge-Ready Architecture',
-            description: 'Designed for low-cost deployment on Raspberry Pi and edge gateways for Enterprise factory floors.'
-          },
-          {
-            icon: <ShieldCheck size={24} style={{ color: 'var(--accent-primary)' }} />,
-            title: 'Multilingual Alerts',
-            description: 'Maintenance alerts in English, Hindi, Telugu, Tamil, and Marathi for diverse factory workforces.'
-          }
-        ].map((feature, idx) => (
-          <div key={idx} className="bezel-outer">
-            <div className="bezel-inner" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '24px' }}>
-              {feature.icon}
-              <h3 style={{ fontSize: '18px', fontWeight: 700 }}>{feature.title}</h3>
-              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                {feature.description}
-              </p>
+      <main>
+        <section className="home-hero" aria-labelledby="home-title">
+          <div className="home-hero-copy">
+            <h1 id="home-title">Find the failing part before the machine stops.</h1>
+            <p className="home-lede">
+              ATLAS reads vibration, temperature and current from your machines, forecasts how long each one has left,
+              and marks the faulty part on a 3D model of the machine with the steps to fix it.
+            </p>
+            <div className="home-actions">
+              <a href={entry.href} className="home-btn home-btn-primary">{entry.label}</a>
+              {!signedIn && (
+                <span className="home-note">Accounts are created by your administrator.</span>
+              )}
             </div>
           </div>
-        ))}
-      </section>
 
-      {/* Footer */}
-      <footer style={{
-        marginTop: 'auto',
-        padding: '32px 24px',
-        textAlign: 'center',
-        fontSize: '13px',
-        color: 'var(--text-muted)',
-        borderTop: '1px solid var(--border-color)'
-      }}>
-        AI Digital Twin — Enterprise Industry 4.0 Predictive Maintenance System
+          <figure className="home-hero-figure">
+            <Suspense fallback={<div className="home-twin-loading">Loading the 3D model</div>}>
+              {/* shortcut: read once at render, so resizing across 640px keeps the first layout until reload */}
+              <TwinViewer model={getModel('motor_pump')} apart={window.matchMedia('(min-width: 640px)').matches} height={380} />
+            </Suspense>
+            <figcaption>
+              The motor-driven pump model, the same view the dashboard builds for each connected machine.
+              Drag to turn it, scroll to zoom.
+            </figcaption>
+          </figure>
+        </section>
+
+        <section className="home-section" aria-labelledby="home-views">
+          <div className="home-section-head">
+            <h2 id="home-views">Where to go in the dashboard</h2>
+            <p>Pick what you need to do. Each line opens that view directly after you sign in.</p>
+          </div>
+          <div className="home-ledger">
+            {VIEW_GROUPS.map((group, gi) => (
+              <div key={group.task} className="home-ledger-group">
+                <h3>{group.task}</h3>
+                <ol>
+                  {group.views.map((view, vi) => (
+                      <li key={view.id}>
+                        <a href={`/dashboard?view=${view.id}`} className="home-ledger-row">
+                          <span className="home-ledger-num" aria-hidden="true">{String(GROUP_START[gi] + vi + 1).padStart(2, '0')}</span>
+                          <span className="home-ledger-name">{view.label}</span>
+                          <span className="home-ledger-desc">{view.answers}</span>
+                          <span className="home-ledger-open">Open</span>
+                        </a>
+                      </li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="home-section home-split" aria-labelledby="home-machines">
+          <div>
+            <h2 id="home-machines">Machines it recognises</h2>
+            <p>
+              When a machine is linked, ATLAS picks its 3D model from the machine's registered type or the adapter it
+              connects through. Any other machine gets a generic model until you set its type.
+            </p>
+          </div>
+          <ul className="home-machine-list">
+            {RECOGNISED_MODELS.map(m => (
+              <li key={m.kind}>
+                <span>{m.label}</span>
+                <span className="home-machine-parts">{m.parts.length} parts</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="home-section" aria-labelledby="home-flow">
+          <div className="home-section-head">
+            <h2 id="home-flow">How data reaches the dashboard</h2>
+          </div>
+          <ol className="home-flow">
+            {FLOW.map(f => (
+              <li key={f.stage}>
+                <h3>{f.stage}</h3>
+                <p>{f.detail}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+      </main>
+
+      <footer className="home-footer">
+        <span>ATLAS predictive maintenance and digital twin</span>
+        <nav aria-label="Footer">
+          <a href="/login">Sign in</a>
+          <a href="/dashboard">Dashboard</a>
+        </nav>
       </footer>
     </div>
   );

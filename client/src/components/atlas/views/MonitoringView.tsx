@@ -1,8 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { Activity, Radio, Cpu } from 'lucide-react';
 import type { DomainSnapshot } from '../DomainTicker';
+import { recognizeMachine, diagnoseFromLimits, diagnoseTurbofan } from '../../../twin/machineModels';
+import { statusColor, stressPercent } from '../../../lib/status';
+
+const MachineTwin3D = lazy(() => import('../../MachineTwin3D'));
 
 interface MonitoringViewProps {
   activeDomain: string;
@@ -32,6 +36,7 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
   const [telemetryHistory, setTelemetryHistory] = useState<TelemetryPoint[]>([]);
   const [selectedSensor, setSelectedSensor] = useState<string>('');
   const [availableUnits, setAvailableUnits] = useState<UnitOption[]>([]);
+  const [fleet, setFleet] = useState<DomainSnapshot[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch domain units periodically
@@ -66,6 +71,7 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
             };
           });
           setAvailableUnits(units);
+          setFleet(res.machines);
           const ids = units.map(u => u.id);
           if (!ids.includes(activeUnit)) {
             onSelectUnit(ids[0]);
@@ -135,12 +141,6 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
   const features = currentSnapshot?.features || {};
   const featureKeys = Object.keys(features);
 
-  const health = currentSnapshot?.health_index ?? 1.0;
-  const healthPercent = Math.round(health * 100);
-
-  let healthColor = 'var(--status-normal)';
-  if (health < 0.4) healthColor = 'var(--status-critical)';
-  else if (health < 0.75) healthColor = 'var(--status-warning)';
 
   const adapterStatus = currentSnapshot?.adapter_status?.toLowerCase() || 'simulation';
   const isLive = adapterStatus === 'connected' || adapterStatus === 'live';
@@ -159,12 +159,11 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
 
           <div style={{ height: '18px', width: '1px', background: 'var(--border-color)' }} />
 
-          {/* Unit selector dropdown and quick-switch buttons */}
+          {/* One unit selector: buttons for a few units, a dropdown for a fleet */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>UNIT:</span>
 
-            {/* Quick-switch buttons for domains with small unit counts (e.g. mobile) */}
-            {availableUnits.length <= 4 && (
+            {availableUnits.length <= 4 ? (
               <div style={{ display: 'flex', gap: '6px' }}>
                 {availableUnits.map(u => {
                   const isUnitActive = activeUnit === u.id;
@@ -172,6 +171,8 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
                     <button
                       key={u.id}
                       type="button"
+                      title={u.label}
+                      aria-pressed={isUnitActive}
                       onClick={() => onSelectUnit(u.id)}
                       style={{
                         padding: '3px 8px',
@@ -188,14 +189,13 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
                         fontWeight: isUnitActive ? 700 : 500
                       }}
                     >
-                      <span className={u.isLive ? "pulse-dot" : ""} style={{ width: 6, height: 6, borderRadius: '50%', background: u.isLive ? 'var(--status-normal)' : 'var(--text-muted)' }} />
-                      <span>{u.id}</span>
+                      <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: u.isLive ? 'var(--status-normal)' : 'var(--text-muted)' }} />
+                      <span>{u.id}{u.isLive ? ' (live)' : ''}</span>
                     </button>
                   );
                 })}
               </div>
-            )}
-
+            ) : (
             <select
               value={activeUnit}
               onChange={e => onSelectUnit(e.target.value)}
@@ -204,10 +204,11 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
             >
               {availableUnits.map(u => (
                 <option key={u.id} value={u.id}>
-                  {u.isLive ? '🟢 ' : '⚪ '}{u.label}
+                  {u.label}{u.isLive ? ' (live)' : ''}
                 </option>
               ))}
             </select>
+            )}
           </div>
         </div>
 
@@ -233,6 +234,22 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
       {error && (
         <div style={{ padding: '12px 16px', background: 'var(--status-disc-bg)', border: '1px solid var(--status-disc-border)', borderRadius: 'var(--radius-sm)', color: 'var(--status-disc)', fontSize: '12px', fontFamily: 'var(--font-mono)' }}>
           {error}
+        </div>
+      )}
+
+      {/* 3D twin generated from the adapter the unit is linked through */}
+      {currentSnapshot?.features && (
+        <div className="mission-panel" style={{ padding: '16px 18px' }}>
+          <Suspense fallback={<div style={{ height: '400px' }} />}>
+            {(() => {
+              const features = currentSnapshot.features;
+              const recognition = recognizeMachine({ domain: activeDomain, channels: Object.keys(features) });
+              const diagnosis = recognition.model.kind === 'turbofan'
+                ? diagnoseTurbofan(recognition.model, features, fleet.map(m => m.features).filter(Boolean), currentSnapshot.status)
+                : diagnoseFromLimits(recognition.model, activeDomain, features, currentSnapshot.status);
+              return <MachineTwin3D key={`${activeDomain}:${activeUnit}`} recognition={recognition} diagnosis={diagnosis} />;
+            })()}
+          </Suspense>
         </div>
       )}
 
@@ -267,10 +284,10 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
             gap: '8px'
           }}>
             <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-              {currentSnapshot?.rul_label || (activeDomain === 'cmapss' ? 'Health Index' : 'Instantaneous Stress Score')}
+              Instantaneous Stress Score
             </div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '42px', color: healthColor, lineHeight: 1 }}>
-              {healthPercent}%
+            <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '42px', color: statusColor(currentSnapshot?.status), lineHeight: 1 }}>
+              {stressPercent(currentSnapshot?.health_index)}
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
               Status: <strong style={{ color: 'var(--text-bright)' }}>{currentSnapshot?.status || 'Active'}</strong>
@@ -397,7 +414,7 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
                       dataKey={selectedSensor}
                       stroke={
                         selectedSensor === 'thermal_headroom' ? 'var(--status-warning)' :
-                        (selectedSensor === 'vibration_rms' || selectedSensor === 'magnetic_field') ? 'var(--accent-purple)' :
+                        (selectedSensor === 'vibration_rms' || selectedSensor === 'magnetic_field') ? 'var(--accent-cyan)' :
                         'var(--accent-cyan)'
                       }
                       strokeWidth={2}
@@ -463,9 +480,9 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
             {activeDomain === 'mobile' && (
               <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent-purple)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span>PHYSICALLY DERIVED METRICS (2 CHANNELS)</span>
-                    <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'rgba(168, 85, 247, 0.15)', border: '1px solid var(--accent-purple)', color: 'var(--accent-purple)', fontWeight: 700 }}>
+                    <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'var(--accent-cyan-dim)', border: '1px solid var(--accent-cyan)', color: 'var(--accent-cyan)', fontWeight: 700 }}>
                       TIER (b) DERIVED NORM
                     </span>
                   </div>
@@ -485,8 +502,8 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
                         key={k}
                         onClick={() => setSelectedSensor(k)}
                         style={{
-                          background: isSelected ? 'rgba(168, 85, 247, 0.12)' : 'var(--bg-secondary)',
-                          border: `1px solid ${isSelected ? 'var(--accent-purple)' : 'rgba(168, 85, 247, 0.4)'}`,
+                          background: isSelected ? 'var(--accent-cyan-dim)' : 'var(--bg-secondary)',
+                          border: `1px solid ${isSelected ? 'var(--accent-cyan)' : 'var(--border-hover)'}`,
                           borderRadius: 'var(--radius-xs)',
                           padding: '10px 12px',
                           cursor: 'pointer',
@@ -494,7 +511,7 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '10px', color: 'var(--accent-purple)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', fontWeight: 700 }}>
+                          <span style={{ fontSize: '10px', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', fontWeight: 700 }}>
                             {k}
                           </span>
                           <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
@@ -520,7 +537,7 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--status-warning)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span>DERIVED & ESTIMATED METRICS (1 MODEL ESTIMATE)</span>
-                    <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'rgba(255, 179, 0, 0.15)', border: '1px solid var(--status-warning)', color: 'var(--status-warning)', fontWeight: 700 }}>
+                    <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '3px', background: 'rgba(224, 162, 59, 0.15)', border: '1px solid var(--status-warning)', color: 'var(--status-warning)', fontWeight: 700 }}>
                       TIER (c) HEURISTIC ESTIMATE
                     </span>
                   </div>
@@ -542,8 +559,8 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
                         key={k}
                         onClick={() => setSelectedSensor(k)}
                         style={{
-                          background: isSelected ? 'rgba(255, 179, 0, 0.12)' : 'var(--bg-secondary)',
-                          border: `1px dashed ${isSelected ? 'var(--status-warning)' : 'rgba(255, 179, 0, 0.4)'}`,
+                          background: isSelected ? 'rgba(224, 162, 59, 0.12)' : 'var(--bg-secondary)',
+                          border: `1px dashed ${isSelected ? 'var(--status-warning)' : 'rgba(224, 162, 59, 0.4)'}`,
                           borderRadius: 'var(--radius-xs)',
                           padding: '10px 12px',
                           cursor: 'pointer',

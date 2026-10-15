@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Bot, ClipboardList, X } from 'lucide-react';
 
 interface ToolCall {
   tool: string;
@@ -173,7 +174,7 @@ export default function AgentChat({ machineId, isOpen, onClose }: AgentChatProps
       role: 'agent',
       content: machineId
         ? `I'm your AI Maintenance Agent. I have live access to telemetry, alerts, and maintenance history for **${machineId}**. Ask me anything about this machine.`
-        : `I'm your AI Maintenance Agent. I have live access to telemetry, alerts, and maintenance records for all machines (M001–M004). Ask me anything — I'll query the data and reason over it.`,
+        : `I'm your AI Maintenance Agent. I have live access to telemetry, alerts, and maintenance records for every registered shop-floor machine. Ask me anything. I'll query the data and reason over it.`,
       timestamp: new Date(),
     },
   ]);
@@ -232,7 +233,7 @@ export default function AgentChat({ machineId, isOpen, onClose }: AgentChatProps
       setMessages(prev => [...prev, {
         id: (Date.now() + 2).toString(),
         role: 'agent',
-        content: `⚠️ Failed to reach the agent: ${err instanceof Error ? err.message : 'Unknown error'}`,
+        content: `Failed to reach the agent: ${err instanceof Error ? err.message : 'Unknown error'}`,
         timestamp: new Date(),
       }]);
     } finally {
@@ -314,7 +315,7 @@ export default function AgentChat({ machineId, isOpen, onClose }: AgentChatProps
           display: inline-block; 
           font-size: 10px; 
           padding: 2px 8px;
-          border-radius: 99px; 
+          border-radius: var(--radius-xs); 
           background: var(--accent-glow);
           border: 1px solid var(--border-color); 
           color: var(--accent-primary); 
@@ -400,11 +401,10 @@ export default function AgentChat({ machineId, isOpen, onClose }: AgentChatProps
           display: 'flex', alignItems: 'center', gap: 12,
         }}>
           <div style={{
-            width: 40, height: 40, borderRadius: '50%',
-            background: 'linear-gradient(135deg, var(--accent-primary), #1d4ed8)',
+            width: 40, height: 40, borderRadius: 'var(--radius-sm)',
+            background: 'var(--accent-primary)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 18, boxShadow: '0 0 16px var(--accent-glow)',
-          }}>🤖</div>
+          }}><Bot size={20} color="var(--bg-primary)" aria-hidden="true" /></div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: 14 }}>AI Maintenance Agent</div>
             <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
@@ -419,7 +419,8 @@ export default function AgentChat({ machineId, isOpen, onClose }: AgentChatProps
               padding: '6px 10px', fontSize: 14,
               transition: 'transform 0.15s var(--ease-out), background-color 0.15s var(--ease-out)',
             }}
-          >✕</button>
+            aria-label="Close agent chat"
+          ><X size={14} aria-hidden="true" /></button>
         </div>
 
         {/* Messages */}
@@ -448,7 +449,7 @@ export default function AgentChat({ machineId, isOpen, onClose }: AgentChatProps
                   <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>Tools used:</div>
                   {msg.toolsCalled.map((tc, i) => (
                     <span key={i} className="tool-chip">
-                      🔧 {tc.tool}
+                      {tc.tool}
                       {tc.args.machine_id ? ` (${tc.args.machine_id})` : ''}
                     </span>
                   ))}
@@ -464,10 +465,10 @@ export default function AgentChat({ machineId, isOpen, onClose }: AgentChatProps
                       borderRadius: 'var(--radius-sm)', padding: '8px 12px', fontSize: 12,
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                        <span>📋</span>
+                        <ClipboardList size={14} aria-hidden="true" />
                         <strong style={{ color: 'var(--text-primary)' }}>Work Order Created</strong>
                         <span style={{
-                          fontSize: 10, padding: '1px 6px', borderRadius: 99,
+                          fontSize: 10, padding: '1px 6px', borderRadius: 3,
                           background: `var(--status-${wo.urgency.toLowerCase()}-glow)`,
                           color: `var(--status-${wo.urgency.toLowerCase()})`,
                           border: `1px solid var(--status-${wo.urgency.toLowerCase()})22`,
