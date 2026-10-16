@@ -181,7 +181,7 @@ Legend: **BUILD** = in scope and committed · **FUTURE** = named future work, ne
 ### Security
 
 - [x] CORS is not `*` in deployment (`docker-compose.yml` defaults to `*`, SECURITY.md says no wildcard) *(defaults to localhost:3000, no wildcard)*
-- [ ] `MOBILE_BRIDGE_TOKEN` and `JWT_SECRET_KEY` set in deployment *(JWT_SECRET_KEY set in .env; MOBILE_BRIDGE_TOKEN NOT set in .env)*
+- [x] `MOBILE_BRIDGE_TOKEN` and `JWT_SECRET_KEY` set in deployment *(both set in .env; app restarted healthy)*
 - [x] JWT in HttpOnly cookies; `X-API-Request` header enforced *(httponly cookie in backend_api.py, X-API-Request enforced in auth.py)*
 - [x] RBAC on control endpoints (admin role) *(require_admin on retrain)*
 - [x] MQTT: anonymous off, per-device ACL *(allow_anonymous false + acl_file)*
