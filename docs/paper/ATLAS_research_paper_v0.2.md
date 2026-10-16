@@ -171,13 +171,17 @@ Practices that caught these: cross-checking a claim against a second independent
 - Health-index semantics differ between categories, so cross-domain similarity is a diagnostic, not proof of shared structure.
 - The cost model is illustrative; savings are relative, not financial.
 - Gaussian uncertainty is a simplification; no model-native predictive distribution is used yet.
+- Early-life over-replacement (Ablation 1): in 3 of 100 test units (unit_19, unit_27, unit_95) the Decision Graph chose immediate replacement while true RUL exceeded 60 cycles, wasting 281 cycles that the threshold baseline did not. Brand-new engines look alike, so retrieved neighbors have very different lifespans (spread about 60 cycles). A symmetric Gaussian over that spread puts about 11.3% mass at RUL of 30 or less, and the $1,000 failure penalty makes replacement the cost-minimizing choice. This is a small-sample illustration of a limit of symmetric Gaussian propagation early in life, not a general rate.
+- Low absolute confidence (Ablation 2): mean grounded confidence is 0.035 (std 0.078), well below the 0.50 uninformative prior of the ungrounded baseline. Grounded confidence ranks units usefully (Spearman r_s = -0.509 against prediction error) but is not a calibrated probability, and should be read as a relative signal. No calibration curve or recalibration step has been fit.
+- No defer-to-human policy: near-tied expected-cost actions are decided by a deterministic tie-break (the safer action wins) under seeded Monte Carlo, so a near-tie can flip with a different seed or sample count. A tie-margin rule that defers to an operator below a cost-gap threshold is not built; it is future work, because the threshold needs calibration on real outcomes and adding it would change every decision count reported here.
+- Reported ablation and transfer numbers were reproduced unchanged against the full 17,731-row memory bank (seed 42); they are single-run values for the ablations.
 - Domain-encoder results use one seed per domain; seed variance there is uncharacterized.
 - The PHM score trails the cited baseline, and the literature comparison is directional.
 - Agent grounding validates structure (ids, enumerations, allowed actions), not the truth of free-text rationale; human approval remains the final barrier.
 
 ## 8. Conclusion and Future Work
 
-ATLAS shows that RUL prediction, memory-grounded explanation and cost-aware decisions can share one architecture across machine types, and that the main risks sit at the seams between components, which our verification practice targets. Next steps: MC-dropout and ensemble uncertainty, multi-seed domain encoders, multi-condition C-MAPSS, a high-frequency vibration domain, validation on real hardware (an industrial machine and a cloud VM), and a generalized adapter framework with protocol adapters (Modbus, OPC-UA).
+ATLAS shows that RUL prediction, memory-grounded explanation and cost-aware decisions can share one architecture across machine types, and that the main risks sit at the seams between components, which our verification practice targets. Next steps: a tie-margin defer-to-human policy and confidence recalibration, asymmetric early-life priors, MC-dropout and ensemble uncertainty, multi-seed domain encoders, multi-condition C-MAPSS, a high-frequency vibration domain, validation on real hardware (an industrial machine and a cloud VM), and a generalized adapter framework with protocol adapters (Modbus, OPC-UA).
 
 ## Availability
 

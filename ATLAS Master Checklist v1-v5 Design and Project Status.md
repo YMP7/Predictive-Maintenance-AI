@@ -144,9 +144,9 @@ Legend: **BUILD** = in scope and committed · **FUTURE** = named future work, ne
 - [x] Transfer study: Executive Summary says MMD 0.74–0.88 for compute domains, but the table shows 0.90–0.93 *(summary now 0.90-0.93)*
 - [x] Transfer study: summary says cosine −0.09 to 0.18, but the table spans −0.2169 to 0.1543 *(summary now -0.22 to 0.15)*
 - [x] Ablation 3: "safety parity" claim sits beside 90% vs 100% near-failure urgent rate. Re-word or explain *(reworded as a disclosed 10-point gap)*
-- [ ] Ablation 1: early-life Gaussian-tail over-replacement (281 cycles) is disclosed. Carry it into the paper's limitations
-- [ ] Ablation 2: mean grounded confidence is only 0.035. Check calibration framing
-- [ ] Decision Graph stochastic sensitivity: add a tie-margin / defer-to-human policy or state it as FUTURE
+- [x] Ablation 1: early-life Gaussian-tail over-replacement (281 cycles) is disclosed. Carry it into the paper's limitations *(added to paper section 7 limitations)*
+- [x] Ablation 2: mean grounded confidence is only 0.035. Check calibration framing *(framed in paper section 7 as a rank signal, not calibrated probability)*
+- [x] Decision Graph stochastic sensitivity: add a tie-margin / defer-to-human policy or state it as FUTURE *(stated as FUTURE WORK in paper sections 7 and 8; not built)*
 - [x] Benchmark numbers differ across docs (15.02 / 383 vs 15.21 / 375 vs 15.42). Name the protocol for each *(protocol table added to docs/REPRODUCIBILITY.md)*
 - [x] Repo-structure table lists `simulation_engine.py`, `decision_graph.py`, `explainability.py`, but the real files are `simulation.py`, `decision.py`, `explain.py` *(context file now lists simulation.py, decision.py, explain.py)*
 - [x] Literature-mapping links point to a local `c:/Users/...` path. Convert to relative links *(converted to relative links)*
@@ -168,7 +168,7 @@ Legend: **BUILD** = in scope and committed · **FUTURE** = named future work, ne
 - [x] `tests/test_api.py`, `tests/test_mqtt.py`, `tests/test_work_order_safeguards.py` *(in the 290-pass run)*
 - [x] Adapter contract tests (laptop, mobile, server) *(test_adapter_conformance, laptop, mobile, server tests pass)*
 - [x] Transfer study reruns reproduce `transfer_study_results.json` *(test_transfer_study passes; `data/transfer_study_results.json` present)*
-- [x] Ablation script reruns reproduce the stated numbers (seed 42) *(test_ablations passes)*
+- [x] Ablation script reruns reproduce the stated numbers (seed 42) *(reran against full 17,731-row AMKB: ablation and transfer JSON identical to committed results)*
 - [x] CI workflow exists and passes (README badge points to one; an older doc says none exists) *(`.github/workflows/ci.yml` present; passing on GitHub not checked)*
 
 ### ML pipeline
