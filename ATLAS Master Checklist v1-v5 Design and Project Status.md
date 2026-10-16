@@ -10,9 +10,9 @@ Legend: **BUILD** = in scope and committed · **FUTURE** = named future work, ne
 - [x] Title: *An Adaptive Machine Cognition Platform for Explainable Predictive Maintenance Across Heterogeneous Machine Systems*
 - [x] Domain: Explainable AI for Predictive Maintenance and Decision Intelligence
 - [x] BUILD / FUTURE-WORK label is kept on every feature
-- [ ] Adapter layer is the ONLY place domain-specific code lives (no `if domain == ...` below it) *(not true yet, see the audit item below)*
+- [x] Adapter layer is the ONLY place domain-specific code lives (no `if domain == ...` below it) *(domain branches now behind `server/adapters/domain_profile.py`; grep finds none outside adapters)*
 - [x] State vector dimension fixed at 32 for WorldModel output and AMKB (Machine DNA is a separate 16-dim fingerprint)
-- [ ] Re-audit code for any `if domain ==` leaks outside `server/adapters/` *(AUDITED, OPEN: leaks remain at `server/api.py:55,234`, `atlas/explain.py:118`, `atlas/pretrain_domain.py:197-201`, `atlas/transfer_study.py:316`)*
+- [x] Re-audit code for any `if domain ==` leaks outside `server/adapters/` *(fixed in api.py, explain.py, pretrain_domain.py, transfer_study.py, domain_service.py, learning_engine.py, backend_api.py)*
 
 ## 2. Version history (what each version introduced)
 
@@ -155,11 +155,11 @@ Legend: **BUILD** = in scope and committed · **FUTURE** = named future work, ne
 
 ### Infrastructure
 
-- [ ] `docker compose up -d --build`: app, TimescaleDB, Mosquitto all healthy *(timescaledb and mosquitto up; app container not running)*
-- [ ] `GET /health` returns healthy *(app not running during check)*
-- [ ] `python scripts/migrate.py` and `scripts/migrate_atlas.py` run cleanly (pgvector enabled)
-- [ ] `.env` has `JWT_SECRET_KEY`, `DATABASE_URL`, `TSDB_PASSWORD`
-- [ ] Persistent volumes mounted (data, logs, DB)
+- [x] `docker compose up -d --build`: app, TimescaleDB, Mosquitto all healthy *(app, TimescaleDB, Mosquitto all healthy; fixed missing PYTHONPATH and ml/ copy in Dockerfile)*
+- [x] `GET /health` returns healthy *(returns healthy on :8000)*
+- [x] `python scripts/migrate.py` and `scripts/migrate_atlas.py` run cleanly (pgvector enabled) *(both ran, pgvector present; only psycopg pool shutdown warnings)*
+- [x] `.env` has `JWT_SECRET_KEY`, `DATABASE_URL`, `TSDB_PASSWORD` *(JWT_SECRET_KEY, DATABASE_URL, TSDB_PASSWORD present)*
+- [x] Persistent volumes mounted (data, logs, DB) *(data and logs named volumes mounted on the app container)*
 
 ### Tests
 
@@ -174,14 +174,14 @@ Legend: **BUILD** = in scope and committed · **FUTURE** = named future work, ne
 ### ML pipeline
 
 - [x] Checkpoints present in `data/models/` (cmapss, laptop, mobile, server) *(all four domains present in data/models)*
-- [ ] AMKB populated (17,731 C-MAPSS rows intact under multi-domain writes) *(LOCAL DB HAS 1,769 cmapss rows, not 17,731; run scripts/populate_amkb.py to restore)*
+- [x] AMKB populated (17,731 C-MAPSS rows intact under multi-domain writes) *(17,731 cmapss rows restored via populate_amkb.py --clear; full tests re-run)*
 - [ ] Learning Engine promote / rollback test and `learning_events` audit rows *(1 learning_events row exists; promote/rollback covered by test_learning_engine)*
 - [x] Frontend shows citations, attribution and decision output *(ExplainabilityView and DecisionSupportView exist; not visually checked)*
 
 ### Security
 
 - [x] CORS is not `*` in deployment (`docker-compose.yml` defaults to `*`, SECURITY.md says no wildcard) *(defaults to localhost:3000, no wildcard)*
-- [ ] Set a real `API_KEY` *(no API_KEY variable found in code; MOBILE_BRIDGE_TOKEN is the gate, set in your .env)*
+- [ ] `MOBILE_BRIDGE_TOKEN` and `JWT_SECRET_KEY` set in deployment *(JWT_SECRET_KEY set in .env; MOBILE_BRIDGE_TOKEN NOT set in .env)*
 - [x] JWT in HttpOnly cookies; `X-API-Request` header enforced *(httponly cookie in backend_api.py, X-API-Request enforced in auth.py)*
 - [x] RBAC on control endpoints (admin role) *(require_admin on retrain)*
 - [x] MQTT: anonymous off, per-device ACL *(allow_anonymous false + acl_file)*
