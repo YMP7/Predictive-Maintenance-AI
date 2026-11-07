@@ -6,7 +6,7 @@
 
 > [!NOTE]
 > This defect log was compiled from the Architecture Decisions Log in
-> [`ATLAS_PROJECT_CONTEXT.md`](../../../ATLAS_PROJECT_CONTEXT.md) §6b and verified against
+> [`ATLAS_PROJECT_CONTEXT.md`](../../ATLAS_PROJECT_CONTEXT.md) §6b and verified against
 > the git commit history. All defects listed were discovered and fixed during development.
 > This project did not use a formal issue tracker; the Decisions Log served that role.
 

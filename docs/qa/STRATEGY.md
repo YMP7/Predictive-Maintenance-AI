@@ -7,7 +7,7 @@
 
 > [!NOTE]
 > This document is an as-built strategy retrospective compiled from the canonical project record
-> ([`ATLAS_PROJECT_CONTEXT.md`](../../../ATLAS_PROJECT_CONTEXT.md)). It describes the strategy
+> ([`ATLAS_PROJECT_CONTEXT.md`](../../ATLAS_PROJECT_CONTEXT.md)). It describes the strategy
 > that was actually followed, not a forward-looking plan.
 
 ---
@@ -134,7 +134,7 @@ The Machine Adapter Layer is the **only** location where domain-specific code is
 | `fastapi >= 0.115` | REST API server |
 | `faiss-cpu >= 1.8` | Alternative vector indexing (available but pgvector is primary) |
 
-*(Full dependency list: [`requirements.txt`](../../../requirements.txt))*
+*(Full dependency list: [`requirements.txt`](../../requirements.txt))*
 
 ### Model Checkpoint Integrity
 
