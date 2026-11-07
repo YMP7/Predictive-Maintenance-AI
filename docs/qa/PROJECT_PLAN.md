@@ -8,7 +8,7 @@
 > [!IMPORTANT]
 > This is a **retrospective, as-built** project plan — not a forward-looking roadmap.
 > All dates, deliverables, and milestones reflect what was actually built and committed,
-> reconstructed from the canonical record in [`ATLAS_PROJECT_CONTEXT.md`](../../../ATLAS_PROJECT_CONTEXT.md)
+> reconstructed from the canonical record in [`ATLAS_PROJECT_CONTEXT.md`](../../ATLAS_PROJECT_CONTEXT.md)
 > and verified against `git log`.
 
 ---

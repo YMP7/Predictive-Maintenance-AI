@@ -274,7 +274,7 @@ Verified live during Phase 4 verification:
 
 ## 6. Examiner Anticipated Inquiries & Authoritative Responses
 
-*(Full verbatim Q&A guide indexed in [docs/VIVA_EXAMINER_QA.md](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/VIVA_EXAMINER_QA.md)).*
+*(Full verbatim Q&A guide indexed in [docs/VIVA_EXAMINER_QA.md](VIVA_EXAMINER_QA.md)).*
 
 ### Q1: Mobile 16-Channel Telemetry vs. 5-Feature Neural Input
 * **Examiner Inquiry:** *"Your Mobile adapter acquires 16 channels, but your World Model receives only 5 features. Why omit 11 channels from neural modeling?"*
