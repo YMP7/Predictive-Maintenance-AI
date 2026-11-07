@@ -11,9 +11,11 @@ def utc_timestamp() -> str:
 
 
 class SensorSimulator:
-    def __init__(self, machine_id: str, fault_mode: str = "normal"):
+    def __init__(self, machine_id: str, fault_mode: str = "normal", severity: float = 1.0):
         self.machine_id = machine_id
         self.fault_mode = fault_mode
+        # Scales the step-change fault signatures; bearing_wear ramps on its own.
+        self.severity = severity
         self.degradation_step = 0
         
         # Load thresholds if config exists
@@ -52,18 +54,28 @@ class SensorSimulator:
             temp += 15.0 * factor
             curr += 1.2 * factor
         elif self.fault_mode == "misalignment":
-            vib_x += 2.0  # High in x axis
-            vib_y += 0.5
-            temp += 2.0
-            curr += 0.4
+            s = self.severity
+            vib_x += 2.0 * s  # High in x axis
+            vib_y += 0.5 * s
+            temp += 2.0 * s
+            curr += 0.4 * s
+        elif self.fault_mode == "rotor_imbalance":
+            # Radial 1x force: x and y rise together, axial z stays quiet.
+            s = self.severity
+            vib_x += 1.4 * s
+            vib_y += 1.4 * s
+            temp += 3.0 * s
+            curr += 0.3 * s
         elif self.fault_mode == "overheating":
-            temp += 28.0 + random.uniform(0, 5.0)
-            vib_x += 0.4
-            curr += 0.8
+            s = self.severity
+            temp += (28.0 + random.uniform(0, 5.0)) * s
+            vib_x += 0.4 * s
+            curr += 0.8 * s
         elif self.fault_mode == "electrical_fault":
-            curr += 2.5
-            temp += 10.0
-            vib_x += 0.2
+            s = self.severity
+            curr += 2.5 * s
+            temp += 10.0 * s
+            vib_x += 0.2 * s
             
         rms = (vib_x**2 + vib_y**2 + vib_z**2)**0.5
         
