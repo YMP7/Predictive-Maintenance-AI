@@ -1,12 +1,10 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../../../lib/api';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { Activity, Radio, Cpu } from 'lucide-react';
 import type { DomainSnapshot } from '../DomainTicker';
-import { recognizeMachine, diagnoseFromLimits, diagnoseTurbofan } from '../../../twin/machineModels';
 import { statusColor, stressPercent } from '../../../lib/status';
 
-const MachineTwin3D = lazy(() => import('../../MachineTwin3D'));
 
 interface MonitoringViewProps {
   activeDomain: string;
@@ -36,7 +34,6 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
   const [telemetryHistory, setTelemetryHistory] = useState<TelemetryPoint[]>([]);
   const [selectedSensor, setSelectedSensor] = useState<string>('');
   const [availableUnits, setAvailableUnits] = useState<UnitOption[]>([]);
-  const [fleet, setFleet] = useState<DomainSnapshot[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch domain units periodically
@@ -71,7 +68,6 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
             };
           });
           setAvailableUnits(units);
-          setFleet(res.machines);
           const ids = units.map(u => u.id);
           if (!ids.includes(activeUnit)) {
             onSelectUnit(ids[0]);
@@ -237,20 +233,11 @@ export const MonitoringView: React.FC<MonitoringViewProps> = ({
         </div>
       )}
 
-      {/* 3D twin generated from the adapter the unit is linked through */}
-      {currentSnapshot?.features && (
-        <div className="mission-panel" style={{ padding: '16px 18px' }}>
-          <Suspense fallback={<div style={{ height: '400px' }} />}>
-            {(() => {
-              const features = currentSnapshot.features;
-              const recognition = recognizeMachine({ domain: activeDomain, channels: Object.keys(features) });
-              const diagnosis = recognition.model.kind === 'turbofan'
-                ? diagnoseTurbofan(recognition.model, features, fleet.map(m => m.features).filter(Boolean), currentSnapshot.status)
-                : diagnoseFromLimits(recognition.model, activeDomain, features, currentSnapshot.status);
-              return <MachineTwin3D key={`${activeDomain}:${activeUnit}`} recognition={recognition} diagnosis={diagnosis} />;
-            })()}
-          </Suspense>
-        </div>
+      {/* The 3D view moved to the Asset View (P3); this legacy view links there until P7 removes it */}
+      {activeUnit && (
+        <a href={`/assets/${activeDomain}/${encodeURIComponent(activeUnit)}`} style={{ fontSize: '13px' }}>
+          Open this unit in the 3D Asset View
+        </a>
       )}
 
       {/* Main 2-Column Monitoring Grid */}

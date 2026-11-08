@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useDashboardData, useMachineDetails } from '../hooks/useDashboardData';
 import { MachineCard } from '../components/MachineCard';
 import AgentChat from '../components/AgentChat';
@@ -19,12 +19,10 @@ import DecisionSupportView from '../components/atlas/views/DecisionSupportView';
 import TransferStudyView from '../components/atlas/views/TransferStudyView';
 import AblationsView from '../components/atlas/views/AblationsView';
 import SystemDiagnosticsView from '../components/atlas/views/SystemDiagnosticsView';
-import { recognizeMachine, diagnoseFromFaultType } from '../twin/machineModels';
 import { DASHBOARD_VIEWS } from '../lib/dashboardViews';
 import { useSession } from '../contexts/SessionContext';
 import DevicesView from '../components/atlas/views/DevicesView';
 
-const MachineTwin3D = lazy(() => import('../components/MachineTwin3D'));
 
 const TRANSLATIONS: Record<string, Record<string, string>> = {
   en: {
@@ -479,23 +477,8 @@ export const Dashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* 3D twin generated from the machine's registered type: shows which part is failing and how to fix it */}
-                    <Suspense fallback={<div style={{ height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><RefreshCw className="spin" /></div>}>
-                      {(() => {
-                        const recognition = recognizeMachine({
-                          type: currentMachine.machine_info.type,
-                          name: currentMachine.machine_info.name,
-                          channels: ['vibration', 'temperature', 'current'],
-                        });
-                        return (
-                          <MachineTwin3D
-                            key={currentMachine.machine_id}
-                            recognition={recognition}
-                            diagnosis={diagnoseFromFaultType(recognition.model, currentMachine.fault_type, currentMachine.status, currentMachine.detected_issues ?? [], currentMachine.recommendation)}
-                          />
-                        );
-                      })()}
-                    </Suspense>
+                    {/* The 3D view moved to the Asset View (P3); this legacy page links there until P7 removes it */}
+                    <a href="/assets" style={{ fontSize: '13px' }}>Open the 3D Asset View</a>
 
                     {/* Live Charts */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>

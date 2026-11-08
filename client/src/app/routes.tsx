@@ -2,7 +2,7 @@ import { createBrowserRouter, Navigate, Outlet } from 'react-router';
 
 import { SessionContext } from '../contexts/SessionContext';
 import { AppShell } from '../design/shell';
-import { Gallery, LegacyDashboard, LegacyHome, LegacyLogin, RedirectDashboard } from './lazyPages';
+import { AssetByKind, AssetGallery, AssetIndex, AssetPage, Gallery, LegacyDashboard, LegacyHome, LegacyLogin, RedirectDashboard } from './lazyPages';
 import { NotFoundPage, Pending } from './Pending';
 import { RequireRole, RequireSession } from './session';
 
@@ -19,16 +19,10 @@ const productRoutes = [
       'ingestion health per device',
     ]),
   },
-  {
-    path: 'assets/:assetId',
-    element: pending('Asset detail', 'One machine: what it is doing, how long it has left, and why.', 'P3 and P4', [
-      '3D Asset View',
-      'live trends',
-      'RUL with p10 to p90 band',
-      'why panel with AMKB citations',
-      'recommended action to work order',
-    ]),
-  },
+  { path: 'assets', element: <AssetIndex /> },
+  { path: 'assets/kind/:kind', element: <AssetByKind /> },
+  // shortcut: live trends, RUL band, work orders and the AMKB panel join this page in P4
+  { path: 'assets/:domain/:machineId', element: <AssetPage /> },
   {
     path: 'cross-domain',
     element: pending('Cross-domain view', 'The same pipeline across a turbofan, a laptop, a phone, a server and a pump.', 'P4', [
@@ -76,7 +70,11 @@ const devRoutes = import.meta.env.DEV
             <AppShell />
           </SessionContext.Provider>
         ),
-        children: [{ path: 'components', element: <Gallery /> }],
+        children: [
+          { path: 'components', element: <Gallery /> },
+          { path: 'assets', element: <AssetGallery /> },
+          { path: 'assets/:domain/:machineId', element: <AssetGallery /> },
+        ],
       },
     ]
   : [];

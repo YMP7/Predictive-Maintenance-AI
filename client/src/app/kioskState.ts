@@ -46,10 +46,14 @@ export function useKiosk() {
   return { active, exit: () => setKiosk(false) };
 }
 
-/** Pages the tour visits until P3 adds the five machines. */
+/** Pages the tour visits: the five machine types in 3D (each page tours its parts on its own), then the overviews. */
 export const TOUR: { path: string; caption: string }[] = [
+  { path: '/assets/kind/turbofan', caption: 'Turbofan engine, NASA C-MAPSS: the benchmark the RUL model is scored on' },
+  { path: '/assets/kind/laptop', caption: 'A laptop: this computer, read live from its operating system' },
+  { path: '/assets/kind/phone', caption: 'An Android phone: battery, processor and motion sensors' },
+  { path: '/assets/kind/server', caption: 'A rack server: processors, memory, disks and network' },
+  { path: '/assets/kind/motor_pump', caption: 'A motor-driven pump over Modbus TCP' },
   { path: '/fleet', caption: 'Fleet overview: every asset across five machine types, one pipeline' },
-  { path: '/cross-domain', caption: 'Cross-domain view: normalised health and RUL across unlike machines' },
   { path: '/about/evidence', caption: 'Evidence: each title term linked to the feature and metric that proves it' },
 ];
 export const TOUR_HOLD_MS = 20000;

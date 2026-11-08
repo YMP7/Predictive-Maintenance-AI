@@ -12,7 +12,7 @@ One entry per non-trivial decision. Format: context, options, choice, consequenc
 ## ADR-002: 3D integration via kit port, option (a) (P0, provisional)
 - **Context:** The teardown kit is 921 lines of vanilla three.js that depends only on `three` and `three/addons`. The client already ships three 0.185.
 - **Options:** (a) port the kit into `client/src/teardown/` and mount it imperatively; (b) build one-file HTML pages and embed them with an iframe + postMessage.
-- **Choice:** (a). One three.js copy, shared design tokens, no message-bridge typing, and React owns the lifecycle, which makes the dispose/leak check possible. Full write-up goes in `03_3D_DECISION.md` during P3.
+- **Choice:** (a). One three.js copy, shared design tokens, no message-bridge typing, and React owns the lifecycle, which makes the dispose/leak check possible. Full write-up in `03_3D_DECISION.md` (P3, ADR-014).
 - **Consequences:** `@react-three/fiber` and `drei` get removed once `MachineTwin3D.tsx` is deleted. The kit's 1600×900 fixed HUD is replaced by the React side panel.
 
 ## ADR-003: Heterogeneous storage (P0, provisional)
@@ -56,6 +56,25 @@ One entry per non-trivial decision. Format: context, options, choice, consequenc
 ## ADR-013: `/api/ready` is the public probe (P2)
 - **Context:** `/api/health` is also defined by the cognition router, which requires an operator session, so unauthenticated probes got 403.
 - **Choice:** Add a public `/api/ready` reporting database, MQTT, loaded models and audit backlog (503 when degraded). The frontend header now polls it. `/api/health` is unchanged for existing clients.
+
+## ADR-014: Teardown port without post-processing (P3)
+- **Context:** ADR-002 chose to port the kit. The kit renders through an EffectComposer with bloom and GTAO, a fixed 1600 x 900 HUD, a film director and a score.
+- **Choice:** Port the studio, shader warm-up, quality tiers, material rules and the hand-over tour; draw with plain MSAA rendering. Drop bloom (it eats detail in a monitoring view), GTAO (clipping-plane trap on cut models, and the costliest pass on integrated GPUs), the HUD (the React side panel replaces it) and the score. Each part gets its own material, so it can be tinted and faded alone. Full write-up: `03_3D_DECISION.md`.
+- **Consequences:** 54-60 fps at full quality on Intel UHD for all five machines, at most 118 draw calls. `@react-three/fiber` and `drei` are removed; the old `MachineTwin3D.tsx` sits in `_legacy/` until P7, and the legacy pages link to the Asset View instead.
+
+## ADR-015: Part bindings live on the server; the client draws by kind (P3)
+- **Context:** The old twin kept domain tables (`twin/machineModels.ts`) in the frontend, against the ground rule that domain code lives only in `server/adapters/`.
+- **Choice:** `server/adapters/asset_profiles.py` holds each machine type's parts and channel → part bindings with load direction and unit. `server/asset_view.py` serves a TwinFrame (parts with load and state, channels with value, raw value, unit and quality). Onboarded machines take the part from their sensor profile. The client knows only geometry by `kind`.
+- **Consequences:** Part load is a heuristic (the bound channel furthest toward its load end; 0.75 elevated, 0.9 high) and the page says so. `twin/machineModels.ts` stays only for the legacy pages and goes in P7.
+
+## ADR-016: Tour on request, automatic only in kiosk (P3)
+- **Context:** The teardown rule is that a page left alone tours itself. An operator's asset page that starts moving on its own works against ISA-101 calm.
+- **Choice:** A Tour button everywhere; in kiosk mode the tour starts at once and resumes after 25 s without input. Any pointer or wheel input hands control back.
+
+## ADR-017: Verifying the 3D view without a server session (P3)
+- **Context:** The checks (screenshots, fps, the 20-navigation leak test, WebGL-off, films) need the page running, but signing in needs the owner's credentials, and the running Docker backend predates P2.
+- **Choice:** A dev-only `/dev/assets` route renders the real `AssetPage` through an `AssetSourceContext` fed by fixtures. The fixtures are TwinFrames built by the server's `build_frame()` from the real profiles with seeded values; every channel is SIMULATED and the explanation is labelled synthetic. Production builds contain none of it (checked in `dist`).
+- **Consequences:** The live API path is covered by pytest (`tests/test_asset_view.py`), not by a signed-in browser run. That run happens in P4 once the backend is redeployed.
 
 ## ADR-004: PCA, not UMAP (P0)
 - **Context:** D5 asks for a "PCA/UMAP" 2-D projection of 32-dim states.

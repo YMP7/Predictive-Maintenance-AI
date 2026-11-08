@@ -47,9 +47,49 @@ export function RedirectDashboard() {
   return <Navigate to={`/legacy/dashboard${search}`} replace />;
 }
 
+/* 3D Asset View: three.js and the five machines load only with these pages. */
+const AssetIndexImpl = lazy(() => import('../pages/asset/AssetIndex'));
+const AssetByKindImpl = lazy(() => import('../pages/asset/AssetIndex').then(m => ({ default: m.AssetByKind })));
+const AssetPageImpl = lazy(() => import('../pages/asset/AssetPage'));
+const pageFallback = <SkeletonRows rows={6} />;
+
+export function AssetIndex() {
+  return (
+    <Suspense fallback={pageFallback}>
+      <AssetIndexImpl />
+    </Suspense>
+  );
+}
+
+export function AssetByKind() {
+  return (
+    <Suspense fallback={pageFallback}>
+      <AssetByKindImpl />
+    </Suspense>
+  );
+}
+
+export function AssetPage() {
+  return (
+    <Suspense fallback={pageFallback}>
+      <AssetPageImpl />
+    </Suspense>
+  );
+}
+
 /* Dev-only gallery: Vite replaces import.meta.env.DEV with false in production, so the chunk is dropped. */
 const GalleryImpl = import.meta.env.DEV ? lazy(() => import('../dev/ComponentGallery')) : null;
 
 export function Gallery() {
   return GalleryImpl ? <GalleryImpl /> : null;
+}
+
+const AssetGalleryImpl = import.meta.env.DEV ? lazy(() => import('../dev/AssetGallery')) : null;
+
+export function AssetGallery() {
+  return AssetGalleryImpl ? (
+    <Suspense fallback={pageFallback}>
+      <AssetGalleryImpl />
+    </Suspense>
+  ) : null;
 }

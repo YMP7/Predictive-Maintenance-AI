@@ -4,7 +4,7 @@ import { LogOut, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun } from 'lucide
 
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../hooks/useTheme';
-import { apiFetch } from '../lib/api';
+import { API_BASE_URL, apiFetch } from '../lib/api';
 import { KioskBar } from '../app/kiosk';
 import { useKiosk } from '../app/kioskState';
 import { CommandPalette } from './CommandPalette';
@@ -38,8 +38,9 @@ function useApiLink(intervalMs = 15000): Link {
     const probe = async () => {
       try {
         // /api/ready is public and reports database, broker and model state (503 when degraded).
-        await apiFetch<{ status: string }>('/api/ready');
-        if (alive) setLink('connected');
+        // Plain fetch: a probe must never send the user to the login page.
+        const r = await fetch(`${API_BASE_URL}/api/ready`, { credentials: 'include' });
+        if (alive) setLink(r.ok ? 'connected' : 'degraded');
       } catch {
         if (alive) setLink('degraded');
       }

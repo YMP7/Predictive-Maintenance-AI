@@ -259,6 +259,7 @@ class DomainService:
             "status": prediction.status,
             "using_lstm": prediction.using_lstm,
             "features": reading.features,
+            "raw_features": reading.raw_features,
             "operational_ctx": reading.operational_ctx,
             "adapter_status": reading.adapter_status,
             "metadata": reading.metadata,

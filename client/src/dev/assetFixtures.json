@@ -1,0 +1,1121 @@
+{
+ "turbofan": {
+  "domain": "cmapss",
+  "machine_id": "unit_42",
+  "kind": "turbofan",
+  "label": "Turbofan engine (NASA C-MAPSS FD001)",
+  "ts": "2026-11-08T09:30:00Z",
+  "status": "Degrading",
+  "adapter_status": "simulation",
+  "simulated": true,
+  "health_index": 0.54,
+  "rul": {
+   "value": 58.0,
+   "unit": "cycles",
+   "uncertainty": 9.4,
+   "normalized": 0.46,
+   "confidence": 0.71,
+   "using_lstm": true
+  },
+  "rul_note": null,
+  "attribution": true,
+  "spin": 0.481,
+  "spin_label": "Fan speed (Nf)",
+  "parts": [
+   {
+    "id": "fan",
+    "name": "Fan",
+    "detail": "Moves the bypass air that makes most of the thrust",
+    "channels": [
+     "s8",
+     "s13",
+     "s15"
+    ],
+    "load": 0.481,
+    "state": "normal"
+   },
+   {
+    "id": "lpc",
+    "name": "Low-pressure compressor",
+    "detail": "First stage of core compression",
+    "channels": [
+     "s2"
+    ],
+    "load": 0.438,
+    "state": "normal"
+   },
+   {
+    "id": "hpc",
+    "name": "High-pressure compressor",
+    "detail": "Raises core air to combustion pressure",
+    "channels": [
+     "s3",
+     "s7",
+     "s9",
+     "s11",
+     "s14",
+     "s17"
+    ],
+    "load": 0.93,
+    "state": "high"
+   },
+   {
+    "id": "combustor",
+    "name": "Combustor",
+    "detail": "Burns fuel in the compressed air",
+    "channels": [
+     "s12"
+    ],
+    "load": 0.8109999999999999,
+    "state": "elevated"
+   },
+   {
+    "id": "hpt",
+    "name": "High-pressure turbine",
+    "detail": "Drives the high-pressure compressor",
+    "channels": [
+     "s20"
+    ],
+    "load": 0.838,
+    "state": "elevated"
+   },
+   {
+    "id": "lpt",
+    "name": "Low-pressure turbine",
+    "detail": "Drives the fan and low-pressure compressor",
+    "channels": [
+     "s4",
+     "s21"
+    ],
+    "load": 0.8,
+    "state": "elevated"
+   },
+   {
+    "id": "nozzle",
+    "name": "Exhaust nozzle",
+    "detail": "Accelerates core flow out of the engine",
+    "channels": [],
+    "load": null,
+    "state": "unmonitored"
+   }
+  ],
+  "channels": [
+   {
+    "feature": "s2",
+    "label": "LPC outlet temperature (T24)",
+    "part": "lpc",
+    "dir": 1,
+    "value": 0.438,
+    "raw": null,
+    "unit": "°R",
+    "quality": "SIMULATED",
+    "load": 0.438
+   },
+   {
+    "feature": "s3",
+    "label": "HPC outlet temperature (T30)",
+    "part": "hpc",
+    "dir": 1,
+    "value": 0.93,
+    "raw": null,
+    "unit": "°R",
+    "quality": "SIMULATED",
+    "load": 0.93
+   },
+   {
+    "feature": "s4",
+    "label": "LPT outlet temperature (T50)",
+    "part": "lpt",
+    "dir": 1,
+    "value": 0.8,
+    "raw": null,
+    "unit": "°R",
+    "quality": "SIMULATED",
+    "load": 0.8
+   },
+   {
+    "feature": "s7",
+    "label": "HPC outlet pressure (P30)",
+    "part": "hpc",
+    "dir": -1,
+    "value": 0.25,
+    "raw": null,
+    "unit": "psia",
+    "quality": "SIMULATED",
+    "load": 0.75
+   },
+   {
+    "feature": "s8",
+    "label": "Fan speed (Nf)",
+    "part": "fan",
+    "dir": 1,
+    "value": 0.481,
+    "raw": null,
+    "unit": "rpm",
+    "quality": "SIMULATED",
+    "load": 0.481
+   },
+   {
+    "feature": "s9",
+    "label": "Core speed (Nc)",
+    "part": "hpc",
+    "dir": 1,
+    "value": 0.455,
+    "raw": null,
+    "unit": "rpm",
+    "quality": "SIMULATED",
+    "load": 0.455
+   },
+   {
+    "feature": "s11",
+    "label": "HPC static pressure (Ps30)",
+    "part": "hpc",
+    "dir": 1,
+    "value": 0.86,
+    "raw": null,
+    "unit": "psia",
+    "quality": "SIMULATED",
+    "load": 0.86
+   },
+   {
+    "feature": "s12",
+    "label": "Fuel flow to Ps30 ratio (phi)",
+    "part": "combustor",
+    "dir": -1,
+    "value": 0.189,
+    "raw": null,
+    "unit": "pps/psi",
+    "quality": "SIMULATED",
+    "load": 0.8109999999999999
+   },
+   {
+    "feature": "s13",
+    "label": "Corrected fan speed (NRf)",
+    "part": "fan",
+    "dir": 1,
+    "value": 0.34,
+    "raw": null,
+    "unit": "rpm",
+    "quality": "SIMULATED",
+    "load": 0.34
+   },
+   {
+    "feature": "s14",
+    "label": "Corrected core speed (NRc)",
+    "part": "hpc",
+    "dir": 1,
+    "value": 0.163,
+    "raw": null,
+    "unit": "rpm",
+    "quality": "SIMULATED",
+    "load": 0.163
+   },
+   {
+    "feature": "s15",
+    "label": "Bypass ratio (BPR)",
+    "part": "fan",
+    "dir": 1,
+    "value": 0.248,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.248
+   },
+   {
+    "feature": "s17",
+    "label": "Bleed enthalpy (htBleed)",
+    "part": "hpc",
+    "dir": 1,
+    "value": 0.377,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.377
+   },
+   {
+    "feature": "s20",
+    "label": "HPT coolant bleed (W31)",
+    "part": "hpt",
+    "dir": -1,
+    "value": 0.162,
+    "raw": null,
+    "unit": "lbm/s",
+    "quality": "SIMULATED",
+    "load": 0.838
+   },
+   {
+    "feature": "s21",
+    "label": "LPT coolant bleed (W32)",
+    "part": "lpt",
+    "dir": -1,
+    "value": 0.239,
+    "raw": null,
+    "unit": "lbm/s",
+    "quality": "SIMULATED",
+    "load": 0.761
+   }
+  ],
+  "_why": {
+   "s2": 0.667,
+   "s3": 0.568,
+   "s4": 0.259,
+   "s7": 0.61,
+   "s8": 0.819,
+   "s9": 0.056,
+   "s11": 0.816,
+   "s12": 0.713,
+   "s13": 0.373,
+   "s14": 0.198,
+   "s15": 0.959,
+   "s17": 0.37,
+   "s20": 0.138,
+   "s21": 0.142
+  }
+ },
+ "laptop": {
+  "domain": "laptop",
+  "machine_id": "laptop_demo",
+  "kind": "laptop",
+  "label": "Laptop (this computer's OS telemetry)",
+  "ts": "2026-11-08T09:30:00Z",
+  "status": "Stable",
+  "adapter_status": "simulation",
+  "simulated": true,
+  "health_index": 0.54,
+  "rul": {
+   "value": 412.0,
+   "unit": "steps",
+   "uncertainty": 9.4,
+   "normalized": 0.46,
+   "confidence": 0.71,
+   "using_lstm": true
+  },
+  "rul_note": null,
+  "attribution": false,
+  "spin": null,
+  "spin_label": null,
+  "parts": [
+   {
+    "id": "cpu",
+    "name": "Processor",
+    "detail": "Runs every process; its load drives heat",
+    "channels": [
+     "cpu_usage",
+     "cpu_core_p90",
+     "cpu_frequency",
+     "context_switches",
+     "interrupt_rate",
+     "process_activity"
+    ],
+    "load": 0.95,
+    "state": "high"
+   },
+   {
+    "id": "cooling",
+    "name": "Heat pipe and fan",
+    "detail": "Carries processor heat to the vent",
+    "channels": [
+     "thermal_headroom"
+    ],
+    "load": 0.78,
+    "state": "elevated"
+   },
+   {
+    "id": "memory",
+    "name": "Memory",
+    "detail": "RAM and the swap file behind it",
+    "channels": [
+     "memory_usage",
+     "swap_usage"
+    ],
+    "load": 0.523,
+    "state": "normal"
+   },
+   {
+    "id": "storage",
+    "name": "SSD",
+    "detail": "Holds the disk; reads and writes go here",
+    "channels": [
+     "disk_usage",
+     "disk_read_throughput",
+     "disk_write_throughput",
+     "disk_iops_rate"
+    ],
+    "load": 0.538,
+    "state": "normal"
+   },
+   {
+    "id": "battery",
+    "name": "Battery",
+    "detail": "Powers the machine off the charger",
+    "channels": [
+     "battery_percent"
+    ],
+    "load": 0.829,
+    "state": "elevated"
+   },
+   {
+    "id": "wifi",
+    "name": "Wi-Fi card",
+    "detail": "All network traffic",
+    "channels": [
+     "network_throughput"
+    ],
+    "load": 0.253,
+    "state": "normal"
+   },
+   {
+    "id": "display",
+    "name": "Display",
+    "detail": "Lid and panel",
+    "channels": [],
+    "load": null,
+    "state": "unmonitored"
+   }
+  ],
+  "channels": [
+   {
+    "feature": "cpu_usage",
+    "label": "Processor load",
+    "part": "cpu",
+    "dir": 1,
+    "value": 0.95,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.95
+   },
+   {
+    "feature": "cpu_core_p90",
+    "label": "Busiest cores (p90)",
+    "part": "cpu",
+    "dir": 1,
+    "value": 0.422,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.422
+   },
+   {
+    "feature": "cpu_frequency",
+    "label": "Clock speed vs maximum",
+    "part": "cpu",
+    "dir": 1,
+    "value": 0.513,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.513
+   },
+   {
+    "feature": "context_switches",
+    "label": "Context switches",
+    "part": "cpu",
+    "dir": 1,
+    "value": 0.478,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.478
+   },
+   {
+    "feature": "interrupt_rate",
+    "label": "Hardware interrupts",
+    "part": "cpu",
+    "dir": 1,
+    "value": 0.391,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.391
+   },
+   {
+    "feature": "process_activity",
+    "label": "Running processes",
+    "part": "cpu",
+    "dir": 1,
+    "value": 0.588,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.588
+   },
+   {
+    "feature": "thermal_headroom",
+    "label": "Estimated temperature (heuristic)",
+    "part": "cooling",
+    "dir": 1,
+    "value": 0.78,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.78
+   },
+   {
+    "feature": "memory_usage",
+    "label": "Memory in use",
+    "part": "memory",
+    "dir": 1,
+    "value": 0.398,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.398
+   },
+   {
+    "feature": "swap_usage",
+    "label": "Swap in use",
+    "part": "memory",
+    "dir": 1,
+    "value": 0.523,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.523
+   },
+   {
+    "feature": "disk_usage",
+    "label": "Disk space used",
+    "part": "storage",
+    "dir": 1,
+    "value": 0.428,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.428
+   },
+   {
+    "feature": "disk_read_throughput",
+    "label": "Disk reads",
+    "part": "storage",
+    "dir": 1,
+    "value": 0.538,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.538
+   },
+   {
+    "feature": "disk_write_throughput",
+    "label": "Disk writes",
+    "part": "storage",
+    "dir": 1,
+    "value": 0.41,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.41
+   },
+   {
+    "feature": "disk_iops_rate",
+    "label": "Disk operations",
+    "part": "storage",
+    "dir": 1,
+    "value": 0.467,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.467
+   },
+   {
+    "feature": "battery_percent",
+    "label": "Battery charge",
+    "part": "battery",
+    "dir": -1,
+    "value": 0.171,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.829
+   },
+   {
+    "feature": "network_throughput",
+    "label": "Network traffic",
+    "part": "wifi",
+    "dir": 1,
+    "value": 0.253,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.253
+   }
+  ],
+  "_why": null
+ },
+ "phone": {
+  "domain": "mobile",
+  "machine_id": "phone_demo",
+  "kind": "phone",
+  "label": "Android phone (ADB or browser telemetry)",
+  "ts": "2026-11-08T09:30:00Z",
+  "status": "Stable",
+  "adapter_status": "simulation",
+  "simulated": true,
+  "health_index": 0.54,
+  "rul": {
+   "value": 412.0,
+   "unit": "steps",
+   "uncertainty": 9.4,
+   "normalized": 0.46,
+   "confidence": 0.71,
+   "using_lstm": true
+  },
+  "rul_note": null,
+  "attribution": false,
+  "spin": null,
+  "spin_label": null,
+  "parts": [
+   {
+    "id": "soc",
+    "name": "System on chip",
+    "detail": "Processor and memory in one package",
+    "channels": [
+     "cpu_usage",
+     "memory_used_percent"
+    ],
+    "load": 0.28,
+    "state": "normal"
+   },
+   {
+    "id": "battery",
+    "name": "Battery",
+    "detail": "Charge, temperature, current and voltage",
+    "channels": [
+     "battery_level",
+     "battery_temp",
+     "battery_current",
+     "battery_voltage"
+    ],
+    "load": 0.81,
+    "state": "elevated"
+   },
+   {
+    "id": "imu",
+    "name": "Motion sensors",
+    "detail": "Accelerometer and gyroscope",
+    "channels": [
+     "vibration_rms",
+     "accel_x",
+     "accel_y",
+     "accel_z",
+     "gyro_x",
+     "gyro_y",
+     "gyro_z"
+    ],
+    "load": 0.314,
+    "state": "normal"
+   },
+   {
+    "id": "sensors",
+    "name": "Light and proximity sensors",
+    "detail": "Behind the top of the screen",
+    "channels": [
+     "ambient_light",
+     "proximity"
+    ],
+    "load": null,
+    "state": "normal"
+   },
+   {
+    "id": "compass",
+    "name": "Magnetometer",
+    "detail": "Measures the magnetic field",
+    "channels": [
+     "magnetic_field"
+    ],
+    "load": null,
+    "state": "normal"
+   },
+   {
+    "id": "display",
+    "name": "Display",
+    "detail": "Glass and panel",
+    "channels": [],
+    "load": null,
+    "state": "unmonitored"
+   }
+  ],
+  "channels": [
+   {
+    "feature": "cpu_usage",
+    "label": "Processor load",
+    "part": "soc",
+    "dir": 1,
+    "value": 0.28,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.28
+   },
+   {
+    "feature": "memory_used_percent",
+    "label": "Memory in use",
+    "part": "soc",
+    "dir": 1,
+    "value": 0.186,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.186
+   },
+   {
+    "feature": "battery_level",
+    "label": "Battery charge",
+    "part": "battery",
+    "dir": -1,
+    "value": 0.255,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.745
+   },
+   {
+    "feature": "battery_temp",
+    "label": "Battery temperature",
+    "part": "battery",
+    "dir": 1,
+    "value": 0.81,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.81
+   },
+   {
+    "feature": "battery_current",
+    "label": "Battery current",
+    "part": "battery",
+    "dir": 1,
+    "value": 0.275,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.275
+   },
+   {
+    "feature": "battery_voltage",
+    "label": "Battery voltage",
+    "part": "battery",
+    "dir": -1,
+    "value": 0.436,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.5640000000000001
+   },
+   {
+    "feature": "vibration_rms",
+    "label": "Vibration (RMS)",
+    "part": "imu",
+    "dir": 1,
+    "value": 0.314,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.314
+   },
+   {
+    "feature": "accel_x",
+    "label": "Acceleration X",
+    "part": "imu",
+    "dir": 0,
+    "value": 0.317,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": null
+   },
+   {
+    "feature": "accel_y",
+    "label": "Acceleration Y",
+    "part": "imu",
+    "dir": 0,
+    "value": 0.244,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": null
+   },
+   {
+    "feature": "accel_z",
+    "label": "Acceleration Z",
+    "part": "imu",
+    "dir": 0,
+    "value": 0.27,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": null
+   },
+   {
+    "feature": "gyro_x",
+    "label": "Rotation X",
+    "part": "imu",
+    "dir": 0,
+    "value": 0.571,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": null
+   },
+   {
+    "feature": "gyro_y",
+    "label": "Rotation Y",
+    "part": "imu",
+    "dir": 0,
+    "value": 0.442,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": null
+   },
+   {
+    "feature": "gyro_z",
+    "label": "Rotation Z",
+    "part": "imu",
+    "dir": 0,
+    "value": 0.424,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": null
+   },
+   {
+    "feature": "ambient_light",
+    "label": "Ambient light",
+    "part": "sensors",
+    "dir": 0,
+    "value": 0.227,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": null
+   },
+   {
+    "feature": "proximity",
+    "label": "Proximity",
+    "part": "sensors",
+    "dir": 0,
+    "value": 0.478,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": null
+   },
+   {
+    "feature": "magnetic_field",
+    "label": "Magnetic field strength",
+    "part": "compass",
+    "dir": 0,
+    "value": 0.224,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": null
+   }
+  ],
+  "_why": null
+ },
+ "server": {
+  "domain": "server",
+  "machine_id": "server_demo",
+  "kind": "server",
+  "label": "Rack server (host telemetry)",
+  "ts": "2026-11-08T09:30:00Z",
+  "status": "Stable",
+  "adapter_status": "simulation",
+  "simulated": true,
+  "health_index": 0.54,
+  "rul": {
+   "value": 412.0,
+   "unit": "steps",
+   "uncertainty": 9.4,
+   "normalized": 0.46,
+   "confidence": 0.71,
+   "using_lstm": true
+  },
+  "rul_note": null,
+  "attribution": false,
+  "spin": null,
+  "spin_label": null,
+  "parts": [
+   {
+    "id": "cpu",
+    "name": "Processors",
+    "detail": "Two sockets under their heat sinks",
+    "channels": [
+     "cpu_usage"
+    ],
+    "load": 0.321,
+    "state": "normal"
+   },
+   {
+    "id": "memory",
+    "name": "Memory modules",
+    "detail": "DIMMs either side of the sockets",
+    "channels": [
+     "memory_usage"
+    ],
+    "load": 0.92,
+    "state": "high"
+   },
+   {
+    "id": "storage",
+    "name": "Drive bays",
+    "detail": "Front-loaded disks",
+    "channels": [
+     "disk_usage"
+    ],
+    "load": 0.438,
+    "state": "normal"
+   },
+   {
+    "id": "nic",
+    "name": "Network card",
+    "detail": "All network traffic",
+    "channels": [
+     "network_io_rate"
+    ],
+    "load": 0.401,
+    "state": "normal"
+   },
+   {
+    "id": "gpu",
+    "name": "GPU",
+    "detail": "Accelerator card, when fitted",
+    "channels": [
+     "gpu_utilization"
+    ],
+    "load": 0.458,
+    "state": "normal"
+   },
+   {
+    "id": "fans",
+    "name": "Fan wall",
+    "detail": "Pulls air front to back",
+    "channels": [],
+    "load": null,
+    "state": "unmonitored"
+   },
+   {
+    "id": "psu",
+    "name": "Power supplies",
+    "detail": "Two redundant units",
+    "channels": [],
+    "load": null,
+    "state": "unmonitored"
+   }
+  ],
+  "channels": [
+   {
+    "feature": "cpu_usage",
+    "label": "Processor load",
+    "part": "cpu",
+    "dir": 1,
+    "value": 0.321,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.321
+   },
+   {
+    "feature": "memory_usage",
+    "label": "Memory in use",
+    "part": "memory",
+    "dir": 1,
+    "value": 0.92,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.92
+   },
+   {
+    "feature": "disk_usage",
+    "label": "Disk space used",
+    "part": "storage",
+    "dir": 1,
+    "value": 0.438,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.438
+   },
+   {
+    "feature": "network_io_rate",
+    "label": "Network traffic",
+    "part": "nic",
+    "dir": 1,
+    "value": 0.401,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.401
+   },
+   {
+    "feature": "gpu_utilization",
+    "label": "GPU load",
+    "part": "gpu",
+    "dir": 1,
+    "value": 0.458,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.458
+   }
+  ],
+  "_why": null
+ },
+ "motor_pump": {
+  "domain": "modbus",
+  "machine_id": "pump_m1",
+  "kind": "motor_pump",
+  "label": "Motor-driven pump (Modbus TCP)",
+  "ts": "2026-11-08T09:30:00Z",
+  "status": "Degrading",
+  "adapter_status": "simulation",
+  "simulated": true,
+  "health_index": 0.54,
+  "rul": null,
+  "rul_note": "No trained model for this machine type yet (FUTURE-WORK).",
+  "attribution": false,
+  "spin": 0.292,
+  "spin_label": "Shaft speed",
+  "parts": [
+   {
+    "id": "fan",
+    "name": "Cooling fan",
+    "detail": "Pulls air over the motor body",
+    "channels": [],
+    "load": null,
+    "state": "unmonitored"
+   },
+   {
+    "id": "bearing_nde",
+    "name": "Rear bearing",
+    "detail": "Non-drive end, supports the shaft",
+    "channels": [],
+    "load": null,
+    "state": "unmonitored"
+   },
+   {
+    "id": "stator",
+    "name": "Motor body",
+    "detail": "Stator windings turn current into torque",
+    "channels": [
+     "temperature_c"
+    ],
+    "load": 0.77,
+    "state": "elevated"
+   },
+   {
+    "id": "terminal",
+    "name": "Terminal box",
+    "detail": "Supply cables connect here",
+    "channels": [
+     "current_a",
+     "power_factor"
+    ],
+    "load": 0.836,
+    "state": "elevated"
+   },
+   {
+    "id": "bearing_de",
+    "name": "Front bearing",
+    "detail": "Drive end, carries the highest load",
+    "channels": [
+     "vibration_mms"
+    ],
+    "load": 0.94,
+    "state": "high"
+   },
+   {
+    "id": "coupling",
+    "name": "Shaft coupling",
+    "detail": "Joins the motor shaft to the pump",
+    "channels": [
+     "speed_rpm"
+    ],
+    "load": null,
+    "state": "normal"
+   },
+   {
+    "id": "pump",
+    "name": "Pump and impeller",
+    "detail": "The driven load",
+    "channels": [
+     "pressure_bar"
+    ],
+    "load": null,
+    "state": "normal"
+   }
+  ],
+  "channels": [
+   {
+    "feature": "temperature_c",
+    "label": "Winding temperature",
+    "part": "stator",
+    "dir": 1,
+    "value": 0.77,
+    "raw": null,
+    "unit": "°C",
+    "quality": "SIMULATED",
+    "load": 0.77
+   },
+   {
+    "feature": "vibration_mms",
+    "label": "Vibration velocity",
+    "part": "bearing_de",
+    "dir": 1,
+    "value": 0.94,
+    "raw": null,
+    "unit": "mm/s",
+    "quality": "SIMULATED",
+    "load": 0.94
+   },
+   {
+    "feature": "current_a",
+    "label": "Phase current",
+    "part": "terminal",
+    "dir": 1,
+    "value": 0.253,
+    "raw": null,
+    "unit": "A",
+    "quality": "SIMULATED",
+    "load": 0.253
+   },
+   {
+    "feature": "power_factor",
+    "label": "Power factor",
+    "part": "terminal",
+    "dir": -1,
+    "value": 0.164,
+    "raw": null,
+    "unit": null,
+    "quality": "SIMULATED",
+    "load": 0.836
+   },
+   {
+    "feature": "speed_rpm",
+    "label": "Shaft speed",
+    "part": "coupling",
+    "dir": 0,
+    "value": 0.292,
+    "raw": null,
+    "unit": "rpm",
+    "quality": "SIMULATED",
+    "load": null
+   },
+   {
+    "feature": "pressure_bar",
+    "label": "Discharge pressure",
+    "part": "pump",
+    "dir": 0,
+    "value": 0.27,
+    "raw": null,
+    "unit": "bar",
+    "quality": "SIMULATED",
+    "load": null
+   }
+  ],
+  "_why": null
+ }
+}

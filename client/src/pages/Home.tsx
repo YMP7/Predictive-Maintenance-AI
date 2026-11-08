@@ -1,10 +1,8 @@
-import React, { Suspense, lazy } from 'react';
+import React from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { VIEW_GROUPS } from '../lib/dashboardViews';
-import { getModel, RECOGNISED_MODELS } from '../twin/machineModels';
-
-const TwinViewer = lazy(() => import('../components/MachineTwin3D').then(m => ({ default: m.TwinViewer })));
+import { RECOGNISED_MODELS } from '../twin/machineModels';
 
 // The flow is what the code does today: adapters in server/adapters, models in ml/ and server/atlas.
 const FLOW = [
@@ -57,16 +55,6 @@ const Home: React.FC = () => {
             </div>
           </div>
 
-          <figure className="home-hero-figure">
-            <Suspense fallback={<div className="home-twin-loading">Loading the 3D model</div>}>
-              {/* shortcut: read once at render, so resizing across 640px keeps the first layout until reload */}
-              <TwinViewer model={getModel('motor_pump')} apart={window.matchMedia('(min-width: 640px)').matches} height={380} />
-            </Suspense>
-            <figcaption>
-              The motor-driven pump model, the same view the dashboard builds for each connected machine.
-              Drag to turn it, scroll to zoom.
-            </figcaption>
-          </figure>
         </section>
 
         <section className="home-section" aria-labelledby="home-views">

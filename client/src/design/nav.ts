@@ -2,6 +2,7 @@ import {
   Activity,
   BellRing,
   Boxes,
+  Cog,
   BrainCircuit,
   ClipboardList,
   Factory,
@@ -29,6 +30,7 @@ export interface NavItem {
 
 export const NAV: NavItem[] = [
   { path: '/fleet', label: 'Fleet overview', icon: Factory, group: 'Operate', summary: 'Health, RUL at risk and ingestion for every asset' },
+  { path: '/assets', label: 'Assets', icon: Cog, group: 'Operate', summary: '3D Asset View of each machine: parts, sensors and why' },
   { path: '/alarms', label: 'Alarms & events', icon: BellRing, group: 'Operate', summary: 'ISA-18.2 alarm list: acknowledge, shelve, review' },
   { path: '/work-orders', label: 'Work orders', icon: ClipboardList, group: 'Operate', summary: 'Recommended actions through approval and closure' },
   { path: '/cross-domain', label: 'Cross-domain view', icon: GitCompareArrows, group: 'Understand', summary: 'Normalised health and RUL across unlike machines' },
