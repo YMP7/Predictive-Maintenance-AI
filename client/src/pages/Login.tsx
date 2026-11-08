@@ -6,7 +6,8 @@ import { Sun, Moon } from 'lucide-react';
 // Only same-site dashboard paths are accepted, so ?next= cannot redirect off the site.
 function nextPath(): string {
   const next = new URLSearchParams(window.location.search).get('next') ?? '';
-  return next.startsWith('/dashboard') ? next : '/dashboard';
+  // Same-site paths only: "//host" or "https://" would be an open redirect.
+  return next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/\\') ? next : '/fleet';
 }
 
 function describeLoginError(err: unknown): string {

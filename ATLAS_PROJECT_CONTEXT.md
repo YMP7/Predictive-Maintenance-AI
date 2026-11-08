@@ -128,8 +128,8 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 ## 6. Current Status
 *(Update this section whenever real progress is made — this is the handoff source of truth)*
 
-- **Current phase:** Month 7 Complete (Batch Retraining, Transfer Study, Full Pipeline Ablations, and Cross-Domain Contract Audits) — Transitioning to Month 8 (System Benchmarking & Synthesis).
-- **Immediate Task:** Begin Month 8: End-to-End System Performance Benchmark (`docs/ATLAS_BENCHMARK.md`).
+- **Current phase:** Industrial redesign on branch `feature/industrial-frontend` (plan: `docs/redesign/00_PLAN.md`). P0 discovery done, `main` merged in. **P1 done (2026-11-08):** ISA-101 design system in `client/src/design/`, AppShell, React Router routes for every product page (phase-labelled placeholders), kiosk mode, dev component gallery. ML core untouched.
+- **Immediate Task:** P2, backend foundation: append-only hash-chained audit trail, ingestion paths and configurable adapter, live stream, read-only cognition trace endpoint, viewer RBAC. Tests first.
 
 **Sequencing decision in effect:** AI core built first on C-MAPSS (Months 1–5); adapters for Laptop/Mobile/Server built and verified in Month 6; adaptive learning and cross-domain transfer verified in Month 7.
 

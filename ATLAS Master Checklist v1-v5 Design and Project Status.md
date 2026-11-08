@@ -196,3 +196,16 @@ Legend: **BUILD** = in scope and committed · **FUTURE** = named future work, ne
 - [x] `USER_GUIDE.md` and `ADMIN_GUIDE.md` say the dashboard is on port 3000; the integrated server uses 8000 *(now port 8000)*
 - [ ] Retire or mark the legacy digital-twin docs (SRS, SAD, ML guide) as separate from ATLAS
 - [ ] Keep `ATLAS_PROJECT_CONTEXT.md` Section 6 current
+
+## 11. Industrial redesign (`feature/industrial-frontend`, plan in `docs/redesign/00_PLAN.md`)
+
+- [x] P0: discovery, gap analysis, ADR log; `main` merged into the branch *(pytest 317/317 after merge)*
+- [x] P1: ISA-101 design system, AppShell, router, kiosk, `/dev/components` *(axe 0 violations light and dark; initial JS 94.5 KB gz)*
+- [ ] P2: audit trail, ingestion, live stream, cognition trace, viewer RBAC
+- [ ] P3: 3D Asset View (teardown), 5 machines, films
+- [ ] P4: product pages wired to real endpoints
+- [ ] P5: Cognition Dashboard
+- [ ] P6: evidence page, title justification, docs
+- [ ] P7: hardening and full verification
+- [ ] Open decision: Modbus RUL model (FUTURE-WORK until approved)
+- [ ] Open decision: separate non-owner DB role for audit immutability
