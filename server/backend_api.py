@@ -302,7 +302,7 @@ async def inject_fault(machine_id: str, payload: FaultInjectionPayload):
     if machine_id not in service.simulator.machines:
         raise HTTPException(status_code=404, detail="Machine not found in simulator")
     
-    valid_modes = ["normal", "bearing_wear", "misalignment", "overheating", "electrical_fault"]
+    valid_modes = ["normal", "bearing_wear", "misalignment", "rotor_imbalance", "overheating", "electrical_fault"]
     if payload.fault_mode not in valid_modes:
         raise HTTPException(status_code=400, detail=f"Invalid fault mode. Choose from {valid_modes}")
         

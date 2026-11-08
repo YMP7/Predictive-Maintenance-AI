@@ -34,6 +34,9 @@ export interface MachineStatus {
   machine_id: string;
   status: string;
   fault_type: string;
+  rule_fault_type?: string;
+  fault_probabilities?: Record<string, number> | null;
+  diagnosis_source?: 'rules' | 'model';
   detected_issues: string[];
   rul_days: number | null;
   rul_confidence: number;
