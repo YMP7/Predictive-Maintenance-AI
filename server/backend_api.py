@@ -3,6 +3,10 @@ import os
 import secrets
 import uuid
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
@@ -68,6 +72,13 @@ if _cors_env:
     cors_origins = [origin.strip() for origin in _cors_env.split(",") if origin.strip()]
 else:
     cors_origins = ["http://localhost:3000"]
+
+if "*" in cors_origins:
+    raise RuntimeError(
+        "FATAL: CORS_ORIGINS=* cannot be combined with cookie authentication — any site "
+        "could then issue credentialed requests. List the exact frontend origins, e.g. "
+        "CORS_ORIGINS=https://app.example.com,http://localhost:3000"
+    )
 
 # Every /api route needs a signed-in user, except these. The phone bridge checks its own
 # MOBILE_BRIDGE_TOKEN; health is a liveness probe. Registered before CORS so CORS wraps it.
@@ -305,7 +316,7 @@ async def inject_fault(machine_id: str, payload: FaultInjectionPayload):
     if machine_id not in service.simulator.machines:
         raise HTTPException(status_code=404, detail="Machine not found in simulator")
     
-    valid_modes = ["normal", "bearing_wear", "misalignment", "overheating", "electrical_fault"]
+    valid_modes = ["normal", "bearing_wear", "misalignment", "rotor_imbalance", "overheating", "electrical_fault"]
     if payload.fault_mode not in valid_modes:
         raise HTTPException(status_code=400, detail=f"Invalid fault mode. Choose from {valid_modes}")
         
@@ -686,8 +697,12 @@ def atlas_machine_window(domain: str, machine_id: str):
             raise HTTPException(status_code=404, detail=f"Unknown machine {domain}/{machine_id}")
 
     snap = svc.get_snapshot(domain, machine_id)
+    # Never pad: a padded window would feed made-up readings into /api/decide.
     if len(window) < 30:
-        window = [window[0]] * (30 - len(window)) + window
+        raise HTTPException(
+            status_code=409,
+            detail=f"Warming up: {len(window)}/30 readings collected for {domain}/{machine_id}. Retry shortly.",
+        )
 
     return JSONResponse(content={
         "domain": domain,
@@ -738,7 +753,9 @@ def lumia_bridge_page():
 # ---------------------------------------------------------------------------
 from server.api import app as _atlas_cognition_app, startup_event as atlas_api_startup
 
-app.include_router(_atlas_cognition_app.router)
+app.include_router(
+    _atlas_cognition_app.router, dependencies=[Depends(require_operator_or_admin)]
+)
 
 @app.on_event("startup")
 def ensure_atlas_engines_initialized():

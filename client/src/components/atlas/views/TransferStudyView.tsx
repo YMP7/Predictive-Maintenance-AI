@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { apiFetch } from '../../../lib/api';
+import { apiFetch, errorMessage } from '../../../lib/api';
 import { Network, CheckCircle2, RefreshCw, FileText, Info } from 'lucide-react';
 
 interface TransferStudyPayload {
@@ -30,7 +30,7 @@ interface TransferStudyPayload {
 
 export const TransferStudyView: React.FC = () => {
   const [data, setData] = useState<TransferStudyPayload | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadTransferStudy = async () => {
@@ -39,15 +39,31 @@ export const TransferStudyView: React.FC = () => {
       setError(null);
       const res = await apiFetch<TransferStudyPayload>('/api/atlas/research/transfer-study');
       setData(res);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load transfer study results');
+    } catch (err: unknown) {
+      setError(errorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadTransferStudy();
+    let active = true;
+    apiFetch<TransferStudyPayload>('/api/atlas/research/transfer-study')
+      .then(res => {
+        if (active) {
+          setData(res);
+          setError(null);
+        }
+      })
+      .catch(err => {
+        if (active) {
+          setError(errorMessage(err));
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
   }, []);
 
   const domains = data?.domains || ['cmapss', 'laptop', 'mobile', 'server'];

@@ -89,7 +89,14 @@ export const SystemDiagnosticsView: React.FC<SystemDiagnosticsViewProps> = ({ ac
           `/api/learn/history?domain=${activeDomain}&limit=10`
         );
         if (histRes && histRes.history) {
-          setLearningHistory(histRes.history);
+          const normalized = histRes.history.map((h: any) => ({
+            ...h,
+            candidate_loss: h.candidate_loss ?? h.rmse_after,
+            active_loss: h.active_loss ?? h.rmse_before,
+            promoted: h.promoted ?? h.success,
+            timestamp: h.timestamp ?? h.triggered_at ?? new Date().toISOString(),
+          }));
+          setLearningHistory(normalized);
         }
       } catch {
         // AMKB learning history table may be empty on initial boot

@@ -2,14 +2,12 @@
 Database connection pool for TimescaleDB.
 
 Follows the same fail-loudly pattern as JWT_SECRET_KEY and MQTT credentials:
-the app crashes on import if DATABASE_URL is not set.
+the app crashes on import if DATABASE_URL is not set. Loading `.env` is the
+responsibility of the entrypoint (server/integrated_server.py, scripts/, tests).
 """
 import os
 import logging
-from dotenv import load_dotenv
 from psycopg_pool import ConnectionPool
-
-load_dotenv()
 
 logger = logging.getLogger("DigitalTwin")
 

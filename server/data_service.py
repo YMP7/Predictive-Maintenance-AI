@@ -7,16 +7,12 @@ from collections import deque
 from datetime import datetime, timezone
 from typing import Deque, Dict, List, Optional
 import numpy as np
-from dotenv import load_dotenv
 
 from server import machine_registry
 from server.sensor_simulator import MultiMachineSimulator
 from server.ai_agent import AIAgent
 from server.mqtt_client import MQTTClientManager
 from server.database import pool
-
-# Load environment variables
-load_dotenv()
 
 # Configure logging
 log_level_str = os.environ.get("LOG_LEVEL", "INFO").upper()
@@ -221,6 +217,9 @@ class DataService:
                     "machine_id": machine_id,
                     "status": result["status"],
                     "fault_type": result["fault_type"],
+                    "rule_fault_type": result["rule_fault_type"],
+                    "fault_probabilities": result["fault_probabilities"],
+                    "diagnosis_source": result["diagnosis_source"],
                     "detected_issues": result["detected_issues"],
                     "rul_days": result["rul_days"],
                     "rul_confidence": result["rul_confidence"],

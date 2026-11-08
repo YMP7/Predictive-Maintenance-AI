@@ -346,7 +346,8 @@ def test_simulated_alerts_are_tagged_and_not_notified(_mock_database, monkeypatc
 
     svc = MagicMock(_lock=threading.Lock(), telemetry_cache={}, status_cache={}, alerts_log=[], machine_info={})
     svc.agent.process_reading.return_value = {
-        "status": "Critical", "fault_type": "bearing_wear", "detected_issues": [], "rul_days": 1,
+        "status": "Critical", "fault_type": "bearing_wear", "rule_fault_type": "bearing_wear",
+        "fault_probabilities": {}, "diagnosis_source": "rules", "detected_issues": [], "rul_days": 1,
         "rul_confidence": 0.9, "recommendation": "", "alerts": [{"machine_id": "M001"}],
     }
 

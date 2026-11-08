@@ -92,6 +92,13 @@ class AdaptiveContextEngine:
         # 2. Run World Model if available for domain and feature_dim, otherwise fallback
         model = self.get_world_model(domain, feature_dim)
         if model is not None:
+            expected_seq_len = model.config.seq_len
+            if seq_len != expected_seq_len:
+                raise ValueError(
+                    f"Expected window shape ({expected_seq_len}, {feature_dim}) for domain "
+                    f"'{domain}': the world model needs exactly {expected_seq_len} time steps, "
+                    f"got {seq_len}"
+                )
             tensor_window = prepare_window(current_window, seq_len=seq_len, feature_dim=feature_dim)
             out = model.predict(tensor_window)
             pred_rul = float(out.rul_pred)

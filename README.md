@@ -1,147 +1,178 @@
-# AI-Powered Digital Twin & Predictive Maintenance System
-> An AI-powered digital twin for predictive maintenance, designed to help MSMEs monitor assets, ingest telemetry securely, and triage mechanical failures using an agentic AI assistant with strict security safeguards.
+# ATLAS: AI-Powered Digital Twin & Predictive Maintenance System
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI Status](https://github.com/YMP7/Predictive-Maintenance-AI/actions/workflows/main.yml/badge.svg)](https://github.com/YMP7/Predictive-Maintenance-AI/actions)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.109.0-009688.svg?style=flat&logo=FastAPI&logoColor=white)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-18.2.0-20232a.svg?style=flat&logo=React)](https://react.dev/)
-[![TimescaleDB](https://img.shields.io/badge/TimescaleDB-2.13.0-00b0f0.svg?style=flat&logo=PostgreSQL&logoColor=white)](https://www.timescale.com/)
+> A digital-twin platform for predictive maintenance: machine adapters feed normalized telemetry into an LSTM world model for remaining-useful-life (RUL) estimation, with an operator dashboard and an LLM assistant whose work orders require human approval.
+
+[![CI](https://github.com/YMP7/Predictive-Maintenance-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/YMP7/Predictive-Maintenance-AI/actions/workflows/ci.yml)
+[![FastAPI](https://img.shields.io/badge/FastAPI-%E2%89%A50.115-009688.svg?style=flat&logo=FastAPI&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/React-19-20232a.svg?style=flat&logo=React)](https://react.dev/)
+[![TimescaleDB](https://img.shields.io/badge/TimescaleDB-pg16-00b0f0.svg?style=flat&logo=PostgreSQL&logoColor=white)](https://www.timescale.com/)
 [![MQTT](https://img.shields.io/badge/MQTT-Mosquitto-3c5280.svg?style=flat&logo=EclipseMosquitto)](https://mosquitto.org/)
 
 ---
 
-## What's New & Evolution
+## Architecture Overview
 
-The system has evolved through several developmental phases to become a secure, production-hardened platform:
-
-*   **Auth & RBAC Hardening (Phase 6):** Upgraded session token storage from vulnerable `localStorage` to secure, HttpOnly, SameSite, and Secure cookies. Introduced custom request-header verification to mitigate CSRF, and rate-limited auth endpoints (`slowapi`) against brute-force attacks.
-*   **MQTT Ingestion Security (Phase 5):** Reconfigured the Mosquitto broker to disable anonymous access. Enforced per-device ACLs restricting edge machines to write-only topics (`factory/{machine_id}/telemetry`). Telemetry payloads undergo strict schema boundaries and sanitation checks.
-*   **TimescaleDB & Persistence (Phase 5):** Migrated the database layer to TimescaleDB for high-throughput time-series telemetry storage and persistent debounce tracking.
-*   **Multi-Channel Notifications (Phase 5):** Persistent notification debouncing to prevent alert storms. Supports SMS, Voice (Twilio), and Email (SMTP) with fail-loud validation checks on startup.
-*   **3D Landing Overhaul (Phase 7):** Rewrote the dashboard landing experience to include a 3D digital twin rendering of assets utilizing React Three Fiber, indicating physical health and anomaly states dynamically.
-*   **Agentic AI Safeguards (Phase 8):** Implemented an LLM-based troubleshooting agent using Gemini. Hardened the tool execution layer against prompt injections by requiring telemetry-grounding validation (matching severity and recency in DB), a hard volume cap (3 work orders per machine/day), and a **provenance isolation check** restricting valid grounding alerts to those generated solely by the internal `ai_pipeline`.
+```
++-----------------------------------------------------------------------------------+
+|                           ATLAS SYSTEM ARCHITECTURE                               |
++-----------------------------------------------------------------------------------+
+|                                                                                   |
+|  [ TELEMETRY SOURCES — MachineAdapter SDK ]                                       |
+|  * NASA C-MAPSS turbofan dataset (replay)   * Laptop / workstation telemetry      |
+|  * Android phone sensors (ADB / Termux)     * Linux servers (SSH)                 |
+|  * Modbus TCP machines (read-only)                                                |
+|                                    │ (MQTT / TLS / ACLs)                          |
+|                                    ▼                                              |
+|  [ FASTAPI BACKEND ]                                                              |
+|  ┌─────────────────────────────────────────────────────────────────────────────┐  |
+|  │ FAST TIER                                                                   │  |
+|  │ - Schema-validated MQTT ingestion behind Mosquitto ACLs                     │  |
+|  │ - Per-machine threshold fault detection and degradation-trend RUL estimate  │  |
+|  │ - Debounced multi-channel alerting (SMS / voice / email)                    │  |
+|  ├─────────────────────────────────────────────────────────────────────────────┤  |
+|  │ MODEL TIER                                                                  │  |
+|  │ - World model: 2-layer LSTM + additive temporal attention → 32-d state      │  |
+|  │ - Per-domain checkpoints; untrained domains refuse inference                │  |
+|  │ - Gemini LLM assistant; agent work orders need human approval               │  |
+|  └─────────────────────────────────────────────────────────────────────────────┘  |
+|                                    │                                              |
+|                                    ▼                                              |
+|  [ PERSISTENCE ]                              [ OPERATOR DASHBOARD ]              |
+|  * PostgreSQL 16 + TimescaleDB hypertables    * React 19 + Vite + TypeScript      |
+|  * pgvector state-vector memory               * 3D view (three.js), Recharts, SSE |
+|                                                                                   |
++-----------------------------------------------------------------------------------+
+```
 
 ---
 
-## What's Inside
+## Capabilities
+
+### RUL model
+- **World model** (`server/atlas/world_model.py`): a unidirectional 2-layer LSTM (hidden size 64, dropout 0.2) over 30-cycle windows, followed by additive (Bahdanau-style, Linear–tanh–Linear) temporal attention that pools the sequence into a 32-dimensional state vector. A small MLP head predicts RUL, capped at 125 cycles.
+- **Training** (`server/atlas/train_rul.py`): MSE loss. Evaluation reports RMSE and the asymmetric PHM'08 score, which penalizes late predictions more than early ones.
+- **Untrained-model guard**: a domain without a trained checkpoint reports `is_trained=False` and raises `UntrainedModelError` instead of answering with random weights.
+
+### Multiple machine domains
+- Adapters for C-MAPSS (FD001–FD004), laptops, Android phones, Linux servers, and Modbus TCP devices, all producing the same `NormalizedReading` schema.
+- A cross-domain transfer study (`server/atlas/transfer_study.py`) *measures* how well representations transfer between domains, using MMD and a negative-transfer index. It reports negative transfer between compute and turbofan domains; it does not align domains.
+
+### Adapter SDK
+- `MachineAdapter` base class plus a conformance suite (`tests/test_adapter_conformance.py`) that any new adapter must pass. Spec: [docs/ADAPTER_SDK_SPEC.md](docs/ADAPTER_SDK_SPEC.md).
+
+### LLM assistant with human approval
+- Conversational diagnostics backed by Google Gemini.
+- Work orders created by the agent are validated server-side against recorded alerts and capped at 3 per machine per 24 hours.
+- High and Critical work orders land in `Pending Approval` and need an authenticated operator or admin to approve them.
+
+### Documentation
+Indexed in the [Documentation Hub](docs/README.md), including the [System Architecture Document](docs/System%20Architecture%20Document%20(SAD).md), [Ablation Study Results](docs/ABLATION_STUDY_RESULTS.md) and [References](docs/REFERENCES.md).
+
+---
+
+## Repository Structure
 
 ```
 .
-├── client/                     # React Single-Page Application (SPA)
-│   ├── src/
-│   │   ├── components/
-│   │   │   └── MachineAnimation.tsx # 3D digital twin animation (normal/anomalous)
-│   │   └── pages/
-│   │       ├── Dashboard.tsx   # Live telemetry telemetry charts & AI chat panel
-│   │       └── Login.tsx       # Rate-limited auth panel utilizing HttpOnly JWT cookies
-│   └── package.json            # Frontend dependency definitions
-├── server/                     # Python FastAPI Backend
-│   ├── backend_api.py          # Main REST endpoints, router, and CORS configuration
-│   ├── auth.py                 # JWT validation, role checking, & password hashing
-│   ├── data_service.py         # Telemetry database ingestion & anomaly pipelines
-│   ├── mqtt_client.py          # Secure MQTT subscriber with schema bounds validation
-│   ├── alert_handler.py        # Notification dispatch and persistence-backed debounce logic
-│   ├── agent_memory.py         # Agent conversation memory database helper (keyed by machine)
-│   ├── llm_agent.py            # Agentic reasoning loop wrapping Gemini
-│   ├── agent_tools.py          # Database-bound tools exposed to the agent
-│   └── database.py             # TimescaleDB connection pool manager
-├── tests/                      # Testing suites
-│   ├── test_api.py             # REST API tests (RBAC validation, rate limiting)
-│   ├── test_mqtt.py            # MQTT schema boundaries & TLS connection tests
-│   └── test_work_order_safeguards.py # Grounding checks, daily cap, and provenance tests
-├── scripts/                    # Management scripts
-│   ├── migrate.py              # TimescaleDB schema initialization
-│   └── seed_dev.py             # Development database seed utility
-├── docker-compose.yml          # TimescaleDB and Mosquitto orchestrator
-└── requirements.txt            # Python backend dependency definitions
+├── client/                     # Frontend (React 19 + Vite + TypeScript)
+├── config/                     # Machine profiles and configuration
+├── data/                       # Datasets (C-MAPSS) and model checkpoints
+├── docs/                       # Architecture, QA, and operations documentation
+│   ├── figures/                # Architecture diagrams
+│   ├── screenshots/            # UI verification captures
+│   └── REFERENCES.md           # Bibliography with DOIs
+├── ml/                         # Preprocessing and training utilities
+├── mosquitto/                  # Mosquitto broker config and ACLs
+├── notebooks/                  # Exploration notebooks
+├── scripts/                    # Migration, evaluation, benchmark, and verification tools
+├── server/
+│   ├── adapters/               # MachineAdapter SDK and domain adapters
+│   ├── atlas/                  # World model, RUL engine, and analysis modules
+│   ├── backend_api.py          # FastAPI endpoints, CORS, auth middleware
+│   ├── data_service.py         # Telemetry ingestion and TimescaleDB pool
+│   ├── llm_agent.py            # Gemini assistant
+│   └── mqtt_client.py          # MQTT subscriber with schema validation
+├── tests/                      # pytest suite
+├── docker-compose.yml          # TimescaleDB and Mosquitto for local development
+└── requirements.txt            # Python dependencies (torch: requirements-ml.txt)
 ```
 
 ---
 
 ## Quick Start
 
-### 1. Provision Infrastructure
-Start the TimescaleDB and Mosquitto broker services:
-```bash
-docker-compose up -d
-```
-
-### 2. Configure Environment
-Copy `.env.example` to `.env` and fill in the required parameters:
+### 1. Configure environment
 ```bash
 cp .env.example .env
 ```
-Ensure you generate a secure 32-byte JWT secret:
+Generate a 32-byte JWT secret and put it in `.env`:
 ```bash
-# On macOS/Linux/Git Bash
 openssl rand -hex 32
 ```
 
-#### Fail-Loud Environment Requirements:
-*   `JWT_SECRET_KEY`: The application will crash on startup if this is missing.
-*   `DATABASE_URL`: Connection string to TimescaleDB (e.g. `postgresql://dtwin:your_secure_password@localhost:5433/digital_twin`).
-*   `ADMIN_PASSWORD_HASH` / `OPERATOR_PASSWORD_HASH`: Required by `scripts/seed_dev.py` — the seed script will refuse to run without these set.
-*   `GEMINI_AGENT_ENABLED` / `GEMINI_API_KEY`: If `GEMINI_AGENT_ENABLED=true`, `GEMINI_API_KEY` must be set or the app refuses to start.
-*   `NOTIFICATIONS_ENABLED`: If set to `true`, Twilio credentials (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`) and SMTP credentials (`SMTP_HOST`, `SMTP_FROM`) must be provided, or the server will fail to start.
+Required variables:
+- `JWT_SECRET_KEY`: the server refuses to start without it.
+- `TSDB_PASSWORD` and `DATABASE_URL`: e.g. `postgresql://dtwin:<password>@localhost:5433/digital_twin`.
+- `ADMIN_PASSWORD_HASH` / `OPERATOR_PASSWORD_HASH`: required by the development seed script.
+- `GEMINI_API_KEY`: required when `GEMINI_AGENT_ENABLED=true`.
 
-### 3. Run Backend Migrations & Seed
-*(Note: Ensure `ADMIN_PASSWORD_HASH` and `OPERATOR_PASSWORD_HASH` are set in `.env` before seeding).*
-Run database migrations to initialize tables and hyper-tables, then seed default development accounts:
+### 2. Start infrastructure
+```bash
+python scripts/generate_mqtt_passwords.py
+docker compose up -d timescaledb mosquitto
+```
+
+### 3. Run migrations and seed development data
 ```bash
 python scripts/migrate.py
+python scripts/migrate_atlas.py
 python scripts/seed_dev.py
 ```
+`seed_dev.py` creates development accounts with publicly known passwords. Never run it against a deployed database.
 
-### 4. Run the Integrated Server
-Install Python dependencies and start the backend:
+### 4. Start the backend
 ```bash
 pip install -r requirements.txt
-$env:PYTHONPATH="." # On Windows PowerShell
-python server/integrated_server.py
+pip install -r requirements-ml.txt --extra-index-url https://download.pytorch.org/whl/cpu
+PYTHONPATH=. python server/integrated_server.py
 ```
 
-### 5. Start the Frontend
-Install Node packages and run the React frontend dev server:
+### 5. Start the frontend
 ```bash
 cd client
-npm install
+npm ci
 npm run dev
 ```
+Open the URL Vite prints (default `http://localhost:5173`).
 
 ---
 
-## Component Reference
+## Testing
 
-| I want to... | Use this | Notes |
-| :--- | :--- | :--- |
-| **Monitor live status** | [Dashboard](http://localhost:3000/dashboard) | Displays real-time charts & 3D digital twin states. |
-| **Receive critical alerts** | Notification System | Relies on Twilio & SMTP; stateful debounce is active. |
-| **Triage and query machines** | Agent Chat | Chat sidebar on the dashboard page. |
-| **Inject test anomaly** | Fault Endpoint | `POST /api/machines/{id}/fault` (Requires **Admin** role). |
-
----
-
-## Security & Limitations
-
-Please read [SECURITY.md](SECURITY.md) for full compliance guidelines.
-
-### Known Limitations:
-1.  **Untested End-to-End SMS**: Twilio notification delivery has only been verified against the Twilio API sandbox.
-2.  **No Deployed HTTPS**: Local execution relies on localhost. Production deployment requires Nginx + Let's Encrypt configurations.
-3.  **No UI Resolve Flow**: While work orders are securely created and stored in the database, operators cannot currently transition them to "Closed" or "Resolved" via the UI dashboard.
-
----
-
-## FAQ
-
-#### Is this using real IoT hardware?
-No. The system runs a local simulator that publishes synthetic sensor feeds to the MQTT broker, replicating a real physical machine. The MQTT client and database schema are fully compatible with real hardware.
-
-#### Can the AI agent take real actions?
-Yes. The LLM can invoke `create_work_order`. However, it cannot write to the database directly; it passes through a strict backend gateway enforcing a 3/machine/day volume cap and verifying that a corresponding `ai_pipeline`-generated alert is logged in the database within the last 24h. Additionally, Critical/High-urgency work orders are placed in a "Pending Approval" state, requiring explicit human operator/admin confirmation before taking effect.
-
-#### How do I run tests?
-Run the test suites with:
 ```bash
-$env:PYTHONPATH="."; pytest -v
+python -m pytest tests/ -q
 ```
+
+The suite has **269 tests** on the v1.1 branch (218 on `main`, plus 51 from the adapter SDK and Modbus suites). Measured locally on 2026-10-08 (Windows 11, Python 3.13.5, **no database running**): 234 passed, 20 skipped, 15 failed. All 15 failures are database tests that time out without TimescaleDB. The full database-backed run is the `test-backend` job in [CI](.github/workflows/ci.yml).
+
+Adapter conformance only, optionally for one adapter:
+```bash
+python -m pytest tests/test_adapter_conformance.py --adapter modbus
+```
+
+---
+
+## Security
+
+- MQTT credentials are hashed in memory by `scripts/generate_mqtt_passwords.py`; no plaintext password file is written.
+- Session cookies are HttpOnly and SameSite=Lax, with an anti-CSRF header check and `slowapi` rate limiting. The `Secure` flag is set only when `ENVIRONMENT` is not `development` (the default), so set `ENVIRONMENT=production` for any HTTPS deployment.
+- `CORS_ORIGINS=*` is rejected at startup.
+- Mosquitto ACLs restrict edge devices to their own topics.
+
+See [SECURITY.md](SECURITY.md) for vulnerability reporting.
+
+---
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE). Versions published before 2026-10-09 were released under MIT. See [docs/LICENSE_OPTIONS.md](docs/LICENSE_OPTIONS.md) for how this was chosen.

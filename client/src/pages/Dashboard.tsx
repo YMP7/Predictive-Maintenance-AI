@@ -2,7 +2,7 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useDashboardData, useMachineDetails } from '../hooks/useDashboardData';
 import { MachineCard } from '../components/MachineCard';
 import AgentChat from '../components/AgentChat';
-import { apiFetch } from '../lib/api';
+import { apiFetch, errorMessage } from '../lib/api';
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
 } from 'recharts';
@@ -129,7 +129,7 @@ export const Dashboard: React.FC = () => {
   const [selectedLang, setSelectedLang] = useState('en');
   const [selectedMachine, setSelectedMachine] = useState<string | null>('M001');
   const { summary, loading: summaryLoading, error: summaryError } = useDashboardData(2000);
-  const { telemetry, loading: _detailsLoading } = useMachineDetails(selectedMachine, 2000);
+  const { telemetry } = useMachineDetails(selectedMachine, 2000);
   const [injectionStatus, setInjectionStatus] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
 
@@ -237,8 +237,8 @@ export const Dashboard: React.FC = () => {
       });
       setInjectionStatus({ message: `${t.injectSuccess} (${label})`, type: 'success' });
       setTimeout(() => setInjectionStatus(null), 3000);
-    } catch (err: any) {
-      setInjectionStatus({ message: err.message || "Connection error.", type: 'error' });
+    } catch (err: unknown) {
+      setInjectionStatus({ message: errorMessage(err, 'Connection error.'), type: 'error' });
       setTimeout(() => setInjectionStatus(null), 3000);
     }
   };
@@ -434,24 +434,47 @@ export const Dashboard: React.FC = () => {
                       </div>
                     </div>
 
+                    {currentMachine.fault_probabilities && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                          FAULT CLASSIFIER // label from {currentMachine.diagnosis_source === 'model' ? 'model' : 'rules'}
+                        </div>
+                        {Object.entries(currentMachine.fault_probabilities)
+                          .sort(([, a], [, b]) => b - a)
+                          .map(([label, p]) => (
+                            <div key={label} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 44px', alignItems: 'center', gap: '8px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+                              <span style={{ color: label === currentMachine.fault_type ? 'var(--text-bright)' : 'var(--text-muted)' }}>{label}</span>
+                              <div style={{ height: '6px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-xs)' }}>
+                                <div style={{ width: `${Math.round(p * 100)}%`, height: '100%', background: 'var(--accent-cyan)', borderRadius: 'var(--radius-xs)' }} />
+                              </div>
+                              <span style={{ color: 'var(--text-primary)', textAlign: 'right' }}>{Math.round(p * 100)}%</span>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+
                     {/* Sensor Metric Tiles */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
                         <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>VIBRATION RMS</div>
                         <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-bright)' }}>
-                          {telemetry.length > 0 && telemetry[telemetry.length - 1]?.vibration?.rms != null ? `${telemetry[telemetry.length - 1].vibration.rms.toFixed(2)} mm/s` : '--'}
+                          {telemetry.length > 0 && (telemetry[telemetry.length - 1]?.vibration_rms ?? telemetry[telemetry.length - 1]?.vibration?.rms) != null
+                            ? `${(telemetry[telemetry.length - 1]?.vibration_rms ?? telemetry[telemetry.length - 1]?.vibration?.rms ?? 0).toFixed(2)} mm/s`
+                            : '--'}
                         </div>
                       </div>
                       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
                         <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>TEMPERATURE</div>
                         <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-bright)' }}>
-                          {telemetry.length > 0 && telemetry[telemetry.length - 1]?.temperature ? `${telemetry[telemetry.length - 1].temperature.toFixed(1)} °C` : '--'}
+                          {telemetry.length > 0 && telemetry[telemetry.length - 1]?.temperature != null ? `${telemetry[telemetry.length - 1].temperature.toFixed(1)} °C` : '--'}
                         </div>
                       </div>
                       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
                         <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>CURRENT DRAW</div>
                         <div style={{ fontSize: '20px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-bright)' }}>
-                          {telemetry.length > 0 && telemetry[telemetry.length - 1]?.current != null ? `${telemetry[telemetry.length - 1].current.toFixed(2)} A` : '--'}
+                          {telemetry.length > 0 && (telemetry[telemetry.length - 1]?.current_draw ?? telemetry[telemetry.length - 1]?.current) != null
+                            ? `${(telemetry[telemetry.length - 1]?.current_draw ?? telemetry[telemetry.length - 1]?.current ?? 0).toFixed(2)} A`
+                            : '--'}
                         </div>
                       </div>
                     </div>
@@ -496,10 +519,17 @@ export const Dashboard: React.FC = () => {
                     {canInjectFault && (
                       <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--status-warning)', fontFamily: 'var(--font-mono)' }}>
-                          {t.faultInjection} (OPERATOR PRIVILEGE)
+                          {t.faultInjection} (ADMIN PRIVILEGE)
                         </div>
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          {([['Bearing Wear', 'bearing_wear'], ['Misalignment', 'misalignment'], ['Overheating', 'overheating'], ['Electrical Fault', 'electrical_fault'], ['Normal', 'normal']] as const).map(([label, mode]) => (
+                          {([
+                            ['bearing_wear', 'Bearing Wear'],
+                            ['rotor_imbalance', 'Rotor Imbalance'],
+                            ['overheating', 'Overheating'],
+                            ['misalignment', 'Misalignment'],
+                            ['electrical_fault', 'Electrical Fault'],
+                            ['normal', 'Normal'],
+                          ] as const).map(([mode, label]) => (
                             <button
                               key={mode}
                               onClick={() => handleInjectFault(mode, label)}

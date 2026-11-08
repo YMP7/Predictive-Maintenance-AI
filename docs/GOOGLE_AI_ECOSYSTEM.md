@@ -42,10 +42,10 @@ The following 4 skills have been added directly to your workspace inside `.agent
 
 ### B. Gemini Notebook (`gemini-notebook`)
 - **File**: [`.agents/skills/gemini-notebook/SKILL.md`](../.agents/skills/gemini-notebook/SKILL.md)
-- **Purpose**: Local source-grounded research assistant that inspects specified documents, notes, or files (such as `Research Papers/` or `ATLAS_PROJECT_CONTEXT.md`), extracting strictly grounded insights with file and line citations.
+- **Purpose**: Local source-grounded research assistant that inspects specified documents, notes, or files (such as `docs/research_papers/` or `ATLAS_PROJECT_CONTEXT.md`), extracting strictly grounded insights with file and line citations.
 - **Note on Accuracy**: This is a local Antigravity workflow grounded in your actual workspace files, not the proprietary cloud indexing engine of `notebooklm.google.com`.
 - **How to invoke**:
-  - *"Using the gemini-notebook skill, synthesize the key findings in Research Papers/."*
+  - *"Using the gemini-notebook skill, synthesize the key findings in docs/research_papers/."*
   - *"Answer [question] strictly grounded in the documents in docs/."*
 
 ### C. Learn Your Way (`learn-your-way`)

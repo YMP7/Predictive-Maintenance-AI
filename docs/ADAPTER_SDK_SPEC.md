@@ -434,7 +434,7 @@ A passing suite certifies:
 
 ## 10. Phase 2: Industrial Modbus TCP Protocol Adapter
 
-Phase 2 introduces the first generic industrial protocol adapter: [`ModbusAdapter`](file:///server/adapters/modbus_adapter.py) communicating with physical or simulated assets via Modbus TCP (IEC 61158 / Modbus-IDA), paired with an in-process [`ModbusSimulator`](file:///server/adapters/modbus_simulator.py).
+Phase 2 introduces the first generic industrial protocol adapter: [`ModbusAdapter`](../server/adapters/modbus_adapter.py) communicating with physical or simulated assets via Modbus TCP (IEC 61158 / Modbus-IDA), paired with an in-process [`ModbusSimulator`](../server/adapters/modbus_simulator.py).
 
 ### 10.1 Key Architectural Decision: Config-Driven Register Mapping (Layer 2)
 

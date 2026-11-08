@@ -1,0 +1,29 @@
+name: New machine adapter
+description: Propose an adapter for a protocol, device, or dataset
+labels: ["adapter"]
+body:
+  - type: input
+    id: source
+    attributes:
+      label: Protocol / device / dataset
+      placeholder: e.g. OPC-UA, Prometheus, CWRU bearing dataset
+    validations:
+      required: true
+  - type: textarea
+    id: channels
+    attributes:
+      label: Channels and units
+      description: What the adapter reads, with physical units and expected ranges.
+    validations:
+      required: true
+  - type: checkboxes
+    id: rules
+    attributes:
+      label: Adapter rules (see CONTRIBUTING.md)
+      options:
+        - label: The adapter only reads from the machine; it never writes.
+          required: true
+        - label: I can provide a simulator or recorded fixture so CI can test it without hardware.
+          required: true
+        - label: Any config file paths will be path-jailed.
+          required: true

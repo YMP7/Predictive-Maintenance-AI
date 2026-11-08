@@ -1,6 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { Sun, Moon } from 'lucide-react';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '../hooks/useTheme';
 import { VIEW_GROUPS } from '../lib/dashboardViews';
 import { getModel, RECOGNISED_MODELS } from '../twin/machineModels';
 

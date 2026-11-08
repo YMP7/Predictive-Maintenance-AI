@@ -1,0 +1,37 @@
+name: Bug report
+description: Something behaves incorrectly
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Commands, inputs, and the smallest config that shows the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS, Python version, commit SHA, and whether a database / broker was running.
+    validations:
+      required: true
+  - type: dropdown
+    id: data
+    attributes:
+      label: Data source involved
+      options: [Live machine, Replayed recording, Simulator, Public dataset (e.g. C-MAPSS), Not applicable]
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Remove credentials, hostnames, and machine identifiers first.
+      render: text

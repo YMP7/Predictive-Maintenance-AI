@@ -132,4 +132,4 @@ These items are explicitly named and available as genuine "future work" answers 
 | Test Execution Report | [`docs/qa/TEST_EXECUTION_REPORT.md`](TEST_EXECUTION_REPORT.md) | 192/192 pass rate, per-file breakdown |
 | Defect Reports | [`docs/qa/DEFECT_REPORTS.md`](DEFECT_REPORTS.md) | 11 defects + 1 near-miss, root-caused, fixed, verified |
 | QA Report | **This document** | Overall quality assessment and sign-off |
-| Source of Truth | [`ATLAS_PROJECT_CONTEXT.md`](../../../ATLAS_PROJECT_CONTEXT.md) | Canonical project record, Decisions Log |
+| Source of Truth | [`ATLAS_PROJECT_CONTEXT.md`](../../ATLAS_PROJECT_CONTEXT.md) | Canonical project record, Decisions Log |

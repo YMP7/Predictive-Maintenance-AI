@@ -14,13 +14,8 @@ data/
 !data/cmapss
 !data/*.json
 client/node_modules/
-client/src/
-client/public/
-client/package-lock.json
-client/package.json
-client/tsconfig*.json
-client/vite.config.ts
-client/eslint.config.js
+client/dist/
+client/.vite/
 *.docx
 *.pptx
 *.pdf

@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone, timedelta
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 import uuid
 
 from server.database import pool
@@ -214,7 +214,7 @@ def create_work_order(
                 return _reject(conn, now, machine_id, action, urgency, justification, result, message, snapshot)
 
             # Serialize agent orders per machine until commit, so two concurrent chats can't both pass the cap.
-            conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (machine_id,))
+            conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (f"work_order:{machine_id}",))
 
             # 1. Volume Cap (<= 3 per day per machine)
             count = conn.execute(
@@ -333,9 +333,9 @@ def create_work_order(
             "created_by": "agent:atlas",
             "message": f"Work order {order_id} created successfully with status '{status}'."
         }
-    except Exception as e:
-        logger.error(f"create_work_order error: {e}")
-        return {"error": str(e)}
+    except Exception:
+        logger.exception("create_work_order failed for machine %s", machine_id)
+        return {"error": "Work order creation failed due to an internal error."}
 
 
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { apiFetch } from '../lib/api';
-import { useTheme } from '../contexts/ThemeContext';
+import { useTheme } from '../hooks/useTheme';
 import { Sun, Moon } from 'lucide-react';
 
 // Only same-site dashboard paths are accepted, so ?next= cannot redirect off the site.

@@ -12,7 +12,8 @@ import pytest
 import numpy as np
 from fastapi.testclient import TestClient
 
-from server.backend_api import app, atlas_api_startup
+from server.backend_api import app, atlas_api_startup, get_current_user, _get_atlas
+from server.auth import User
 import server.api as api_module
 
 
@@ -25,6 +26,26 @@ def initialize_atlas():
 @pytest.fixture
 def client(signed_in):
     return TestClient(app)
+
+
+@pytest.mark.parametrize("method,path", [
+    ("post", "/api/context"),
+    ("post", "/api/explain"),
+    ("post", "/api/decide"),
+    ("post", "/api/learn/retrain"),
+    ("get", "/api/learn/history"),
+    ("get", "/api/dna/cmapss/unit_1"),
+])
+def test_cognition_routes_reject_anonymous(method, path):
+    res = getattr(TestClient(app), method)(path, headers={"X-API-Request": "true"})
+    assert res.status_code == 401
+
+
+def test_mobile_push_rejects_unknown_machine(monkeypatch):
+    monkeypatch.setenv("MOBILE_BRIDGE_TOKEN", "test-bridge-token")
+    res = TestClient(app).post("/api/atlas/mobile/telemetry", json={"machine_id": "attacker_1"},
+                               headers={"X-Mobile-Bridge-Token": "test-bridge-token"})
+    assert res.status_code == 400
 
 
 def test_unified_research_endpoints(client):
@@ -102,12 +123,25 @@ def test_def_008_encoder_routing_regression_guard(client):
 
 
 def test_machine_window_endpoint(client):
-    """Verify live sliding window extraction helper endpoint."""
-    res = client.get("/api/atlas/domain/cmapss/machine/unit_1/window")
+    """Window endpoint: unknown unit is 404, a partial window is 409 (never padded), 30 readings is 200."""
+    url = "/api/atlas/domain/cmapss/machine/window_test_unit/window"
+    assert client.get(url).status_code == 404
+
+    engine = _get_atlas().get_engine("cmapss")
+    with engine._lock:
+        engine._windows["window_test_unit"] = [[float(i)] * 14 for i in range(10)]
+    res = client.get(url)
+    assert res.status_code == 409, res.text
+
+    with engine._lock:
+        engine._windows["window_test_unit"] = [[float(i)] * 14 for i in range(30)]
+    try:
+        res = client.get("/api/atlas/domain/cmapss/machine/window_test_unit/window")
+    finally:
+        engine.clear_machine("window_test_unit")
     assert res.status_code == 200
     data = res.json()
     assert data["domain"] == "cmapss"
-    assert data["machine_id"] == "unit_1"
     assert data["feature_dim"] == 14
     assert len(data["window"]) == 30
-    assert len(data["window"][0]) == 14
+    assert data["window"][0][0] == 0.0 and data["window"][-1][0] == 29.0

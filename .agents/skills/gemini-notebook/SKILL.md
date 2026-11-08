@@ -10,7 +10,7 @@ description: >-
 
 # Gemini Notebook (Local Source-Grounded Research)
 
-This skill provides a local, strictly source-grounded research assistant inspired by NotebookLM. It operates over files, documentation, and academic papers you point it to in your repository (such as `Research Papers/`, `docs/`, or architectural specs).
+This skill provides a local, strictly source-grounded research assistant inspired by NotebookLM. It operates over files, documentation, and academic papers you point it to in your repository (such as `docs/research_papers/`, `docs/`, or architectural specs).
 
 > [!IMPORTANT]
 > **Invocation Constraint**: This skill must **only** be executed when the user explicitly asks to research, query, or synthesize specific local documents or folders. Never run proactively.
@@ -20,7 +20,7 @@ This skill provides a local, strictly source-grounded research assistant inspire
 
 ## Supported Input Sources
 
-- **Academic / Technical Papers**: e.g., PDFs or Markdown extracts in `Research Papers/`.
+- **Academic / Technical Papers**: e.g., PDFs or Markdown extracts in `docs/research_papers/`.
 - **Project Specifications & Docs**: `docs/`, `*.md`, `RFCs`, technical design records.
 - **Source Code Files**: Specific modules or algorithms the user requests analysis on.
 

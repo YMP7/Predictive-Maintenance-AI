@@ -57,7 +57,7 @@ services:
         max-file: "7"
 
   timescaledb:
-    image: timescale/timescaledb:latest-pg16
+    image: timescale/timescaledb:2.28.2-pg16
     container_name: timescaledb
     restart: unless-stopped
     ports:
@@ -79,7 +79,18 @@ services:
     container_name: mosquitto-init
     volumes:
       - ./mosquitto/config:/mosquitto/config
-    command: sh -c "cp /mosquitto/config/pwfile.raw /mosquitto/config/pwfile && mosquitto_passwd -U /mosquitto/config/pwfile"
+    command:
+      - sh
+      - -c
+      - |
+        if [ -f /mosquitto/config/pwfile.raw ]; then
+          cp /mosquitto/config/pwfile.raw /mosquitto/config/pwfile && mosquitto_passwd -U /mosquitto/config/pwfile
+        elif [ -f /mosquitto/config/pwfile ]; then
+          echo "pwfile already present"
+        else
+          echo "pwfile missing"
+          exit 1
+        fi
 
   mosquitto:
     image: eclipse-mosquitto:2
