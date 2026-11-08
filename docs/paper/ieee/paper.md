@@ -225,7 +225,7 @@ ATLAS shows that RUL prediction, memory-grounded explanation and cost-aware deci
 
 # Code and Data Availability {.unnumbered}
 
-C-MAPSS is publicly available [1]. The ATLAS code, trained checkpoints and the scripts that regenerate Tables I–V are available from the authors on request; a public release will follow intellectual-property filing.
+C-MAPSS is publicly available [1]. The ATLAS code, trained checkpoints and the scripts that regenerate Tables I–V are available from the authors on request.
 
 # References {.unnumbered}
 
