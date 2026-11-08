@@ -17,12 +17,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements.txt requirements-ml.txt ./
+RUN pip install --no-cache-dir -r requirements-ml.txt --extra-index-url https://download.pytorch.org/whl/cpu
 
 COPY server ./server
 COPY scripts ./scripts
 COPY config ./config
+# Startup refuses to run without the C-MAPSS checkpoint (server/api.py).
+COPY data/models ./data/models
 COPY --from=frontend /build/dist ./client/dist
 
 RUN mkdir -p /app/data /app/logs \
