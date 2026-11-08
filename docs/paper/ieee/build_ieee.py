@@ -145,6 +145,10 @@ last_abs._p.get_or_add_pPr().append(front)
 
 for c in sectPr.findall(qn("w:cols")):
     sectPr.remove(c)
+# body starts on page 1 under the abstract (a missing type means "next page")
+body_type = OxmlElement("w:type")
+body_type.set(qn("w:val"), "continuous")
+sectPr.insert(0, body_type)
 cols = OxmlElement("w:cols")
 cols.set(qn("w:num"), "2")
 cols.set(qn("w:space"), "360")

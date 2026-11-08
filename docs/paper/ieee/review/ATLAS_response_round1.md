@@ -36,3 +36,12 @@ The re-analysis reproduces the published numbers exactly before changing anythin
 
 - Table I and Table IV numbers (untouched by the review).
 - The near-failure safety-parity paragraph (ablation 3), which reviewers cited as a strength.
+
+## Length (6-page limit)
+
+Cut from 8 to 6 pages in Word (US Letter, two columns) on 2026-11-08:
+- The body now starts under the abstract instead of on a new page (`build_ieee.py` section break).
+- The training-loss figure, the system-performance figure and the 3×3 heatmap were removed. The heatmap's nine values are now in the text, and Table IV keeps the latency numbers.
+- Prose was trimmed throughout, and the abstract is cut to about 200 words. No result, number or caveat was dropped.
+
+Figures are now Fig. 1 (architecture), Fig. 2 (predicted vs. true RUL), Fig. 3 (decision value).
