@@ -149,6 +149,41 @@ def test_logging_filter_redacts_messages(caplog):
     assert "eyJa1" not in caplog.text
 
 
+# ---------------------------------------------------------------- CLI tools
+
+
+def test_audit_verify_cli_detects_an_edited_line(tmp_path, capsys):
+    from scripts.audit_verify import main as verify
+
+    log = new_log(tmp_path)
+    record_n(log, 3)
+    log.close()
+    assert verify(["--source", "jsonl", "--dir", str(tmp_path)]) == 0
+    path = next(tmp_path.glob("*.jsonl"))
+    lines = path.read_text(encoding="utf-8").splitlines()
+    ev = json.loads(lines[1])
+    ev["actor"] = "mallory"
+    lines[1] = json.dumps(ev)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    assert verify(["--source", "jsonl", "--dir", str(tmp_path)]) == 1
+    assert "first bad seq 2" in capsys.readouterr().out
+
+
+def test_audit_export_filters_by_category(tmp_path):
+    import csv as csv_mod
+    from scripts.audit_export import main as export
+
+    log = new_log(tmp_path)
+    log.record(category="auth", action="login", actor="a", actor_type="user")
+    log.record(category="ingest", action="http.batch", actor="dev_1", actor_type="device")
+    log.close()
+    out = tmp_path / "out.csv"
+    assert export(["--source", "jsonl", "--dir", str(tmp_path), "--category", "ingest", "--format", "csv",
+                   "--out", str(out)]) == 0
+    rows = list(csv_mod.DictReader(out.open(encoding="utf-8")))
+    assert [r["category"] for r in rows] == ["ingest"]
+
+
 # ---------------------------------------------------------------- API integration
 
 
@@ -173,18 +208,18 @@ def events_of(log, category):
 
 def test_api_request_is_audited_with_correlation_id(audit_log, client):
     cid = "0b5c2f9e-3f1a-4c3e-9d2b-7a1e5c6d8f90"
-    res = client.get("/api/health", headers={"X-Correlation-ID": cid})
-    assert res.status_code == 200
+    res = client.get("/api/ready", headers={"X-Correlation-ID": cid})
+    assert res.status_code in (200, 503)
     assert res.headers["X-Correlation-ID"] == cid
-    ev = [e for e in events_of(audit_log, "api") if e["action"] == "GET /api/health"][-1]
+    ev = [e for e in events_of(audit_log, "api") if e["action"] == "GET /api/ready"][-1]
     assert ev["correlation_id"] == cid
-    assert ev["details"]["status"] == 200
+    assert ev["details"]["status"] == res.status_code
     assert ev["latency_ms"] >= 0
     assert ev["actor_type"] in ("user", "anonymous", "device", "system")
 
 
 def test_unsafe_correlation_id_is_replaced(audit_log, client):
-    res = client.get("/api/health", headers={"X-Correlation-ID": "bad value\nwith newline"})
+    res = client.get("/api/ready", headers={"X-Correlation-ID": "bad value with spaces"})
     assert re.fullmatch(r"[0-9a-f-]{36}", res.headers["X-Correlation-ID"])
 
 
@@ -262,6 +297,32 @@ def test_audit_table_blocks_update_and_delete(migrated):
             with pytest.raises(psycopg.errors.RaiseException):
                 with conn.transaction():
                     conn.execute("DELETE FROM audit_copy")
+
+
+def test_app_role_can_append_but_not_change_audit_history(migrated):
+    """The API's own database user has SELECT and INSERT only; the owner keeps the rest for migrations."""
+    import psycopg
+    from server.database import pool
+    from scripts.migrate_platform import APP_ROLE
+
+    with pool.connection() as conn:
+        privs = conn.execute(
+            "SELECT has_table_privilege(%s, 'audit_events', 'INSERT'), has_table_privilege(%s, 'audit_events', 'UPDATE'), "
+            "has_table_privilege(%s, 'audit_events', 'DELETE'), has_table_privilege(%s, 'audit_events', 'TRUNCATE'), "
+            "has_table_privilege(%s, 'sensor_readings', 'INSERT')",
+            (APP_ROLE,) * 5,
+        ).fetchone()
+        assert privs == (True, False, False, False, True)
+
+        # Prove it with the role itself (no-op statements; the privilege check runs before any row is touched).
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            with conn.transaction():
+                conn.execute(f'SET LOCAL ROLE "{APP_ROLE}"')
+                conn.execute("UPDATE audit_events SET actor = actor WHERE false")
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            with conn.transaction():
+                conn.execute(f'SET LOCAL ROLE "{APP_ROLE}"')
+                conn.execute("DELETE FROM audit_events WHERE false")
 
 
 def test_migration_is_rerunnable(migrated):

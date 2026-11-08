@@ -18,6 +18,26 @@ from server.atlas.learning_engine import LearningEngine, LearningResult
 import dataclasses
 
 from server.auth import require_admin
+from server.audit import audit
+
+
+def _audit_inference(req, np_window, context) -> None:
+    """One audit event per RUL inference: model + version, input-window hash, RUL band."""
+    from server.cognition_trace import model_ref, rul_band, window_hash
+    variance = float(np.var([n.rul for n in context.neighbors])) if context.neighbors else 0.0
+    band = rul_band(context.predicted_rul, variance)
+    audit(category="inference", action="rul.predict", target=f"{req.domain}/{req.machine_id}",
+          details={**model_ref(req.domain), "window_hash": window_hash(np_window), "rul_mean": band["mean"],
+                   "rul_p10": band["p10"], "rul_p90": band["p90"], "neighbors": len(context.neighbors)})
+
+
+def _audit_explanation(req, report) -> None:
+    d = report.to_dict()
+    audit(category="explanation", action="explain", target=f"{req.domain}/{req.machine_id}",
+          details={"confidence": d.get("confidence_score"), "top_contributors": d.get("top_contributors"),
+                   "amkb_neighbors": [f"{c.get('machine_id')}@{c.get('cycle')}" for c in (d.get("citations") or [])
+                                      if isinstance(c, dict)][:10],
+                   "attribution_unavailable_reason": d.get("attribution_unavailable_reason")})
 
 app = FastAPI(title="ATLAS Adaptive Context API")
 
@@ -114,6 +134,7 @@ def get_context(req: ContextQueryRequest):
             current_window=np_window,
             k=req.k
         )
+        _audit_inference(req, np_window, context)
         return context
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -137,6 +158,8 @@ def post_explain(req: ContextQueryRequest):
             k=req.k
         )
         report = _explain_engine.explain(context, window=np_window, ace=_ace)
+        _audit_inference(req, np_window, context)
+        _audit_explanation(req, report)
         return report.to_dict()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -184,7 +207,19 @@ def post_decide(req: ContextQueryRequest):
             predicted_rul=context.predicted_rul,
             neighbor_variance=variance
         )
-        
+
+        target = f"{req.domain}/{req.machine_id}"
+        _audit_inference(req, np_window, context)
+        _audit_explanation(req, explanation)
+        audit(category="simulation", action="monte_carlo", target=target,
+              details={"seed": _simulation_engine.seed, "n": _simulation_engine.num_samples,
+                       "summary": [{"action": s.action, "expected_cost": s.expected_cost,
+                                    "p_failure_before_action": s.p_failure_before_action} for s in sim_results]})
+        audit(category="decision", action="recommend", target=target,
+              details={"chosen": decision.recommended_action, "confidence": decision.confidence, "risk": decision.risk,
+                       "impact": decision.impact, "urgency": decision.urgency,
+                       "candidates": [{"action": s.action, "expected_cost": s.expected_cost, "cost_std": s.cost_std}
+                                      for s in decision.ranked_actions]})
         return dataclasses.asdict(decision)
         
     except ValueError as e:
@@ -235,7 +270,11 @@ def retrain_model(req: RetrainRequest):
             engine = get_domain_service().get_engine(PRIMARY_DOMAIN)
             if engine is not None:
                 engine.reload_model()
-        return result.to_dict()
+        summary = result.to_dict()
+        audit(category="learning", action="retrain", target=req.domain, outcome="success" if result.success else "rejected",
+              details={"trigger_reason": req.trigger_reason, "epochs": req.epochs, "batch_size": req.batch_size,
+                       "lr": req.lr, "result": {k: v for k, v in summary.items() if not isinstance(v, (list, dict))}})
+        return summary
     except Exception:
         import traceback
         traceback.print_exc()

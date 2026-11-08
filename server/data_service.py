@@ -176,6 +176,10 @@ class DataService:
                     source,
                 ))
                 conn.commit()
+            from server.audit import audit
+            audit(category="alarm", action="raise", actor=source, actor_type="system", target=alert["machine_id"],
+                  details={"severity": alert["severity"], "type": alert["type"], "fault_type": alert.get("fault_type"),
+                           "message": alert["message"]})
         except Exception as e:
             logger.error(f"Error saving alert to TimescaleDB: {e}")
 

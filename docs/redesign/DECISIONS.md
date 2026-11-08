@@ -40,6 +40,23 @@ One entry per non-trivial decision. Format: context, options, choice, consequenc
 ## ADR-009: Self-hosted fonts (P1)
 - **Choice:** `@fontsource-variable/inter@5.2.8` and `@fontsource/jetbrains-mono@5.2.8` replace the Google Fonts links. That means no third-party request at load, and the showcase works offline.
 
+## ADR-010: Audit trail design (P2)
+- **Context:** D4 asks for an append-only, hash-chained record of every action, never shown in the UI.
+- **Choice:** One writer thread per process assigns `seq` and `prev_hash`, writes the JSONL mirror first, then inserts into the `audit_events` hypertable. Failed inserts wait in order and are retried. The hashed canonical text is stored in a `canon` column, so the verifier does not depend on how JSONB re-serialises numbers. Immutability: a BEFORE UPDATE/DELETE trigger, plus (decided by the user at GATE 1) a separate non-owner role `atlas_app` with SELECT and INSERT only on `audit_events`.
+- **Consequences:** The API must run as a single worker (noted as a shortcut in `server/audit.py`). Test runs write to a temporary folder with `AUDIT_DB=0`. The background streaming loop's per-second inferences are **not** audited one by one: that would be about 350,000 rows a day for four domains. Every API, trace and decision inference is audited. Summarising the streaming loop (for example, one row per machine per minute) is FUTURE-WORK if examiners ask for it.
+
+## ADR-011: One ingest path for six transports (P2)
+- **Choice:** HTTP, WebSocket, MQTT (profiled machines), CSV/Parquet and manual entry all call `IngestService.ingest`. Channel mapping, SI scaling, valid ranges and quality flags live in `ConfigurableAdapter` (Adapter Layer), which passes the SDK conformance suite. Readings go to a long-format `sensor_readings` hypertable with `batch_id` and `source`. Modbus TCP polling remains the existing `ModbusAdapter`; it is wired into onboarding in P4.
+- **Consequences:** Parquet needs `pyarrow`, which is not installed. The upload returns 415 with a message until it is added. The live stream fan-out is in-process (single worker), like the audit writer.
+
+## ADR-012: Cognition trace without touching the models (P2)
+- **Choice:** The endpoint calls the same public engine methods as `/api/context`, `/api/explain` and `/api/decide`, timing each. The RUL p10/p90 are quantiles of the Normal(mean, √neighbour-variance) that the Simulation Engine samples. The failure-time histogram re-draws with the same seed, so it equals the engine's samples. A test asserts the trace RUL equals `/api/context`.
+- **Consequences:** The World Model runs twice per trace (once for the state vector, once inside `build_context`); about 10 ms, accepted. Replay returns stored traces (`cognition_traces`), not recomputation. Machine DNA drift vs. baseline arrives in P5.
+
+## ADR-013: `/api/ready` is the public probe (P2)
+- **Context:** `/api/health` is also defined by the cognition router, which requires an operator session, so unauthenticated probes got 403.
+- **Choice:** Add a public `/api/ready` reporting database, MQTT, loaded models and audit backlog (503 when degraded). The frontend header now polls it. `/api/health` is unchanged for existing clients.
+
 ## ADR-004: PCA, not UMAP (P0)
 - **Context:** D5 asks for a "PCA/UMAP" 2-D projection of 32-dim states.
 - **Choice:** PCA via numpy SVD. It avoids a new heavy dependency (umap-learn pulls in numba) and is deterministic.

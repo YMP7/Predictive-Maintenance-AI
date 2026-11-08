@@ -1,5 +1,21 @@
 # Redesign Changelog
 
+## P2: Backend foundation (2026-11-08)
+- **What:**
+  - **Audit trail:** `server/audit.py` (hash chain, JSONL mirror, ordered DB retry, redaction, logging filter); a request middleware with correlation IDs; audit events for auth (login, failure, logout, refresh), ingest batches, inference, Monte Carlo, decision, explanation, cognition traces, alarm raise, work orders, admin changes (before and after), model reload and retrain, MQTT and WebSocket connect/disconnect, simulator start/stop and fault injection; client interaction events at `POST /api/audit/client-events`.
+  - **Database:** `scripts/migrate_platform.py` creates `audit_events` (trigger plus the `atlas_app` role with SELECT and INSERT only), `sensor_profiles`, `devices`, `sensor_readings` and `cognition_traces`.
+  - **Ingestion:** `server/adapters/configurable_adapter.py` (profile-driven SDK adapter, quality flags) and `server/ingest.py` (stores, hashed device tokens, rate limit, stream broker).
+  - **Endpoints** (`server/platform_api.py`): HTTP and WebSocket push, CSV/Parquet backfill with dry run, manual entry, admin sensor profiles and devices (issue, rotate, revoke, health), the SSE stream, and `/api/ready`.
+  - **Cognition:** `server/cognition_trace.py` (admin-only trace, all 10 stages, replay).
+  - **RBAC:** middleware makes every `/api/admin/*` path admin-only.
+  - **Tools and docs:** `scripts/audit_verify.py`, `scripts/audit_export.py`, `docs/AUDIT_TRAIL.md`; `.env.example`, `docker-compose.yml` and `SECURITY.md` updated.
+- **Why:** D3 (backend), D4 and the D5 backend; ADR-010 to ADR-013.
+- **Verified:**
+  - pytest **378 passed** (was 317), including 61 new tests: the chain and its tamper/deletion detection, restart resume, DB-outage retry, redaction, request and correlation auditing, login failure without the password, client events, trigger immutability, `atlas_app` privileges proven with `SET ROLE`, migration re-run, the configurable adapter (scaling, ranges, rejects, stale, flatline, missing, simulated), push auth, rate and size limits, token hashing and rotation, CSV dry run then commit, manual entry RBAC, MQTT routing, WebSocket push, the SSE stream, operator 403 on admin paths, viewer read-only, and the trace's stage order, dimensions (32/16), determinism, replay and agreement with `/api/context`.
+  - The configurable adapter passes the existing SDK conformance suite. Ruff is clean, and the client build is clean.
+  - Migration run twice against the local TimescaleDB.
+- **Not done:** the API still connects as the owner in the local `.env` until `ATLAS_APP_DB_PASSWORD` and `API_DATABASE_URL` are set; alarm acknowledge and shelve (with the Alarms page, P4); Parquet without `pyarrow`.
+
 ## P1: Design system, shell, router, kiosk (2026-11-08)
 - **What:**
   - `client/src/design/`: tokens (light and dark, ISA-18.2 priorities, data-quality states, motion), base styles, and about 25 components.

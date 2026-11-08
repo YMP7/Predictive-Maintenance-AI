@@ -29,7 +29,14 @@ The following environment variables **must** be configured before starting the a
 ### Role-Based Access Control (RBAC)
 - All control endpoints (such as `/api/simulation/*` and `/api/machines/*/fault`) require a valid JWT with the `admin` role.
 - Operator actions (e.g. manual work order creation) are restricted to accounts with the `operator` or `admin` role.
-- Read-only dashboard endpoints (telemetry streams) are public for seamless visualization.
+- Every `/api` route needs a signed-in session (any of `viewer`, `operator`, `admin`) except login, logout, `/api/ready`, the token-guarded mobile bridge and device ingest. Viewers can read but not act; every `/api/admin/*` path is admin-only, enforced in middleware as well as per route.
+
+### Sensor ingestion (redesign P2)
+- Devices push with their own token (`Authorization: Bearer atl_…`), issued by an admin and shown once. Only its SHA-256 is stored; tokens can be rotated and revoked, and a token works only for its own machine.
+- Per-device rate limit (token bucket, `INGEST_RATE_PER_S` / `INGEST_BURST`), body limits (256 KB push, 10 MB backfill file, 64 KB client-event batch), Pydantic validation, and per-row reject reasons. Out-of-range values are stored but flagged.
+
+### Audit trail (redesign P2)
+- Append-only, hash-chained `audit_events`, mirrored to daily JSONL files, protected by a trigger and by the non-owner database role `atlas_app` (SELECT and INSERT only on that table). Secrets are redacted before hashing and in application logs. See `docs/AUDIT_TRAIL.md`.
 
 ### CORS Policy
 - CORS does not default to a wildcard `*` wildcard.

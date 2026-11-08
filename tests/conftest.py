@@ -15,6 +15,13 @@ if str(PROJECT_ROOT) not in sys.path:
 
 load_dotenv(PROJECT_ROOT / ".env")
 
+# Test runs must not append to the real audit chain: events go to a throwaway folder, not the database.
+import os  # noqa: E402
+import tempfile  # noqa: E402
+
+os.environ.setdefault("AUDIT_DB", "0")
+os.environ.setdefault("AUDIT_DIR", tempfile.mkdtemp(prefix="atlas-audit-test-"))
+
 
 def pytest_addoption(parser):
     parser.addoption(

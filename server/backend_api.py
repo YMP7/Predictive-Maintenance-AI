@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import secrets
 import uuid
 
@@ -18,6 +19,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
+from server import audit as _audit
 from server.adapters.domain_profile import DOMAIN_PROFILES
 from server.data_service import get_data_service
 from server import machine_registry
@@ -82,13 +84,16 @@ if "*" in cors_origins:
 
 # Every /api route needs a signed-in user, except these. The phone bridge checks its own
 # MOBILE_BRIDGE_TOKEN; health is a liveness probe. Registered before CORS so CORS wraps it.
-_PUBLIC_API_PATHS = {"/api/auth/login", "/api/auth/logout", "/api/health", "/api/atlas/mobile/telemetry"}
+_PUBLIC_API_PATHS = {"/api/auth/login", "/api/auth/logout", "/api/health", "/api/ready", "/api/atlas/mobile/telemetry"}
+# Device push authenticates with its own per-device token (server/ingest.py), not a browser session.
+_DEVICE_PUSH = re.compile(r"^/api/ingest/[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
 
 
 @app.middleware("http")
 async def require_login_for_api(request: Request, call_next):
     path = request.url.path
-    if path.startswith("/api/") and path not in _PUBLIC_API_PATHS and request.method != "OPTIONS":
+    public = path in _PUBLIC_API_PATHS or (request.method == "POST" and _DEVICE_PUSH.match(path))
+    if path.startswith("/api/") and not public and request.method != "OPTIONS":
         try:
             # Honour dependency_overrides like a normal Depends(get_current_user) would.
             override = request.app.dependency_overrides.get(get_current_user)
@@ -96,6 +101,11 @@ async def require_login_for_api(request: Request, call_next):
             request.state.user = override() if override is not None else await get_current_user(request)
         except HTTPException as e:
             return JSONResponse({"detail": e.detail}, status_code=e.status_code)
+        user = request.state.user
+        _audit.current_actor.set({"actor": user.username, "actor_type": "user", "role": user.role})
+        # Every admin path is admin-only, whatever its own dependencies say.
+        if path.startswith("/api/admin/") and user.role != "admin":
+            return JSONResponse({"detail": "Not enough privileges"}, status_code=403)
     return await call_next(request)
 
 
@@ -142,19 +152,36 @@ class LoginRequest(BaseModel):
 @app.post("/api/auth/login")
 @limiter.limit("5/minute")
 def login_for_access_token(request: Request, login_req: LoginRequest):
+    ip = request.client.host if request.client else None
     user_dict = get_user_from_db(login_req.username)
     if not user_dict or not verify_password(login_req.password, user_dict["hashed_password"]):
+        _audit.audit(category="auth", action="login", actor=login_req.username, actor_type="user", source_ip=ip,
+                     outcome="failure", details={"reason": "bad credentials"})
         raise HTTPException(
             status_code=401,
             detail="Incorrect username or password",
         )
+    _audit.audit(category="auth", action="login", actor=user_dict["username"], actor_type="user",
+                 role=user_dict["role"], source_ip=ip)
+    return _session_response(user_dict["username"], user_dict["role"])
+
+
+@app.post("/api/auth/refresh", summary="Issue a fresh session cookie for a signed-in user")
+def refresh_session(request: Request, current_user: User = Depends(get_current_user)):
+    _audit.audit(category="auth", action="token_refresh", actor=current_user.username, actor_type="user",
+                 role=current_user.role, source_ip=request.client.host if request.client else None)
+    return _session_response(current_user.username, current_user.role)
+
+
+def _session_response(username: str, role: str) -> JSONResponse:
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user_dict["username"], "role": user_dict["role"]}, expires_delta=access_token_expires
+        data={"sub": username, "role": role}, expires_delta=access_token_expires
     )
-    
+    user_dict = {"role": role}
+
     IS_LOCAL_DEV = os.getenv("ENVIRONMENT", "development") == "development"
-    
+
     response = JSONResponse(content={"role": user_dict["role"]})
     # Set HttpOnly cookie for the token
     response.set_cookie(
@@ -186,7 +213,14 @@ def login_for_access_token(request: Request, login_req: LoginRequest):
     return response
 
 @app.post("/api/auth/logout")
-async def logout():
+async def logout(request: Request):
+    try:  # logout is public, so identify the user from the cookie if it is still valid
+        who = await get_current_user(request)
+        actor, role = who.username, who.role
+    except HTTPException:
+        actor, role = "anonymous", None
+    _audit.audit(category="auth", action="logout", actor=actor, actor_type="user", role=role,
+                 source_ip=request.client.host if request.client else None)
     response = JSONResponse(content={"detail": "Logged out successfully"})
     response.delete_cookie("access_token", samesite="lax")
     response.delete_cookie("auth_status", samesite="lax")
@@ -237,30 +271,40 @@ def add_machine(payload: NewMachine):
 
     service.apply_registry(machine_registry.mutate(change))
     logger.info("Machine %s added to registry", payload.machine_id)
+    _audit.audit(category="admin", action="machine.create", target=payload.machine_id,
+                 details={"before": None, "after": config})
     return {"machine_id": payload.machine_id, **config}
 
 
 @app.put("/api/admin/machines/{machine_id}", dependencies=[Depends(require_admin)])
 def update_machine(machine_id: str, payload: MachineConfig):
+    before: Dict[str, Any] = {}
+
     def change(machines: Dict[str, Any]):
         if machine_id not in machines:
             raise HTTPException(status_code=404, detail="Machine not found")
+        before.update(machines[machine_id])
         machines[machine_id] = payload.model_dump()
 
     service.apply_registry(machine_registry.mutate(change))
     logger.info("Machine %s updated", machine_id)
+    _audit.audit(category="admin", action="machine.update", target=machine_id,
+                 details={"before": before, "after": payload.model_dump()})
     return {"machine_id": machine_id, **payload.model_dump()}
 
 
 @app.delete("/api/admin/machines/{machine_id}", dependencies=[Depends(require_admin)])
 def delete_machine(machine_id: str):
+    before: Dict[str, Any] = {}
+
     def change(machines: Dict[str, Any]):
         if machine_id not in machines:
             raise HTTPException(status_code=404, detail="Machine not found")
-        del machines[machine_id]
+        before.update(machines.pop(machine_id))
 
     service.apply_registry(machine_registry.mutate(change))
     logger.info("Machine %s removed from registry; stored telemetry history is kept", machine_id)
+    _audit.audit(category="admin", action="machine.delete", target=machine_id, details={"before": before, "after": None})
     return {"deleted": machine_id}
 
 @app.get("/api/machines/{machine_id}/status")
@@ -304,11 +348,13 @@ async def start_simulation(
     interval: float = Query(default=1.0, gt=0, le=3600),
 ):
     service.start_simulation(interval=interval)
+    _audit.audit(category="simulation", action="start", target="sensor_simulator", details={"interval_s": interval})
     return {"status": "simulation started", "interval": interval}
 
 @app.post("/api/simulation/stop", dependencies=[Depends(require_operator_or_admin)])
 async def stop_simulation():
     service.stop_simulation()
+    _audit.audit(category="simulation", action="stop", target="sensor_simulator")
     return {"status": "simulation stopped"}
 
 @app.post("/api/machines/{machine_id}/fault", dependencies=[Depends(require_admin)])
@@ -323,6 +369,7 @@ async def inject_fault(machine_id: str, payload: FaultInjectionPayload):
     service.simulator.machines[machine_id].fault_mode = payload.fault_mode
     # Reset degradation steps to allow clean progression
     service.simulator.machines[machine_id].degradation_step = 0
+    _audit.audit(category="simulation", action="fault.inject", target=machine_id, details={"fault_mode": payload.fault_mode})
     return {"status": "fault injected", "machine_id": machine_id, "fault_mode": payload.fault_mode}
 
 
@@ -420,6 +467,8 @@ def _audit_work_order(conn, row, username: str, result: str) -> None:
         "INSERT INTO work_order_audit_log (id, timestamp, machine_id, action, urgency, justification, validation_result) VALUES (%s, NOW(), %s, %s, %s, %s, %s)",
         (str(uuid.uuid4()), row[1], row[2], row[3], f"order {row[0]} by {username}", result),
     )
+    _audit.audit(category="work_order", action=result.replace("HUMAN_", "").lower(), actor=username, actor_type="user",
+                 target=str(row[0]), details={"machine_id": row[1], "action": row[2], "urgency": row[3]})
 
 
 @app.post("/api/work-orders/{order_id}/approve")
@@ -575,6 +624,9 @@ def atlas_reload_model(domain: str = Query(..., description="Domain to reload mo
     if engine is None:
         raise HTTPException(status_code=404, detail=f"No active engine for domain '{domain}'")
     success = engine.reload_model()
+    from server.cognition_trace import model_ref
+    _audit.audit(category="model", action="reload", target=domain, outcome="success" if success else "failure",
+                 details={**model_ref(domain), "using_lstm": engine.using_lstm})
     return JSONResponse(content={"domain": domain, "reloaded": success, "using_lstm": engine.using_lstm})
 
 
@@ -756,6 +808,12 @@ from server.api import app as _atlas_cognition_app, startup_event as atlas_api_s
 app.include_router(
     _atlas_cognition_app.router, dependencies=[Depends(require_operator_or_admin)]
 )
+
+# Redesign P2: ingestion, devices, live stream, cognition trace, client events, readiness, request audit.
+# Installed last so its audit middleware is outermost and records every /api request, including rejected ones.
+from server.platform_api import install as _install_platform  # noqa: E402
+
+_install_platform(app)
 
 @app.on_event("startup")
 def ensure_atlas_engines_initialized():

@@ -6,7 +6,27 @@ from typing import Dict, Any, Callable, Optional, Set, Union
 from pydantic import BaseModel, Field, ValidationError
 import paho.mqtt.client as mqtt
 
+from server.audit import audit
+
 logger = logging.getLogger("DigitalTwin")
+
+
+def route_to_ingest(machine_id: str, payload: Any) -> bool:
+    """Send a payload for a profiled machine through the ingestion service (source "mqtt").
+    Returns False for machines without a sensor profile, which keep the legacy telemetry path.
+    The broker has already authenticated the device (per-device credentials and topic ACL)."""
+    from server.ingest import IngestError, get_ingest_service
+
+    svc = get_ingest_service()
+    if not isinstance(payload, dict) or not svc.has_profile(machine_id):
+        return False
+    samples = payload["samples"] if isinstance(payload.get("samples"), list) else [
+        {"ts": payload.get("ts"), "values": payload.get("values")}]
+    try:
+        svc.ingest(machine_id, samples[:1000], source="mqtt", actor=f"mqtt:{machine_id}", actor_type="device")
+    except IngestError as e:
+        logger.warning("MQTT sample for %s rejected: %s", machine_id, e)
+    return True
 
 
 def load_registered_machines() -> Set[str]:
@@ -102,6 +122,9 @@ class MQTTClientManager:
         self.client.disconnect()
         
     def on_connect(self, client, userdata, flags, reason_code, properties):
+        audit(category="device", action="mqtt.connect", actor="backend_service", actor_type="system",
+              target=f"{self.broker}:{self.port}", outcome="success" if reason_code == 0 else "failure",
+              details={"reason_code": str(reason_code)})
         if reason_code == 0:
             logger.info(f"Successfully connected to MQTT broker at {self.broker}")
             # Subscribe to all telemetry topics
@@ -110,6 +133,8 @@ class MQTTClientManager:
             logger.error(f"Failed to connect to MQTT broker with reason code {reason_code}")
             
     def on_disconnect(self, client, userdata, flags, reason_code, properties):
+        audit(category="device", action="mqtt.disconnect", actor="backend_service", actor_type="system",
+              target=f"{self.broker}:{self.port}", details={"reason_code": str(reason_code)})
         logger.warning(f"Disconnected from MQTT broker with reason code {reason_code}")
         
     def on_message(self, client, userdata, msg):
@@ -121,6 +146,13 @@ class MQTTClientManager:
                 return
                 
             machine_id = parts[1]
+
+            # Machines onboarded with a sensor profile go through the configurable adapter.
+            try:
+                if route_to_ingest(machine_id, json.loads(msg.payload.decode("utf-8"))):
+                    return
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                pass  # the legacy path below reports malformed payloads
 
             # Security Enforcement: Reject unknown machines before deserialization
             registered = self.get_registered_machines()

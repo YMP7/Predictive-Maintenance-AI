@@ -201,11 +201,12 @@ Legend: **BUILD** = in scope and committed · **FUTURE** = named future work, ne
 
 - [x] P0: discovery, gap analysis, ADR log; `main` merged into the branch *(pytest 317/317 after merge)*
 - [x] P1: ISA-101 design system, AppShell, router, kiosk, `/dev/components` *(axe 0 violations light and dark; initial JS 94.5 KB gz)*
-- [ ] P2: audit trail, ingestion, live stream, cognition trace, viewer RBAC
+- [x] P2: audit trail, ingestion, live stream, cognition trace, viewer RBAC *(pytest 378 passed; migration re-runnable)*
+- [ ] Switch the API to `atlas_app`: set `ATLAS_APP_DB_PASSWORD`, re-run `scripts/migrate_platform.py`, set `API_DATABASE_URL` *(needs your password choice)*
 - [ ] P3: 3D Asset View (teardown), 5 machines, films
 - [ ] P4: product pages wired to real endpoints
 - [ ] P5: Cognition Dashboard
 - [ ] P6: evidence page, title justification, docs
 - [ ] P7: hardening and full verification
 - [ ] Open decision: Modbus RUL model (FUTURE-WORK until approved)
-- [ ] Open decision: separate non-owner DB role for audit immutability
+- [x] Decision: separate non-owner DB role for audit immutability *(both trigger and role, built in P2)*

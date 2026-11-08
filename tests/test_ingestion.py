@@ -203,7 +203,7 @@ def test_token_bound_to_another_machine_is_403(svc, client):
 def test_tokens_are_hashed_at_rest_and_rotatable(svc, client):
     s, device_id, token, _ = svc
     stored = s.devices.rows[device_id]["token_hash"]
-    assert token not in json.dumps(s.devices.rows)
+    assert token not in json.dumps(s.devices.rows, default=str)
     assert stored == hashlib.sha256(token.encode()).hexdigest()
     new_token = s.devices.rotate(device_id)
     assert push(client, token, {"values": {"motor_current": 3}}).status_code == 401

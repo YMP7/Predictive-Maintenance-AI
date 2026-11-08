@@ -54,6 +54,7 @@ def test_readiness_is_public_and_reports_dependencies(client):
 
 @pytest.fixture
 def seeded_window():
+    _get_atlas().ensure_registered("cmapss")
     engine = _get_atlas().get_engine("cmapss")
     rng = np.random.default_rng(7)
     with engine._lock:

@@ -37,7 +37,8 @@ function useApiLink(intervalMs = 15000): Link {
     let alive = true;
     const probe = async () => {
       try {
-        await apiFetch<{ status: string }>('/api/health');
+        // /api/ready is public and reports database, broker and model state (503 when degraded).
+        await apiFetch<{ status: string }>('/api/ready');
         if (alive) setLink('connected');
       } catch {
         if (alive) setLink('degraded');

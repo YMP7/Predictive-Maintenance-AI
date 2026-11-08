@@ -320,6 +320,9 @@ def create_work_order(
                 (str(uuid.uuid4()), now, machine_id, action, urgency, justification, f"Success: {status}")
             )
             conn.commit()
+            from server.audit import audit
+            audit(category="work_order", action="create", actor="agent:atlas", actor_type="system", target=str(order_id),
+                  details={"machine_id": machine_id, "action": action, "urgency": urgency, "status": status})
 
         logger.info(f"[AgentTool] Work order created: {order_id} for {machine_id} — {action} [{urgency}] (Status: {status}, CreatedBy: agent:atlas)")
         return {
