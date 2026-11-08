@@ -117,7 +117,7 @@ def get_user_from_db(username: str) -> dict | None:
             return {"username": row[0], "hashed_password": row[1], "role": row[2]}
     return None
 
-async def get_current_user(request: Request) -> User:
+def get_current_user(request: Request) -> User:
     credentials_exception = HTTPException(
         status_code=401,
         detail="Could not validate credentials",
@@ -167,7 +167,7 @@ class LoginRequest(BaseModel):
 
 @app.post("/api/auth/login")
 @limiter.limit("5/minute")
-async def login_for_access_token(request: Request, login_req: LoginRequest):
+def login_for_access_token(request: Request, login_req: LoginRequest):
     user_dict = get_user_from_db(login_req.username)
     if not user_dict or not verify_password(login_req.password, user_dict["hashed_password"]):
         raise HTTPException(
@@ -318,7 +318,7 @@ async def inject_fault(machine_id: str, payload: FaultInjectionPayload):
 
 @app.post("/api/agent/chat", dependencies=[Depends(require_operator_or_admin)])
 @limiter.limit("10/minute")
-async def agent_chat(
+def agent_chat(
     request: Request,
     payload: AgentChatPayload,
     current_user: User = Depends(get_current_user),
@@ -338,7 +338,7 @@ async def agent_chat(
 
 
 @app.get("/api/agent/memory/{machine_id}")
-async def get_agent_memory(
+def get_agent_memory(
     machine_id: str,
     limit: int = Query(default=10, ge=1, le=50),
     current_user: User = Depends(get_current_user),
@@ -351,7 +351,7 @@ async def get_agent_memory(
 
 
 @app.get("/api/work-orders")
-async def get_work_orders(
+def get_work_orders(
     machine_id: Optional[str] = Query(default=None),
     status: Optional[str] = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
@@ -401,7 +401,7 @@ async def get_work_orders(
 
 
 @app.post("/api/work-orders/{order_id}/approve", dependencies=[Depends(require_operator_or_admin)])
-async def approve_work_order(order_id: str):
+def approve_work_order(order_id: str):
     """Approve a pending work order (Human confirmation gate)."""
     try:
         with pool.connection() as conn:
@@ -426,7 +426,7 @@ async def approve_work_order(order_id: str):
 
 
 @app.patch("/api/work-orders/{order_id}/resolve", dependencies=[Depends(require_operator_or_admin)])
-async def resolve_work_order(order_id: str):
+def resolve_work_order(order_id: str):
     """Mark a work order as resolved."""
     try:
         with pool.connection() as conn:
@@ -689,18 +689,12 @@ async def atlas_machine_window(domain: str, machine_id: str):
 
     expected_dim = 14 if domain == "cmapss" else 5
     snap = svc.get_snapshot(domain, machine_id)
+    # Never pad: a padded window would feed made-up readings into /api/decide.
     if len(window) < 30:
-        feat_dict = snap.get("features", {}) if snap else {}
-        if domain == "cmapss":
-            from server.adapters.cmapss_adapter import INFORMATIVE_SENSORS
-            sample_row = [float(feat_dict.get(s, 0.5)) for s in INFORMATIVE_SENSORS]
-        else:
-            sample_row = [float(v) for v in feat_dict.values()] if feat_dict else [0.5] * expected_dim
-        if len(sample_row) != expected_dim:
-            sample_row = [0.5] * expected_dim
-
-        needed = 30 - len(window)
-        window = [sample_row] * needed + window
+        raise HTTPException(
+            status_code=409,
+            detail=f"Warming up: {len(window)}/30 readings collected for {domain}/{machine_id}. Retry shortly.",
+        )
 
     return JSONResponse(content={
         "domain": domain,
@@ -721,6 +715,9 @@ from server.adapters.mobile_adapter import push_browser_telemetry
 @app.post("/api/atlas/mobile/telemetry")
 async def receive_mobile_telemetry(payload: Dict[str, Any]):
     """Ingest real-time telemetry pushed from Lumia / mobile browser bridge."""
+    # shortcut: unauthenticated so the phone bridge page works; IDs are pinned so the registry cannot grow.
+    if payload.get("machine_id", "mobile_device_1") not in ("mobile_device_1", "mobile_device_2"):
+        raise HTTPException(status_code=400, detail="Unknown mobile machine_id")
     push_browser_telemetry(payload)
     return JSONResponse(content={"status": "ok", "received_at": utc_timestamp()})
 
@@ -741,7 +738,9 @@ async def lumia_bridge_page():
 # ---------------------------------------------------------------------------
 from server.api import app as _atlas_cognition_app, startup_event as atlas_api_startup
 
-app.include_router(_atlas_cognition_app.router)
+app.include_router(
+    _atlas_cognition_app.router, dependencies=[Depends(require_operator_or_admin)]
+)
 
 @app.on_event("startup")
 def ensure_atlas_engines_initialized():

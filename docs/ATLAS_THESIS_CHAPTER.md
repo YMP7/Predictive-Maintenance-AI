@@ -516,9 +516,9 @@ Over eight months of development and empirical validation, ATLAS has demonstrate
 ---
 
 ### Master Project Context & Verification Index:
-- **Reproducibility Guide**: [`docs/REPRODUCIBILITY.md`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/REPRODUCIBILITY.md)
-- **Benchmarking Suite**: [`docs/ATLAS_BENCHMARK.md`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/ATLAS_BENCHMARK.md)
-- **Resource Profile**: [`docs/ATLAS_RESOURCE_PROFILE.md`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/ATLAS_RESOURCE_PROFILE.md)
-- **Ablation Studies**: [`docs/ABLATION_STUDY_RESULTS.md`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/ABLATION_STUDY_RESULTS.md)
-- **Cross-Domain Transfer**: [`docs/TRANSFER_STUDY_RESULTS.md`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/TRANSFER_STUDY_RESULTS.md)
-- **Literature Mapping**: [`docs/LITERATURE_MAPPING.md`](file:///c:/Users/yegir/Documents/MSME/AI-Powered%20Digital%20Twin%20&%20Predictive%20Maintainence/docs/LITERATURE_MAPPING.md)
+- **Reproducibility Guide**: [`docs/REPRODUCIBILITY.md`](REPRODUCIBILITY.md)
+- **Benchmarking Suite**: [`docs/ATLAS_BENCHMARK.md`](ATLAS_BENCHMARK.md)
+- **Resource Profile**: [`docs/ATLAS_RESOURCE_PROFILE.md`](ATLAS_RESOURCE_PROFILE.md)
+- **Ablation Studies**: [`docs/ABLATION_STUDY_RESULTS.md`](ABLATION_STUDY_RESULTS.md)
+- **Cross-Domain Transfer**: [`docs/TRANSFER_STUDY_RESULTS.md`](TRANSFER_STUDY_RESULTS.md)
+- **Literature Mapping**: [`docs/LITERATURE_MAPPING.md`](LITERATURE_MAPPING.md)
