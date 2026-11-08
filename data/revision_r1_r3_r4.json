@@ -1,0 +1,2438 @@
+{
+  "n_test_units": 100,
+  "n_memory_windows": 20631,
+  "k": 10,
+  "leakage_audit": {
+    "memory_population": "train_FD001 windows only (100 engines)",
+    "query_population": "test_FD001 last windows (100 different engines)",
+    "query_unit_in_memory": false,
+    "health_index_on_evaluated_path": false,
+    "safety_override_implemented": false
+  },
+  "paper": {
+    "rmse_last_window": 15.424222946166992,
+    "n_tuning_windows": 4195,
+    "grounding": {
+      "confidence_raw": {
+        "rho": -0.5089828982898289,
+        "ci95": [
+          -0.6613890064241372,
+          -0.33332252889624997
+        ]
+      },
+      "confidence_raw_mean": 0.03513268254169179,
+      "confidence_normalized": {
+        "rho": -0.5085748574857485,
+        "ci95": [
+          -0.6611963296124914,
+          -0.3330830408149054
+        ]
+      },
+      "confidence_normalized_mean": 0.9587378337384947,
+      "neg_neighbor_std_only": {
+        "rho": -0.5089828982898289,
+        "ci95": [
+          -0.6613890064241372,
+          -0.33332252889624997
+        ]
+      },
+      "neighbor_similarity_only": {
+        "rho": 0.4684668466846684,
+        "ci95": [
+          0.2843815424634102,
+          0.6261157224212812
+        ]
+      },
+      "neg_predicted_rul_proxy": {
+        "rho": -0.44957695769576955,
+        "ci95": [
+          -0.614799784155767,
+          -0.2637598003610902
+        ]
+      },
+      "mc_interval_coverage": {
+        "0.5": 0.63,
+        "0.8": 0.85,
+        "0.9": 0.87,
+        "0.95": 0.91
+      },
+      "frac_zero_variance_neighbors": 0.0
+    },
+    "decision": {
+      "paper_cost_model": {
+        "tuned_thresholds_replace_now_soon": [
+          10,
+          20,
+          45
+        ],
+        "breakdown": {
+          "fixed_rule": {
+            "CONTINUE_OPERATION": {
+              "n": 76,
+              "lead_time_failures": 2,
+              "true_rul_of_failures": [
+                29.0,
+                28.0
+              ],
+              "discarded_cycles": 0.0,
+              "cost": 2000.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 24,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 424.0,
+              "cost": 1440.0
+            },
+            "total": 3440.0
+          },
+          "cascade": {
+            "CONTINUE_OPERATION": {
+              "n": 65,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 11,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 421.0,
+              "cost": 605.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 24,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 424.0,
+              "cost": 1440.0
+            },
+            "total": 2045.0
+          },
+          "tuned_threshold": {
+            "CONTINUE_OPERATION": {
+              "n": 70,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 17,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 326.0,
+              "cost": 935.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 8,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 103.0,
+              "cost": 460.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 5,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 41.0,
+              "cost": 300.0
+            },
+            "total": 1695.0
+          },
+          "atlas": {
+            "CONTINUE_OPERATION": {
+              "n": 68,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 14,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 256.0,
+              "cost": 770.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 13,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 166.0,
+              "cost": 747.5
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 5,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 296.0,
+              "cost": 300.0
+            },
+            "total": 1817.5
+          }
+        },
+        "atlas_vs_fixed_rule_pct": 47.1656976744186,
+        "atlas_vs_cascade_pct": 11.124694376528117,
+        "atlas_vs_tuned_threshold_pct": -7.227138643067847,
+        "atlas_vs_tuned_threshold_ci95": [
+          -24.261675542045396,
+          5.799380433224286
+        ]
+      },
+      "with_discarded_life": {
+        "tuned_thresholds_replace_now_soon": [
+          10,
+          20,
+          45
+        ],
+        "breakdown": {
+          "fixed_rule": {
+            "CONTINUE_OPERATION": {
+              "n": 76,
+              "lead_time_failures": 2,
+              "true_rul_of_failures": [
+                29.0,
+                28.0
+              ],
+              "discarded_cycles": 0.0,
+              "cost": 2000.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 24,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 424.0,
+              "cost": 1609.6000000000001
+            },
+            "total": 3609.5999999999995
+          },
+          "cascade": {
+            "CONTINUE_OPERATION": {
+              "n": 65,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 11,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 421.0,
+              "cost": 773.4
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 24,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 424.0,
+              "cost": 1609.6000000000001
+            },
+            "total": 2382.9999999999995
+          },
+          "tuned_threshold": {
+            "CONTINUE_OPERATION": {
+              "n": 70,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 17,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 326.0,
+              "cost": 1065.4
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 8,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 103.0,
+              "cost": 501.2
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 5,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 41.0,
+              "cost": 316.4
+            },
+            "total": 1883.0
+          },
+          "atlas": {
+            "CONTINUE_OPERATION": {
+              "n": 71,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 14,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 256.0,
+              "cost": 872.4000000000001
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 13,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 166.0,
+              "cost": 813.8999999999999
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 2,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 15.0,
+              "cost": 126.0
+            },
+            "total": 1812.3
+          }
+        },
+        "atlas_vs_fixed_rule_pct": 49.79222074468084,
+        "atlas_vs_cascade_pct": 23.948804028535445,
+        "atlas_vs_tuned_threshold_pct": 3.7546468401487014,
+        "atlas_vs_tuned_threshold_ci95": [
+          -0.927461343872094,
+          12.04091929910499
+        ]
+      }
+    },
+    "sensitivity": [
+      {
+        "c_f": 250,
+        "tau_continue": 15,
+        "c_life": 0.0,
+        "fixed_rule": 1440.0,
+        "cascade": 2045.0,
+        "tuned_threshold": 1010.0,
+        "atlas": 882.5,
+        "atlas_vs_fixed_rule_pct": 38.71527777777778,
+        "atlas_vs_cascade_pct": 56.84596577017115,
+        "atlas_vs_tuned_threshold_pct": 12.623762376237623
+      },
+      {
+        "c_f": 250,
+        "tau_continue": 15,
+        "c_life": 0.4,
+        "fixed_rule": 1609.6000000000001,
+        "cascade": 2382.9999999999995,
+        "tuned_threshold": 1067.6000000000001,
+        "atlas": 1100.5,
+        "atlas_vs_fixed_rule_pct": 31.62897614314116,
+        "atlas_vs_cascade_pct": 53.818715904322275,
+        "atlas_vs_tuned_threshold_pct": -3.0816785312851125
+      },
+      {
+        "c_f": 250,
+        "tau_continue": 20,
+        "c_life": 0.0,
+        "fixed_rule": 1440.0,
+        "cascade": 2045.0,
+        "tuned_threshold": 1340.0,
+        "atlas": 1522.5,
+        "atlas_vs_fixed_rule_pct": -5.729166666666667,
+        "atlas_vs_cascade_pct": 25.550122249388753,
+        "atlas_vs_tuned_threshold_pct": -13.619402985074627
+      },
+      {
+        "c_f": 250,
+        "tau_continue": 20,
+        "c_life": 0.4,
+        "fixed_rule": 1609.6000000000001,
+        "cascade": 2382.9999999999995,
+        "tuned_threshold": 1429.2000000000003,
+        "atlas": 1589.5000000000002,
+        "atlas_vs_fixed_rule_pct": 1.248757455268384,
+        "atlas_vs_cascade_pct": 33.29836340746955,
+        "atlas_vs_tuned_threshold_pct": -11.216064931430166
+      },
+      {
+        "c_f": 250,
+        "tau_continue": 30,
+        "c_life": 0.0,
+        "fixed_rule": 1940.0,
+        "cascade": 2045.0,
+        "tuned_threshold": 1530.0,
+        "atlas": 1517.5,
+        "atlas_vs_fixed_rule_pct": 21.778350515463917,
+        "atlas_vs_cascade_pct": 25.794621026894866,
+        "atlas_vs_tuned_threshold_pct": 0.8169934640522876
+      },
+      {
+        "c_f": 250,
+        "tau_continue": 30,
+        "c_life": 0.4,
+        "fixed_rule": 2109.6000000000004,
+        "cascade": 2382.9999999999995,
+        "tuned_threshold": 1670.4,
+        "atlas": 1639.7,
+        "atlas_vs_fixed_rule_pct": 22.27436480849451,
+        "atlas_vs_cascade_pct": 31.191775073436833,
+        "atlas_vs_tuned_threshold_pct": 1.8378831417624548
+      },
+      {
+        "c_f": 500,
+        "tau_continue": 15,
+        "c_life": 0.0,
+        "fixed_rule": 1440.0,
+        "cascade": 2045.0,
+        "tuned_threshold": 1260.0,
+        "atlas": 1305.0,
+        "atlas_vs_fixed_rule_pct": 9.375,
+        "atlas_vs_cascade_pct": 36.18581907090464,
+        "atlas_vs_tuned_threshold_pct": -3.5714285714285716
+      },
+      {
+        "c_f": 500,
+        "tau_continue": 15,
+        "c_life": 0.4,
+        "fixed_rule": 1609.6000000000001,
+        "cascade": 2382.9999999999995,
+        "tuned_threshold": 1317.6000000000004,
+        "atlas": 1349.6,
+        "atlas_vs_fixed_rule_pct": 16.153081510934406,
+        "atlas_vs_cascade_pct": 43.36550566512798,
+        "atlas_vs_tuned_threshold_pct": -2.428658166363049
+      },
+      {
+        "c_f": 500,
+        "tau_continue": 20,
+        "c_life": 0.0,
+        "fixed_rule": 1440.0,
+        "cascade": 2045.0,
+        "tuned_threshold": 1590.0,
+        "atlas": 1585.0,
+        "atlas_vs_fixed_rule_pct": -10.069444444444445,
+        "atlas_vs_cascade_pct": 22.493887530562347,
+        "atlas_vs_tuned_threshold_pct": 0.31446540880503143
+      },
+      {
+        "c_f": 500,
+        "tau_continue": 20,
+        "c_life": 0.4,
+        "fixed_rule": 1609.6000000000001,
+        "cascade": 2382.9999999999995,
+        "tuned_threshold": 1679.2000000000003,
+        "atlas": 1659.1000000000001,
+        "atlas_vs_fixed_rule_pct": -3.0752982107355864,
+        "atlas_vs_cascade_pct": 30.377675199328557,
+        "atlas_vs_tuned_threshold_pct": 1.196998570747983
+      },
+      {
+        "c_f": 500,
+        "tau_continue": 30,
+        "c_life": 0.0,
+        "fixed_rule": 2440.0,
+        "cascade": 2045.0,
+        "tuned_threshold": 1585.0,
+        "atlas": 1580.0,
+        "atlas_vs_fixed_rule_pct": 35.24590163934426,
+        "atlas_vs_cascade_pct": 22.73838630806846,
+        "atlas_vs_tuned_threshold_pct": 0.31545741324921134
+      },
+      {
+        "c_f": 500,
+        "tau_continue": 30,
+        "c_life": 0.4,
+        "fixed_rule": 2609.6000000000004,
+        "cascade": 2382.9999999999995,
+        "tuned_threshold": 1670.4,
+        "atlas": 1722.8999999999999,
+        "atlas_vs_fixed_rule_pct": 33.978387492336005,
+        "atlas_vs_cascade_pct": 27.70037767519932,
+        "atlas_vs_tuned_threshold_pct": -3.1429597701149286
+      },
+      {
+        "c_f": 1000,
+        "tau_continue": 15,
+        "c_life": 0.0,
+        "fixed_rule": 1440.0,
+        "cascade": 2045.0,
+        "tuned_threshold": 2090.0,
+        "atlas": 1920.0,
+        "atlas_vs_fixed_rule_pct": -33.333333333333336,
+        "atlas_vs_cascade_pct": 6.112469437652812,
+        "atlas_vs_tuned_threshold_pct": 8.133971291866029
+      },
+      {
+        "c_f": 1000,
+        "tau_continue": 15,
+        "c_life": 0.4,
+        "fixed_rule": 1609.6000000000001,
+        "cascade": 2382.9999999999995,
+        "tuned_threshold": 2179.2,
+        "atlas": 1986.0,
+        "atlas_vs_fixed_rule_pct": -23.38469184890655,
+        "atlas_vs_cascade_pct": 16.659672681493902,
+        "atlas_vs_tuned_threshold_pct": 8.865638766519815
+      },
+      {
+        "c_f": 1000,
+        "tau_continue": 20,
+        "c_life": 0.0,
+        "fixed_rule": 1440.0,
+        "cascade": 2045.0,
+        "tuned_threshold": 1365.0,
+        "atlas": 1252.5,
+        "atlas_vs_fixed_rule_pct": 13.020833333333334,
+        "atlas_vs_cascade_pct": 38.75305623471883,
+        "atlas_vs_tuned_threshold_pct": 8.241758241758241
+      },
+      {
+        "c_f": 1000,
+        "tau_continue": 20,
+        "c_life": 0.4,
+        "fixed_rule": 1609.6000000000001,
+        "cascade": 2382.9999999999995,
+        "tuned_threshold": 1481.0000000000002,
+        "atlas": 1359.7000000000003,
+        "atlas_vs_fixed_rule_pct": 15.525596421471162,
+        "atlas_vs_cascade_pct": 42.94167016365923,
+        "atlas_vs_tuned_threshold_pct": 8.190411883862252
+      },
+      {
+        "c_f": 1000,
+        "tau_continue": 30,
+        "c_life": 0.0,
+        "fixed_rule": 3440.0,
+        "cascade": 2045.0,
+        "tuned_threshold": 1695.0,
+        "atlas": 1817.5,
+        "atlas_vs_fixed_rule_pct": 47.1656976744186,
+        "atlas_vs_cascade_pct": 11.124694376528117,
+        "atlas_vs_tuned_threshold_pct": -7.227138643067847
+      },
+      {
+        "c_f": 1000,
+        "tau_continue": 30,
+        "c_life": 0.4,
+        "fixed_rule": 3609.5999999999995,
+        "cascade": 2382.9999999999995,
+        "tuned_threshold": 1883.0,
+        "atlas": 1812.3,
+        "atlas_vs_fixed_rule_pct": 49.79222074468084,
+        "atlas_vs_cascade_pct": 23.948804028535445,
+        "atlas_vs_tuned_threshold_pct": 3.7546468401487014
+      },
+      {
+        "c_f": 2000,
+        "tau_continue": 15,
+        "c_life": 0.0,
+        "fixed_rule": 1440.0,
+        "cascade": 2045.0,
+        "tuned_threshold": 3090.0,
+        "atlas": 3160.0,
+        "atlas_vs_fixed_rule_pct": -119.44444444444444,
+        "atlas_vs_cascade_pct": -54.52322738386308,
+        "atlas_vs_tuned_threshold_pct": -2.26537216828479
+      },
+      {
+        "c_f": 2000,
+        "tau_continue": 15,
+        "c_life": 0.4,
+        "fixed_rule": 1609.6000000000001,
+        "cascade": 2382.9999999999995,
+        "tuned_threshold": 3179.1999999999994,
+        "atlas": 3061.2000000000003,
+        "atlas_vs_fixed_rule_pct": -90.18389662027832,
+        "atlas_vs_cascade_pct": -28.45992446496017,
+        "atlas_vs_tuned_threshold_pct": 3.7116255661801434
+      },
+      {
+        "c_f": 2000,
+        "tau_continue": 20,
+        "c_life": 0.0,
+        "fixed_rule": 1440.0,
+        "cascade": 2045.0,
+        "tuned_threshold": 1365.0,
+        "atlas": 1607.5,
+        "atlas_vs_fixed_rule_pct": -11.631944444444445,
+        "atlas_vs_cascade_pct": 21.39364303178484,
+        "atlas_vs_tuned_threshold_pct": -17.765567765567766
+      },
+      {
+        "c_f": 2000,
+        "tau_continue": 20,
+        "c_life": 0.4,
+        "fixed_rule": 1609.6000000000001,
+        "cascade": 2382.9999999999995,
+        "tuned_threshold": 1481.0000000000002,
+        "atlas": 1544.6000000000001,
+        "atlas_vs_fixed_rule_pct": 4.038270377733598,
+        "atlas_vs_cascade_pct": 35.1825430130088,
+        "atlas_vs_tuned_threshold_pct": -4.294395678595537
+      },
+      {
+        "c_f": 2000,
+        "tau_continue": 30,
+        "c_life": 0.0,
+        "fixed_rule": 5440.0,
+        "cascade": 2045.0,
+        "tuned_threshold": 1695.0,
+        "atlas": 2342.5,
+        "atlas_vs_fixed_rule_pct": 56.939338235294116,
+        "atlas_vs_cascade_pct": -14.547677261613693,
+        "atlas_vs_tuned_threshold_pct": -38.200589970501476
+      },
+      {
+        "c_f": 2000,
+        "tau_continue": 30,
+        "c_life": 0.4,
+        "fixed_rule": 5609.599999999999,
+        "cascade": 2382.9999999999995,
+        "tuned_threshold": 1883.0,
+        "atlas": 2393.6999999999994,
+        "atlas_vs_fixed_rule_pct": 57.32850827153452,
+        "atlas_vs_cascade_pct": -0.4490138480906345,
+        "atlas_vs_tuned_threshold_pct": -27.121614445034485
+      },
+      {
+        "c_f": 4000,
+        "tau_continue": 15,
+        "c_life": 0.0,
+        "fixed_rule": 1440.0,
+        "cascade": 2045.0,
+        "tuned_threshold": 5090.0,
+        "atlas": 5410.0,
+        "atlas_vs_fixed_rule_pct": -275.69444444444446,
+        "atlas_vs_cascade_pct": -164.5476772616137,
+        "atlas_vs_tuned_threshold_pct": -6.286836935166994
+      },
+      {
+        "c_f": 4000,
+        "tau_continue": 15,
+        "c_life": 0.4,
+        "fixed_rule": 1609.6000000000001,
+        "cascade": 2382.9999999999995,
+        "tuned_threshold": 5179.199999999999,
+        "atlas": 5478.999999999999,
+        "atlas_vs_fixed_rule_pct": -240.39512922465198,
+        "atlas_vs_cascade_pct": -129.92026856903064,
+        "atlas_vs_tuned_threshold_pct": -5.788538770466486
+      },
+      {
+        "c_f": 4000,
+        "tau_continue": 20,
+        "c_life": 0.0,
+        "fixed_rule": 1440.0,
+        "cascade": 2045.0,
+        "tuned_threshold": 1365.0,
+        "atlas": 2025.0,
+        "atlas_vs_fixed_rule_pct": -40.625,
+        "atlas_vs_cascade_pct": 0.9779951100244498,
+        "atlas_vs_tuned_threshold_pct": -48.35164835164835
+      },
+      {
+        "c_f": 4000,
+        "tau_continue": 20,
+        "c_life": 0.4,
+        "fixed_rule": 1609.6000000000001,
+        "cascade": 2382.9999999999995,
+        "tuned_threshold": 1481.0000000000002,
+        "atlas": 2352.3999999999996,
+        "atlas_vs_fixed_rule_pct": -46.14811133200792,
+        "atlas_vs_cascade_pct": 1.2840956777171597,
+        "atlas_vs_tuned_threshold_pct": -58.83862255232946
+      },
+      {
+        "c_f": 4000,
+        "tau_continue": 30,
+        "c_life": 0.0,
+        "fixed_rule": 9440.0,
+        "cascade": 2045.0,
+        "tuned_threshold": 1915.0,
+        "atlas": 2765.0,
+        "atlas_vs_fixed_rule_pct": 70.70974576271186,
+        "atlas_vs_cascade_pct": -35.2078239608802,
+        "atlas_vs_tuned_threshold_pct": -44.38642297650131
+      },
+      {
+        "c_f": 4000,
+        "tau_continue": 30,
+        "c_life": 0.4,
+        "fixed_rule": 9609.6,
+        "cascade": 2382.9999999999995,
+        "tuned_threshold": 2183.3999999999996,
+        "atlas": 3198.7999999999993,
+        "atlas_vs_fixed_rule_pct": 66.71245421245422,
+        "atlas_vs_cascade_pct": -34.23415862358371,
+        "atlas_vs_tuned_threshold_pct": -46.505450215260595
+      }
+    ]
+  },
+  "seed42": {
+    "rmse_last_window": 15.31943130493164,
+    "n_tuning_windows": 3969,
+    "grounding": {
+      "confidence_raw": {
+        "rho": -0.43654365436543646,
+        "ci95": [
+          -0.599305226102319,
+          -0.2460224733859022
+        ]
+      },
+      "confidence_raw_mean": 0.02759383037985936,
+      "confidence_normalized": {
+        "rho": -0.4367116711671166,
+        "ci95": [
+          -0.6000075660348462,
+          -0.2460224733859022
+        ]
+      },
+      "confidence_normalized_mean": 0.9584981114549517,
+      "neg_neighbor_std_only": {
+        "rho": -0.43654365436543646,
+        "ci95": [
+          -0.599305226102319,
+          -0.2460224733859022
+        ]
+      },
+      "neighbor_similarity_only": {
+        "rho": 0.47410741074107404,
+        "ci95": [
+          0.2952275460991485,
+          0.623638411439586
+        ]
+      },
+      "neg_predicted_rul_proxy": {
+        "rho": -0.48620462046204616,
+        "ci95": [
+          -0.6378940384382505,
+          -0.30849508924071783
+        ]
+      },
+      "mc_interval_coverage": {
+        "0.5": 0.61,
+        "0.8": 0.9,
+        "0.9": 0.91,
+        "0.95": 0.93
+      },
+      "frac_zero_variance_neighbors": 0.0
+    },
+    "decision": {
+      "paper_cost_model": {
+        "tuned_thresholds_replace_now_soon": [
+          10,
+          15,
+          40
+        ],
+        "breakdown": {
+          "fixed_rule": {
+            "CONTINUE_OPERATION": {
+              "n": 74,
+              "lead_time_failures": 1,
+              "true_rul_of_failures": [
+                28.0
+              ],
+              "discarded_cycles": 0.0,
+              "cost": 1000.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 26,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 487.0,
+              "cost": 1560.0
+            },
+            "total": 2560.0
+          },
+          "cascade": {
+            "CONTINUE_OPERATION": {
+              "n": 65,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 9,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 378.0,
+              "cost": 495.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 26,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 487.0,
+              "cost": 1560.0
+            },
+            "total": 2055.0
+          },
+          "tuned_threshold": {
+            "CONTINUE_OPERATION": {
+              "n": 72,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 19,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 293.0,
+              "cost": 1045.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 2,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 18.0,
+              "cost": 115.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 7,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 62.0,
+              "cost": 420.0
+            },
+            "total": 1580.0
+          },
+          "atlas": {
+            "CONTINUE_OPERATION": {
+              "n": 67,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 8,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 148.0,
+              "cost": 440.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 12,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 218.0,
+              "cost": 690.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 13,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 582.0,
+              "cost": 780.0
+            },
+            "total": 1910.0
+          }
+        },
+        "atlas_vs_fixed_rule_pct": 25.390625,
+        "atlas_vs_cascade_pct": 7.0559610705596105,
+        "atlas_vs_tuned_threshold_pct": -20.88607594936709,
+        "atlas_vs_tuned_threshold_ci95": [
+          -44.125374672161854,
+          -5.766988935316349
+        ]
+      },
+      "with_discarded_life": {
+        "tuned_thresholds_replace_now_soon": [
+          10,
+          15,
+          40
+        ],
+        "breakdown": {
+          "fixed_rule": {
+            "CONTINUE_OPERATION": {
+              "n": 74,
+              "lead_time_failures": 1,
+              "true_rul_of_failures": [
+                28.0
+              ],
+              "discarded_cycles": 0.0,
+              "cost": 1000.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 26,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 487.0,
+              "cost": 1754.8
+            },
+            "total": 2754.8
+          },
+          "cascade": {
+            "CONTINUE_OPERATION": {
+              "n": 65,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 9,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 378.0,
+              "cost": 646.1999999999999
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 26,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 487.0,
+              "cost": 1754.8
+            },
+            "total": 2400.9999999999995
+          },
+          "tuned_threshold": {
+            "CONTINUE_OPERATION": {
+              "n": 72,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 19,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 293.0,
+              "cost": 1162.2
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 2,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 18.0,
+              "cost": 122.19999999999999
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 7,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 62.0,
+              "cost": 444.8
+            },
+            "total": 1729.2
+          },
+          "atlas": {
+            "CONTINUE_OPERATION": {
+              "n": 71,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 8,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 148.0,
+              "cost": 499.20000000000005
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 12,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 218.0,
+              "cost": 777.1999999999999
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 9,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 183.0,
+              "cost": 613.2
+            },
+            "total": 1889.6000000000001
+          }
+        },
+        "atlas_vs_fixed_rule_pct": 31.406998693190065,
+        "atlas_vs_cascade_pct": 21.299458558933758,
+        "atlas_vs_tuned_threshold_pct": -9.275965764515387,
+        "atlas_vs_tuned_threshold_ci95": [
+          -24.665938720461405,
+          -2.197105747730988
+        ]
+      }
+    }
+  },
+  "seed43": {
+    "rmse_last_window": 14.608612060546875,
+    "n_tuning_windows": 4309,
+    "grounding": {
+      "confidence_raw": {
+        "rho": -0.48200420042004194,
+        "ci95": [
+          -0.618058412967436,
+          -0.31855920332806587
+        ]
+      },
+      "confidence_raw_mean": 0.037158216621232205,
+      "confidence_normalized": {
+        "rho": -0.48200420042004194,
+        "ci95": [
+          -0.618058412967436,
+          -0.31855920332806587
+        ]
+      },
+      "confidence_normalized_mean": 0.9603472702982994,
+      "neg_neighbor_std_only": {
+        "rho": -0.48200420042004194,
+        "ci95": [
+          -0.618058412967436,
+          -0.31855920332806587
+        ]
+      },
+      "neighbor_similarity_only": {
+        "rho": 0.42389438943894386,
+        "ci95": [
+          0.2385326933619424,
+          0.5889890579761031
+        ]
+      },
+      "neg_predicted_rul_proxy": {
+        "rho": -0.4285268526852685,
+        "ci95": [
+          -0.589754343388894,
+          -0.24038507723278116
+        ]
+      },
+      "mc_interval_coverage": {
+        "0.5": 0.68,
+        "0.8": 0.84,
+        "0.9": 0.89,
+        "0.95": 0.91
+      },
+      "frac_zero_variance_neighbors": 0.0
+    },
+    "decision": {
+      "paper_cost_model": {
+        "tuned_thresholds_replace_now_soon": [
+          10,
+          20,
+          40
+        ],
+        "breakdown": {
+          "fixed_rule": {
+            "CONTINUE_OPERATION": {
+              "n": 79,
+              "lead_time_failures": 5,
+              "true_rul_of_failures": [
+                28.0,
+                21.0,
+                28.0,
+                29.0,
+                28.0
+              ],
+              "discarded_cycles": 0.0,
+              "cost": 5000.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 21,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 347.0,
+              "cost": 1260.0
+            },
+            "total": 6260.0
+          },
+          "cascade": {
+            "CONTINUE_OPERATION": {
+              "n": 64,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 15,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 508.0,
+              "cost": 825.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 21,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 347.0,
+              "cost": 1260.0
+            },
+            "total": 2085.0
+          },
+          "tuned_threshold": {
+            "CONTINUE_OPERATION": {
+              "n": 72,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 17,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 272.0,
+              "cost": 935.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 6,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 68.0,
+              "cost": 345.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 5,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 41.0,
+              "cost": 300.0
+            },
+            "total": 1580.0
+          },
+          "atlas": {
+            "CONTINUE_OPERATION": {
+              "n": 70,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 15,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 211.0,
+              "cost": 825.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 10,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 217.0,
+              "cost": 575.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 5,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 203.0,
+              "cost": 300.0
+            },
+            "total": 1700.0
+          }
+        },
+        "atlas_vs_fixed_rule_pct": 72.84345047923323,
+        "atlas_vs_cascade_pct": 18.465227817745802,
+        "atlas_vs_tuned_threshold_pct": -7.594936708860759,
+        "atlas_vs_tuned_threshold_ci95": [
+          -25.714285714285715,
+          6.3271658006011515
+        ]
+      },
+      "with_discarded_life": {
+        "tuned_thresholds_replace_now_soon": [
+          10,
+          20,
+          35
+        ],
+        "breakdown": {
+          "fixed_rule": {
+            "CONTINUE_OPERATION": {
+              "n": 79,
+              "lead_time_failures": 5,
+              "true_rul_of_failures": [
+                28.0,
+                21.0,
+                28.0,
+                29.0,
+                28.0
+              ],
+              "discarded_cycles": 0.0,
+              "cost": 5000.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 21,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 347.0,
+              "cost": 1398.8000000000002
+            },
+            "total": 6398.799999999999
+          },
+          "cascade": {
+            "CONTINUE_OPERATION": {
+              "n": 64,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 15,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 508.0,
+              "cost": 1028.2
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 21,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 347.0,
+              "cost": 1398.8000000000002
+            },
+            "total": 2426.9999999999995
+          },
+          "tuned_threshold": {
+            "CONTINUE_OPERATION": {
+              "n": 73,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 16,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 228.0,
+              "cost": 971.2
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 6,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 68.0,
+              "cost": 372.2
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 5,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 41.0,
+              "cost": 316.4
+            },
+            "total": 1659.8000000000002
+          },
+          "atlas": {
+            "CONTINUE_OPERATION": {
+              "n": 72,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 16,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 229.0,
+              "cost": 971.5999999999999
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 8,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 77.0,
+              "cost": 490.79999999999995
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 4,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 112.0,
+              "cost": 284.8
+            },
+            "total": 1747.2000000000003
+          }
+        },
+        "atlas_vs_fixed_rule_pct": 72.69488029005437,
+        "atlas_vs_cascade_pct": 28.00988875154509,
+        "atlas_vs_tuned_threshold_pct": -5.265694662007475,
+        "atlas_vs_tuned_threshold_ci95": [
+          -20.580226679868527,
+          1.3305786888746522
+        ]
+      }
+    }
+  },
+  "seed44": {
+    "rmse_last_window": 15.302874565124512,
+    "n_tuning_windows": 4478,
+    "grounding": {
+      "confidence_raw": {
+        "rho": -0.38972697269726964,
+        "ci95": [
+          -0.5602710880889722,
+          -0.19868967154396244
+        ]
+      },
+      "confidence_raw_mean": 0.038473984087814495,
+      "confidence_normalized": {
+        "rho": -0.3889228922892289,
+        "ci95": [
+          -0.5586290911466374,
+          -0.19803094762006135
+        ]
+      },
+      "confidence_normalized_mean": 0.9472253561522156,
+      "neg_neighbor_std_only": {
+        "rho": -0.38972697269726964,
+        "ci95": [
+          -0.5602710880889722,
+          -0.19868967154396244
+        ]
+      },
+      "neighbor_similarity_only": {
+        "rho": 0.38679867986798677,
+        "ci95": [
+          0.19103436070792693,
+          0.5547639486857914
+        ]
+      },
+      "neg_predicted_rul_proxy": {
+        "rho": -0.3858385838583858,
+        "ci95": [
+          -0.5543303060469352,
+          -0.19198270721457777
+        ]
+      },
+      "mc_interval_coverage": {
+        "0.5": 0.61,
+        "0.8": 0.8,
+        "0.9": 0.83,
+        "0.95": 0.87
+      },
+      "frac_zero_variance_neighbors": 0.0
+    },
+    "decision": {
+      "paper_cost_model": {
+        "tuned_thresholds_replace_now_soon": [
+          15,
+          20,
+          45
+        ],
+        "breakdown": {
+          "fixed_rule": {
+            "CONTINUE_OPERATION": {
+              "n": 80,
+              "lead_time_failures": 6,
+              "true_rul_of_failures": [
+                28.0,
+                21.0,
+                28.0,
+                29.0,
+                26.0,
+                28.0
+              ],
+              "discarded_cycles": 0.0,
+              "cost": 6000.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 20,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 321.0,
+              "cost": 1200.0
+            },
+            "total": 7200.0
+          },
+          "cascade": {
+            "CONTINUE_OPERATION": {
+              "n": 65,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 15,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 484.0,
+              "cost": 825.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 20,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 321.0,
+              "cost": 1200.0
+            },
+            "total": 2025.0
+          },
+          "tuned_threshold": {
+            "CONTINUE_OPERATION": {
+              "n": 72,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 18,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 277.0,
+              "cost": 990.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 2,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 35.0,
+              "cost": 115.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 8,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 71.0,
+              "cost": 480.0
+            },
+            "total": 1585.0
+          },
+          "atlas": {
+            "CONTINUE_OPERATION": {
+              "n": 65,
+              "lead_time_failures": 3,
+              "true_rul_of_failures": [
+                28.0,
+                21.0,
+                29.0
+              ],
+              "discarded_cycles": 0.0,
+              "cost": 3000.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 10,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 147.0,
+              "cost": 550.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 14,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 306.0,
+              "cost": 805.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 11,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 963.0,
+              "cost": 660.0
+            },
+            "total": 5015.0
+          }
+        },
+        "atlas_vs_fixed_rule_pct": 30.34722222222222,
+        "atlas_vs_cascade_pct": -147.65432098765433,
+        "atlas_vs_tuned_threshold_pct": -216.403785488959,
+        "atlas_vs_tuned_threshold_ci95": [
+          -447.22707132409874,
+          -43.87227602905583
+        ]
+      },
+      "with_discarded_life": {
+        "tuned_thresholds_replace_now_soon": [
+          15,
+          20,
+          45
+        ],
+        "breakdown": {
+          "fixed_rule": {
+            "CONTINUE_OPERATION": {
+              "n": 80,
+              "lead_time_failures": 6,
+              "true_rul_of_failures": [
+                28.0,
+                21.0,
+                28.0,
+                29.0,
+                26.0,
+                28.0
+              ],
+              "discarded_cycles": 0.0,
+              "cost": 6000.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 20,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 321.0,
+              "cost": 1328.4
+            },
+            "total": 7328.4
+          },
+          "cascade": {
+            "CONTINUE_OPERATION": {
+              "n": 65,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 15,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 484.0,
+              "cost": 1018.6
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 20,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 321.0,
+              "cost": 1328.4
+            },
+            "total": 2346.9999999999995
+          },
+          "tuned_threshold": {
+            "CONTINUE_OPERATION": {
+              "n": 72,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 18,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 277.0,
+              "cost": 1100.8
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 2,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 35.0,
+              "cost": 129.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 8,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 71.0,
+              "cost": 508.4
+            },
+            "total": 1738.2
+          },
+          "atlas": {
+            "CONTINUE_OPERATION": {
+              "n": 76,
+              "lead_time_failures": 3,
+              "true_rul_of_failures": [
+                28.0,
+                21.0,
+                29.0
+              ],
+              "discarded_cycles": 0.0,
+              "cost": 3000.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 13,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 172.0,
+              "cost": 783.8000000000001
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 9,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 92.0,
+              "cost": 554.3000000000001
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 2,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 16.0,
+              "cost": 126.4
+            },
+            "total": 4464.499999999999
+          }
+        },
+        "atlas_vs_fixed_rule_pct": 39.0794716445609,
+        "atlas_vs_cascade_pct": -90.22155943757988,
+        "atlas_vs_tuned_threshold_pct": -156.84616269704287,
+        "atlas_vs_tuned_threshold_ci95": [
+          -359.50106549512054,
+          4.752708577185031
+        ]
+      }
+    }
+  },
+  "seed45": {
+    "rmse_last_window": 15.420735359191895,
+    "n_tuning_windows": 4070,
+    "grounding": {
+      "confidence_raw": {
+        "rho": -0.44769276927692764,
+        "ci95": [
+          -0.607877618937219,
+          -0.26871667430578716
+        ]
+      },
+      "confidence_raw_mean": 0.03221869321688333,
+      "confidence_normalized": {
+        "rho": -0.4466246624662466,
+        "ci95": [
+          -0.6059349924789241,
+          -0.26699219610081126
+        ]
+      },
+      "confidence_normalized_mean": 0.9492719089010972,
+      "neg_neighbor_std_only": {
+        "rho": -0.44769276927692764,
+        "ci95": [
+          -0.607877618937219,
+          -0.26871667430578716
+        ]
+      },
+      "neighbor_similarity_only": {
+        "rho": 0.3600240024002399,
+        "ci95": [
+          0.16124332439977918,
+          0.5367521869490351
+        ]
+      },
+      "neg_predicted_rul_proxy": {
+        "rho": -0.3784458445844584,
+        "ci95": [
+          -0.5584193075249129,
+          -0.17550238906072593
+        ]
+      },
+      "mc_interval_coverage": {
+        "0.5": 0.63,
+        "0.8": 0.81,
+        "0.9": 0.85,
+        "0.95": 0.88
+      },
+      "frac_zero_variance_neighbors": 0.0
+    },
+    "decision": {
+      "paper_cost_model": {
+        "tuned_thresholds_replace_now_soon": [
+          10,
+          20,
+          45
+        ],
+        "breakdown": {
+          "fixed_rule": {
+            "CONTINUE_OPERATION": {
+              "n": 82,
+              "lead_time_failures": 8,
+              "true_rul_of_failures": [
+                28.0,
+                21.0,
+                28.0,
+                18.0,
+                29.0,
+                26.0,
+                14.0,
+                28.0
+              ],
+              "discarded_cycles": 0.0,
+              "cost": 8000.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 18,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 289.0,
+              "cost": 1080.0
+            },
+            "total": 9080.0
+          },
+          "cascade": {
+            "CONTINUE_OPERATION": {
+              "n": 65,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 17,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 496.0,
+              "cost": 935.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 18,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 289.0,
+              "cost": 1080.0
+            },
+            "total": 2015.0
+          },
+          "tuned_threshold": {
+            "CONTINUE_OPERATION": {
+              "n": 71,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 17,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 300.0,
+              "cost": 935.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 8,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 88.0,
+              "cost": 460.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 4,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 35.0,
+              "cost": 240.0
+            },
+            "total": 1635.0
+          },
+          "atlas": {
+            "CONTINUE_OPERATION": {
+              "n": 63,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 16,
+              "lead_time_failures": 1,
+              "true_rul_of_failures": [
+                10.0
+              ],
+              "discarded_cycles": 251.0,
+              "cost": 1825.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 10,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 181.0,
+              "cost": 575.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 11,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 865.0,
+              "cost": 660.0
+            },
+            "total": 3060.0
+          }
+        },
+        "atlas_vs_fixed_rule_pct": 66.29955947136564,
+        "atlas_vs_cascade_pct": -51.86104218362283,
+        "atlas_vs_tuned_threshold_pct": -87.1559633027523,
+        "atlas_vs_tuned_threshold_ci95": [
+          -220.4862048283101,
+          -12.876782351358647
+        ]
+      },
+      "with_discarded_life": {
+        "tuned_thresholds_replace_now_soon": [
+          10,
+          20,
+          45
+        ],
+        "breakdown": {
+          "fixed_rule": {
+            "CONTINUE_OPERATION": {
+              "n": 82,
+              "lead_time_failures": 8,
+              "true_rul_of_failures": [
+                28.0,
+                21.0,
+                28.0,
+                18.0,
+                29.0,
+                26.0,
+                14.0,
+                28.0
+              ],
+              "discarded_cycles": 0.0,
+              "cost": 8000.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 18,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 289.0,
+              "cost": 1195.6000000000001
+            },
+            "total": 9195.599999999999
+          },
+          "cascade": {
+            "CONTINUE_OPERATION": {
+              "n": 65,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 17,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 496.0,
+              "cost": 1133.4
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 18,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 289.0,
+              "cost": 1195.6000000000001
+            },
+            "total": 2328.9999999999995
+          },
+          "tuned_threshold": {
+            "CONTINUE_OPERATION": {
+              "n": 71,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 17,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 300.0,
+              "cost": 1055.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 8,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 88.0,
+              "cost": 495.2
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 4,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 35.0,
+              "cost": 254.0
+            },
+            "total": 1804.2000000000003
+          },
+          "atlas": {
+            "CONTINUE_OPERATION": {
+              "n": 72,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 17,
+              "lead_time_failures": 1,
+              "true_rul_of_failures": [
+                10.0
+              ],
+              "discarded_cycles": 267.0,
+              "cost": 1986.8
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 8,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 74.0,
+              "cost": 489.59999999999997
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 3,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 34.0,
+              "cost": 193.60000000000002
+            },
+            "total": 2669.9999999999995
+          }
+        },
+        "atlas_vs_fixed_rule_pct": 70.96437426595328,
+        "atlas_vs_cascade_pct": -14.641477028767714,
+        "atlas_vs_tuned_threshold_pct": -47.98802793481871,
+        "atlas_vs_tuned_threshold_ci95": [
+          -162.6434209459768,
+          10.50013767532001
+        ]
+      }
+    }
+  },
+  "seed46": {
+    "rmse_last_window": 15.424222946166992,
+    "n_tuning_windows": 4195,
+    "grounding": {
+      "confidence_raw": {
+        "rho": -0.5089828982898289,
+        "ci95": [
+          -0.6613890064241372,
+          -0.33332252889624997
+        ]
+      },
+      "confidence_raw_mean": 0.03513268254169179,
+      "confidence_normalized": {
+        "rho": -0.5085748574857485,
+        "ci95": [
+          -0.6611963296124914,
+          -0.3330830408149054
+        ]
+      },
+      "confidence_normalized_mean": 0.9587378337384947,
+      "neg_neighbor_std_only": {
+        "rho": -0.5089828982898289,
+        "ci95": [
+          -0.6613890064241372,
+          -0.33332252889624997
+        ]
+      },
+      "neighbor_similarity_only": {
+        "rho": 0.4684668466846684,
+        "ci95": [
+          0.2843815424634102,
+          0.6261157224212812
+        ]
+      },
+      "neg_predicted_rul_proxy": {
+        "rho": -0.44957695769576955,
+        "ci95": [
+          -0.614799784155767,
+          -0.2637598003610902
+        ]
+      },
+      "mc_interval_coverage": {
+        "0.5": 0.63,
+        "0.8": 0.85,
+        "0.9": 0.87,
+        "0.95": 0.91
+      },
+      "frac_zero_variance_neighbors": 0.0
+    },
+    "decision": {
+      "paper_cost_model": {
+        "tuned_thresholds_replace_now_soon": [
+          10,
+          20,
+          45
+        ],
+        "breakdown": {
+          "fixed_rule": {
+            "CONTINUE_OPERATION": {
+              "n": 76,
+              "lead_time_failures": 2,
+              "true_rul_of_failures": [
+                29.0,
+                28.0
+              ],
+              "discarded_cycles": 0.0,
+              "cost": 2000.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 24,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 424.0,
+              "cost": 1440.0
+            },
+            "total": 3440.0
+          },
+          "cascade": {
+            "CONTINUE_OPERATION": {
+              "n": 65,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 11,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 421.0,
+              "cost": 605.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 24,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 424.0,
+              "cost": 1440.0
+            },
+            "total": 2045.0
+          },
+          "tuned_threshold": {
+            "CONTINUE_OPERATION": {
+              "n": 70,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 17,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 326.0,
+              "cost": 935.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 8,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 103.0,
+              "cost": 460.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 5,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 41.0,
+              "cost": 300.0
+            },
+            "total": 1695.0
+          },
+          "atlas": {
+            "CONTINUE_OPERATION": {
+              "n": 68,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 14,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 256.0,
+              "cost": 770.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 13,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 166.0,
+              "cost": 747.5
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 5,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 296.0,
+              "cost": 300.0
+            },
+            "total": 1817.5
+          }
+        },
+        "atlas_vs_fixed_rule_pct": 47.1656976744186,
+        "atlas_vs_cascade_pct": 11.124694376528117,
+        "atlas_vs_tuned_threshold_pct": -7.227138643067847,
+        "atlas_vs_tuned_threshold_ci95": [
+          -24.261675542045396,
+          5.799380433224286
+        ]
+      },
+      "with_discarded_life": {
+        "tuned_thresholds_replace_now_soon": [
+          10,
+          20,
+          45
+        ],
+        "breakdown": {
+          "fixed_rule": {
+            "CONTINUE_OPERATION": {
+              "n": 76,
+              "lead_time_failures": 2,
+              "true_rul_of_failures": [
+                29.0,
+                28.0
+              ],
+              "discarded_cycles": 0.0,
+              "cost": 2000.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 24,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 424.0,
+              "cost": 1609.6000000000001
+            },
+            "total": 3609.5999999999995
+          },
+          "cascade": {
+            "CONTINUE_OPERATION": {
+              "n": 65,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 11,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 421.0,
+              "cost": 773.4
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 0,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 24,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 424.0,
+              "cost": 1609.6000000000001
+            },
+            "total": 2382.9999999999995
+          },
+          "tuned_threshold": {
+            "CONTINUE_OPERATION": {
+              "n": 70,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 17,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 326.0,
+              "cost": 1065.4
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 8,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 103.0,
+              "cost": 501.2
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 5,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 41.0,
+              "cost": 316.4
+            },
+            "total": 1883.0
+          },
+          "atlas": {
+            "CONTINUE_OPERATION": {
+              "n": 71,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 0.0,
+              "cost": 0.0
+            },
+            "SCHEDULE_MAINTENANCE_SOON": {
+              "n": 14,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 256.0,
+              "cost": 872.4000000000001
+            },
+            "SCHEDULE_MAINTENANCE_NOW": {
+              "n": 13,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 166.0,
+              "cost": 813.8999999999999
+            },
+            "REPLACE_IMMEDIATELY": {
+              "n": 2,
+              "lead_time_failures": 0,
+              "true_rul_of_failures": [],
+              "discarded_cycles": 15.0,
+              "cost": 126.0
+            },
+            "total": 1812.3
+          }
+        },
+        "atlas_vs_fixed_rule_pct": 49.79222074468084,
+        "atlas_vs_cascade_pct": 23.948804028535445,
+        "atlas_vs_tuned_threshold_pct": 3.7546468401487014,
+        "atlas_vs_tuned_threshold_ci95": [
+          -0.927461343872094,
+          12.04091929910499
+        ]
+      }
+    }
+  }
+}
