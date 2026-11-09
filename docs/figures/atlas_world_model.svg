@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 540" width="1200" height="540" role="img" aria-labelledby="t d">
+<title id="t">World Model: Attention-LSTM encoder</title>
+<desc id="d">A 30 by 14 sensor window passes through a 2-layer LSTM with hidden size 64, temporal attention pooling, and a linear projection to a 32-dimensional state vector, which feeds the RUL head and the AMKB memory.</desc>
+<style>
+text{font-family:"Helvetica Neue",Arial,sans-serif;fill:#1b1f27;font-size:14px}
+.t{font-size:22px;font-weight:700}.h{font-weight:700;font-size:15px}.m{fill:#5b6472;font-size:12.5px}
+.mono{font-family:Consolas,"DejaVu Sans Mono",monospace;font-size:12.5px}
+.box{fill:#f5f6f8;stroke:#c3c9d2;stroke-width:1.2}.key{fill:#fff;stroke:#1f5f8b;stroke-width:2}
+.ln{stroke:#8a93a0;stroke-width:1.5;fill:none}.ac{stroke:#1f5f8b;stroke-width:2;fill:none}
+.v{fill:#1f5f8b;font-weight:700}
+</style>
+<defs>
+<marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8a93a0"/></marker>
+<marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#1f5f8b"/></marker>
+<pattern id="cells" width="10" height="7" patternUnits="userSpaceOnUse" x="60" y="145"><path d="M10 0V7M0 7H10" stroke="#d5dae1" stroke-width="1" fill="none"/></pattern>
+</defs>
+<rect width="1200" height="540" fill="#fff"/>
+<text x="40" y="44" class="t">World Model: Attention-LSTM encoder</text>
+<text x="40" y="68" class="m">server/atlas/world_model.py · one forward pass over a 30-step window</text>
+
+<!-- Input -->
+<text x="40" y="110" class="h">Input window</text>
+<text x="40" y="130">X ∈ ℝ<tspan dy="-6" font-size="10">30×14</tspan></text>
+<rect x="60" y="145" width="140" height="210" fill="url(#cells)" stroke="#8a93a0" stroke-width="1.2"/>
+<text x="130" y="374" class="m" text-anchor="middle">14 sensors</text>
+<text x="48" y="250" class="m" text-anchor="middle" transform="rotate(-90 48 250)">30 timesteps</text>
+<text x="40" y="404" class="m">C-MAPSS: 14 informative</text>
+<text x="40" y="420" class="m">sensors, z-scored.</text>
+<text x="40" y="436" class="m">Other domains: width set</text>
+<text x="40" y="452" class="m">by the adapter.</text>
+
+<!-- LSTM -->
+<text x="270" y="110" class="h">2-layer LSTM</text>
+<text x="270" y="130" class="m">hidden size 64</text>
+<rect x="285" y="150" width="160" height="50" rx="6" class="box"/>
+<text x="365" y="180" text-anchor="middle">LSTM layer 1</text>
+<path d="M365 200V248" class="ln" marker-end="url(#ag)"/>
+<text x="375" y="229" class="m">dropout 0.2</text>
+<rect x="285" y="250" width="160" height="50" rx="6" class="box"/>
+<text x="365" y="280" text-anchor="middle">LSTM layer 2</text>
+<text x="285" y="326">h₁ … h₃₀ ∈ ℝ<tspan dy="-6" font-size="10">64</tspan></text>
+<path d="M200 175H283" class="ac" marker-end="url(#aa)"/>
+
+<!-- Attention -->
+<text x="505" y="110" class="h">Temporal attention pooling</text>
+<text x="505" y="130" class="m">weights every step, not only the last</text>
+<rect x="505" y="150" width="240" height="210" rx="6" class="box"/>
+<text x="520" y="182">eₜ = wᵀ tanh(W hₜ + b)</text>
+<text x="520" y="212">αₜ = exp(eₜ) / Σₖ exp(eₖ)</text>
+<text x="520" y="242">c = Σₜ αₜ hₜ ∈ ℝ<tspan dy="-6" font-size="10">64</tspan></text>
+<text x="520" y="282" class="mono">Linear(64,64) → Tanh</text>
+<text x="520" y="300" class="mono">→ Linear(64,1, bias=False)</text>
+<text x="520" y="336" class="m">α is also returned to the UI.</text>
+<path d="M445 275H503" class="ac" marker-end="url(#aa)"/>
+
+<!-- Projection -->
+<text x="790" y="110" class="h">Projection</text>
+<text x="790" y="130" class="m">to the shared state</text>
+<rect x="790" y="225" width="140" height="100" rx="6" class="box"/>
+<text x="860" y="262" text-anchor="middle" class="mono">Linear(64,32)</text>
+<text x="860" y="292" text-anchor="middle" class="v">z ∈ ℝ<tspan dy="-6" font-size="10">32</tspan></text>
+<path d="M745 275H788" class="ac" marker-end="url(#aa)"/>
+
+<!-- Outputs -->
+<rect x="975" y="140" width="190" height="112" rx="6" class="key"/>
+<text x="990" y="166" class="h">RUL head</text>
+<text x="990" y="188" class="mono">Linear(32,16) → ReLU</text>
+<text x="990" y="206" class="mono">→ Dropout 0.1</text>
+<text x="990" y="224" class="mono">→ Linear(16,1)</text>
+<text x="990" y="244"><tspan class="v">ŷ</tspan> = max(0, ·) at inference</text>
+
+<rect x="975" y="268" width="190" height="84" rx="6" class="box"/>
+<text x="990" y="294" class="h">State vector z</text>
+<text x="990" y="315" class="m">stored in and queried</text>
+<text x="990" y="332" class="m">against AMKB (pgvector)</text>
+
+<rect x="975" y="368" width="190" height="66" rx="6" class="box"/>
+<text x="990" y="394" class="h">Attention weights α</text>
+<text x="990" y="414" class="m">30 values, for display</text>
+
+<path d="M930 275H950V196H973" class="ac" marker-end="url(#aa)"/>
+<path d="M950 275V310H973" class="ln" marker-end="url(#ag)"/>
+<path d="M625 360V401H973" class="ln" marker-end="url(#ag)"/>
+
+<line x1="40" y1="478" x2="1160" y2="478" stroke="#e1e5ea"/>
+<text x="40" y="502" class="m">The model has two learned outputs, ŷ and z. On the laptop, mobile and server domains the same head is trained to predict the 0–1 stress score</text>
+<text x="40" y="520" class="m">instead of RUL (max_rul = 1.0); there is no separate health head.</text>
+</svg>

@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="1200" height="700" role="img" aria-labelledby="t d">
+<title id="t">ATLAS cognition pipeline</title>
+<desc id="d">One /api/decide request runs in sequence: the adaptive context engine runs the World Model, queries AMKB for neighbours and fetches Machine DNA; the explainability engine scores confidence and attribution; the API computes neighbour variance; the simulation engine costs four actions; the Decision Graph ranks them. Retraining and agent work orders run outside the request.</desc>
+<style>
+text{font-family:"Helvetica Neue",Arial,sans-serif;fill:#1b1f27;font-size:14px}
+.t{font-size:22px;font-weight:700}.h{font-weight:700;font-size:15px}.m{fill:#5b6472;font-size:12.5px}
+.lane{font-weight:700;font-size:13px;fill:#5b6472}
+.mono{font-family:Consolas,"DejaVu Sans Mono",monospace;font-size:12.5px}
+.grp{fill:#fafbfc;stroke:#c3c9d2;stroke-width:1.2;stroke-dasharray:5 4}
+.box{fill:#f5f6f8;stroke:#c3c9d2;stroke-width:1.2}.key{fill:#fff;stroke:#1f5f8b;stroke-width:2}
+.ln{stroke:#8a93a0;stroke-width:1.5;fill:none}.ac{stroke:#1f5f8b;stroke-width:2;fill:none}
+.v{fill:#1f5f8b;font-weight:700}.n{fill:#1f5f8b;font-weight:700;font-size:13px}
+</style>
+<defs>
+<marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8a93a0"/></marker>
+<marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#1f5f8b"/></marker>
+</defs>
+<rect width="1200" height="700" fill="#fff"/>
+<text x="40" y="44" class="t">ATLAS cognition pipeline: one /api/decide request</text>
+<text x="40" y="68" class="m">server/api.py · the steps run one after another in the same request; numbers give the order</text>
+
+<!-- Request -->
+<rect x="40" y="150" width="170" height="140" rx="6" class="box"/>
+<text x="55" y="176" class="h">Request</text>
+<text x="55" y="202" class="mono">domain, machine_id,</text>
+<text x="55" y="222" class="mono">cycle, window,</text>
+<text x="55" y="242" class="mono">k = 10</text>
+<text x="55" y="272" class="m">window: 30 × feature_dim</text>
+
+<!-- Context group -->
+<rect x="250" y="100" width="520" height="230" rx="8" class="grp"/>
+<text x="266" y="124" class="lane">AdaptiveContextEngine.build_context</text>
+
+<rect x="266" y="140" width="150" height="170" rx="6" class="box"/>
+<text x="280" y="164"><tspan class="n">1 </tspan><tspan class="h">World Model</tspan></text>
+<text x="280" y="188">Attention-LSTM</text>
+<text x="280" y="210">→ <tspan class="v">ŷ</tspan>, <tspan class="v">z</tspan> ∈ ℝ<tspan dy="-6" font-size="10">32</tspan></text>
+<text x="280" y="250" class="m">no model for the</text>
+<text x="280" y="267" class="m">domain: ŷ = 30,</text>
+<text x="280" y="284" class="m">z = 0 (fallback)</text>
+
+<rect x="436" y="140" width="150" height="170" rx="6" class="box"/>
+<text x="450" y="164"><tspan class="n">2 </tspan><tspan class="h">AMKB</tspan></text>
+<text x="450" y="188">TimescaleDB +</text>
+<text x="450" y="208">pgvector</text>
+<text x="450" y="232">cosine search on z</text>
+<text x="450" y="264" class="m">→ k neighbours with</text>
+<text x="450" y="281" class="m">their true RUL</text>
+
+<rect x="606" y="140" width="150" height="170" rx="6" class="box"/>
+<text x="620" y="164"><tspan class="n">3 </tspan><tspan class="h">Machine DNA</tspan></text>
+<text x="620" y="188">16-dim profile</text>
+<text x="620" y="212" class="m">slopes of health,</text>
+<text x="620" y="229" class="m">thermal and power</text>
+<text x="620" y="246" class="m">sensors, plus the</text>
+<text x="620" y="263" class="m">last 20% of life,</text>
+<text x="620" y="280" class="m">z-scored</text>
+
+<path d="M210 220H264" class="ac" marker-end="url(#aa)"/>
+<path d="M416 225H434" class="ac" marker-end="url(#aa)"/>
+<path d="M586 225H604" class="ln" marker-end="url(#ag)"/>
+
+<!-- Explain -->
+<rect x="820" y="140" width="340" height="170" rx="6" class="box"/>
+<text x="836" y="164"><tspan class="n">4 </tspan><tspan class="h">Explainability</tspan></text>
+<text x="836" y="190">confidence <tspan class="v">C</tspan> = s̄ · 1 / (1 + σ²)</text>
+<text x="836" y="214">citations to real failed units</text>
+<text x="836" y="238">14-pass sensor occlusion</text>
+<text x="836" y="270" class="m">attribution runs on C-MAPSS windows</text>
+<text x="836" y="287" class="m">(30 × 14) only</text>
+<path d="M770 225H818" class="ac" marker-end="url(#aa)"/>
+
+<!-- Decision row (right to left) -->
+<rect x="900" y="380" width="260" height="120" rx="6" class="box"/>
+<text x="916" y="406"><tspan class="n">5 </tspan><tspan class="h">Uncertainty</tspan></text>
+<text x="916" y="432"><tspan class="v">σ²</tspan> = Var(true RUL of</text>
+<text x="916" y="452">the k neighbours)</text>
+<text x="916" y="480" class="m">0 when there are no neighbours</text>
+<path d="M1030 310V378" class="ac" marker-end="url(#aa)"/>
+
+<rect x="610" y="380" width="250" height="120" rx="6" class="box"/>
+<text x="626" y="406"><tspan class="n">6 </tspan><tspan class="h">Simulation</tspan></text>
+<text x="626" y="432">1,000 draws of N(ŷ, σ)</text>
+<text x="626" y="452">cost of 4 actions per draw</text>
+<text x="626" y="480" class="m">failure within lead time: $1,000</text>
+<path d="M900 440H862" class="ac" marker-end="url(#aa)"/>
+
+<rect x="320" y="380" width="250" height="120" rx="6" class="box"/>
+<text x="336" y="406"><tspan class="n">7 </tspan><tspan class="h">Decision Graph</tspan></text>
+<text x="336" y="432">rank by E[cost], then</text>
+<text x="336" y="452">P(fail), std, name</text>
+<text x="336" y="480" class="m">reuses C, adds risk and urgency</text>
+<path d="M610 440H572" class="ac" marker-end="url(#aa)"/>
+
+<rect x="40" y="380" width="240" height="120" rx="6" class="key"/>
+<text x="56" y="406" class="h">Response</text>
+<text x="56" y="432" class="mono">DecisionRecommendation</text>
+<text x="56" y="456">recommended action and</text>
+<text x="56" y="476">all four ranked actions</text>
+<path d="M320 440H282" class="ac" marker-end="url(#aa)"/>
+
+<!-- Outside the request -->
+<line x1="40" y1="540" x2="1160" y2="540" stroke="#e1e5ea"/>
+<text x="40" y="568" class="lane">Outside the request</text>
+<rect x="40" y="580" width="545" height="106" rx="6" class="box"/>
+<text x="56" y="606" class="h">Learning engine</text>
+<text x="56" y="630">retrains a domain model and promotes it only if</text>
+<text x="56" y="650">RMSE_candidate ≤ 1.03 × RMSE_baseline</text>
+<text x="56" y="674" class="m">atomic file swap; every run logged to learning_events</text>
+
+<rect x="615" y="580" width="545" height="106" rx="6" class="box"/>
+<text x="631" y="606" class="h">Agent work orders</text>
+<text x="631" y="630">at most 3 per machine per day; High and Critical</text>
+<text x="631" y="650">need an active alert ID and a matching fault type</text>
+<text x="631" y="674" class="m">every attempt, accepted or rejected, goes to work_order_audit_log</text>
+</svg>
