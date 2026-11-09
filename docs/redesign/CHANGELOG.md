@@ -1,5 +1,41 @@
 # Redesign Changelog
 
+## P4: Product pages on real endpoints (2026-11-09)
+- **What:**
+  - **Pages** (`client/src/pages/ops/`):
+    - Fleet overview: health grid, alarm summary, RUL at risk, ingestion health.
+    - Cross-domain view.
+    - Alarms & events: ISA-18.2 table; acknowledge, shelve with reason and time limit, unshelve, clear; flood indicator; deep link `?alarm=<id>`.
+    - Work orders: create, approve, reject, start, assign, resolve, each behind a confirmation.
+    - Agent chat, with AMKB evidence from the explanation engine.
+    - Login on the design system.
+    - Admin: users and roles, a seven-step sensor onboarding wizard (register map template, live preview over the stream, 3D part binding, token issue), devices (rotate, revoke), diagnostics.
+  - **Asset Detail** gains session trends, a RUL band (± 1 sd), the Decision Graph's recommended action linked to a pre-filled work order, and live refresh from pushed readings.
+  - **Every page** has loading, empty, error, stale and offline states; times show in Asia/Kolkata with the zone.
+  - **Backend:**
+    - `server/operations_api.py`: alarm states, work-order lifecycle and assignment, users and roles.
+    - Migration columns on `alerts` and `work_orders`; `machine_id` widened to 64 characters.
+    - `/api/assets` now carries RUL and timestamp.
+    - Register-map template in the adapter layer (`/api/admin/sensor-profiles/template`; the Modbus bridge reuses it).
+  - **Client plumbing:** typed `ApiError`, a correlation ID per request, `usePoll`, a fetch-based SSE reader, and interaction events to `/api/audit/client-events`.
+  - **Fixed:**
+    - Browsers could not open the live stream (CSRF header vs EventSource, ADR-023).
+    - Audit inserts pending at shutdown were lost from the database; they are now backfilled at start-up (ADR-024).
+    - The login password field's accessible name read "Password Show".
+  - The old Login page moved to `_legacy/`.
+  - Playwright 1.58.2 added with `client/e2e/` (run `npm run e2e`).
+- **Why:** D6 and the D3 UI; ADR-018 to ADR-024.
+- **Verified:**
+  - pytest **418 passed** (was 392; new: alarm transitions, ack/shelve/clear audit with reason, shelve expiry, work-order lifecycle and assignment, role changes, RUL in the asset list, the profile template, audit backfill). Ruff is clean.
+  - `tsc -b` clean; eslint 0 errors (40 legacy warnings); initial JS 100 KB gz.
+  - Playwright, signed in against this branch's API: flows 1 (each role and a wrong password), 2 (onboarding wizard end to end), 3 (HTTP push on screen in 0.63 s side panel, 0.69 s 3D callout), 4 (pipeline alarm from fault injection, acknowledge, work order, approve) and 6 (operator gets no Cognition link, a role notice and API 403) all pass.
+  - `audit_verify.py` after the run: JSONL and database intact, 3,539 events; each flow's actions are present (logins, profile, device, ingest batches, fault and simulation, alarm raise and ack, work order created and approved, page views and commands).
+  - Screens: `docs/media/screens/p4-*-{light,dark}.png`.
+- **Not verified:**
+  - The MQTT leg of flow 3 (it needs a broker account for an onboarded device; the test skips with that reason).
+  - Keyboard-only and screen-reader passes.
+  - Lighthouse (P7).
+
 ## P3: 3D Asset View (2026-11-08)
 - **What:**
   - **Teardown port** (`client/src/teardown/`): kit utilities and shader warm-up (MIT, credited), a light studio stage, geometry helpers, and five machines built from code to published proportions: turbofan (C-MAPSS), laptop, phone, 2U server, Modbus motor-driven pump.

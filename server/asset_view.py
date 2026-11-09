@@ -104,20 +104,23 @@ def build_frame(domain: str, machine_id: str, profile: AssetProfile, *, features
     }
 
 
+def snapshot_rul(profile: AssetProfile, snap: dict) -> Optional[dict]:
+    if snap.get("rul_cycles") is None:
+        return None
+    return {"value": snap["rul_cycles"], "unit": profile.rul_unit, "uncertainty": snap.get("uncertainty"),
+            "normalized": snap.get("normalized_rul"), "confidence": snap.get("confidence"),
+            "using_lstm": snap.get("using_lstm")}
+
+
 def frame_from_snapshot(domain: str, machine_id: str, profile: AssetProfile, snap: dict, now: datetime) -> dict:
     age = _age_s(snap.get("timestamp"), now)
     adapter_status = snap.get("adapter_status")
     q = "SIMULATED" if adapter_status == "simulation" else "STALE" if age is None or age > STALE_AFTER_S else "GOOD"
-    rul = None
-    if snap.get("rul_cycles") is not None:
-        rul = {"value": snap["rul_cycles"], "unit": profile.rul_unit, "uncertainty": snap.get("uncertainty"),
-               "normalized": snap.get("normalized_rul"), "confidence": snap.get("confidence"),
-               "using_lstm": snap.get("using_lstm")}
     return build_frame(domain, machine_id, profile, features=snap.get("features") or {},
                        raw=snap.get("raw_features") or {}, quality={f: q for f in profile.channels},
                        parts_override={}, units_override={}, ts=snap.get("timestamp"),
                        status=snap.get("status"), adapter_status=adapter_status,
-                       health_index=snap.get("health_index"), rul=rul)
+                       health_index=snap.get("health_index"), rul=snapshot_rul(profile, snap))
 
 
 def frame_from_ingest(machine_id: str) -> Optional[dict]:
@@ -168,7 +171,8 @@ def list_assets():
         for s in sorted(svc.get_domain_snapshots(domain), key=lambda s: str(s.get("machine_id"))):
             out.append({"domain": domain, "machine_id": s["machine_id"], "kind": p.kind, "label": p.label,
                         "status": s.get("status"), "health_index": s.get("health_index"),
-                        "simulated": s.get("adapter_status") == "simulation"})
+                        "simulated": s.get("adapter_status") == "simulation",
+                        "rul": snapshot_rul(p, s), "ts": s.get("timestamp")})
     try:
         profiles = get_ingest_service().profiles.list()
     except Exception:  # profile DB down: still list the domain machines
@@ -178,7 +182,7 @@ def list_assets():
         if p is not None:
             out.append({"domain": sp.domain, "machine_id": sp.machine_id, "kind": p.kind,
                         "label": sp.display_name or p.label, "status": None, "health_index": None,
-                        "simulated": sp.simulated})
+                        "simulated": sp.simulated, "rul": None, "ts": None})
     return {"assets": out}
 
 
@@ -199,3 +203,15 @@ def asset_frame(machine_id: str, domain: str = Query(..., pattern=_ID)):
     if frame is None or frame["domain"] != domain:
         raise HTTPException(status_code=404, detail=f"Unknown asset {domain}/{machine_id}")
     return frame
+
+
+@router.get("/api/admin/sensor-profiles/template", tags=["admin"],
+            summary="A ready sensor profile for machine types with a known register map (Modbus today)")
+def sensor_profile_template_route(domain: str = Query(..., pattern=_ID), machine_id: str = Query(..., pattern=_ID),
+                                  simulated: bool = False):
+    from server.adapters.asset_profiles import sensor_profile_template
+
+    t = sensor_profile_template(domain, machine_id, simulated)
+    if t is None:
+        raise HTTPException(status_code=404, detail=f"No template for {domain}; map the channels by hand")
+    return t

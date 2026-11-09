@@ -23,7 +23,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Set
 
 logger = logging.getLogger("DigitalTwin.audit")
 
@@ -129,7 +129,7 @@ def _utc_iso(dt: datetime) -> str:
 
 class AuditLog:
     def __init__(self, jsonl_dir: Path | str = "logs/audit", db_sink: Optional[Callable[[Dict[str, Any]], None]] = None,
-                 load_tail: bool = True):
+                 load_tail: bool = True, db_seqs: Optional[Callable[[], Set[int]]] = None):
         self.jsonl_dir = Path(jsonl_dir)
         self.jsonl_dir.mkdir(parents=True, exist_ok=True)
         self._sink = db_sink
@@ -141,6 +141,13 @@ class AuditLog:
             tail = read_jsonl(self.jsonl_dir)
             if tail:
                 self._seq, self._prev = tail[-1]["seq"], tail[-1]["hash"]
+            # Inserts still pending when the last process exited live only in the mirror: queue them again.
+            if tail and db_sink is not None and db_seqs is not None:
+                try:
+                    have = db_seqs()
+                    self._pending = [e for e in tail if e["seq"] not in have]
+                except Exception as e:
+                    logger.warning("audit backfill check skipped: %s", e)
         self._thread = threading.Thread(target=self._run, name="audit-writer", daemon=True)
         self._thread.start()
 
@@ -230,7 +237,8 @@ def get_audit_log() -> AuditLog:
         sink = None
         if os.environ.get("AUDIT_DB", "1") != "0":
             sink = _db_insert
-        _LOG = AuditLog(jsonl_dir=os.environ.get("AUDIT_DIR", "logs/audit"), db_sink=sink)
+        _LOG = AuditLog(jsonl_dir=os.environ.get("AUDIT_DIR", "logs/audit"), db_sink=sink,
+                        db_seqs=_db_seqs if sink is not None else None)
     return _LOG
 
 
@@ -240,6 +248,14 @@ def audit(**kw: Any) -> None:
         get_audit_log().record(**kw)
     except Exception:
         logger.exception("could not record audit event")
+
+
+# shortcut: reads every seq once at start-up; switch to a range query once the table holds millions of rows.
+def _db_seqs() -> Set[int]:
+    from server.database import pool
+
+    with pool.connection() as conn:
+        return {r[0] for r in conn.execute("SELECT seq FROM audit_events").fetchall()}
 
 
 def _db_insert(ev: Dict[str, Any]) -> None:

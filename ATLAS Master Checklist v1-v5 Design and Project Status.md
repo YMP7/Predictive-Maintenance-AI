@@ -204,7 +204,7 @@ Legend: **BUILD** = in scope and committed · **FUTURE** = named future work, ne
 - [x] P2: audit trail, ingestion, live stream, cognition trace, viewer RBAC *(pytest 378 passed; migration re-runnable)*
 - [ ] Switch the API to `atlas_app`: set `ATLAS_APP_DB_PASSWORD`, re-run `scripts/migrate_platform.py`, set `API_DATABASE_URL` *(needs your password choice)*
 - [x] P3: 3D Asset View (teardown), 5 machines, films *(60 fps on Intel UHD; 20-navigation leak check clean; WebGL-off fallback)*
-- [ ] P4: product pages wired to real endpoints
+- [x] P4: product pages wired to real endpoints *(Playwright flows 1-4 and 6 pass; MQTT leg not run; audit chain intact after e2e)*
 - [ ] P5: Cognition Dashboard
 - [ ] P6: evidence page, title justification, docs
 - [ ] P7: hardening and full verification

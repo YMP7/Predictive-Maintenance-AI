@@ -9,9 +9,11 @@ import { Button, EvidenceLabel, PriorityGlyph, QualityBadge, SimBadge, StatusPil
 import { Page } from '../../design/shell';
 import { EmptyState, ErrorState, Skeleton, StaleNotice } from '../../design/states';
 import { useTheme } from '../../hooks/useTheme';
-import { errorMessage } from '../../lib/api';
+import { errorMessage, statusOf } from '../../lib/api';
+import { useStream } from '../../lib/useStream';
+import { AssetInsights } from './AssetInsights';
 import { AssetStage } from './AssetStage';
-import { AssetSourceContext } from './source';
+import { apiSource, AssetSourceContext } from './source';
 import { STATE_LABEL, type FrameChannel, type FramePart, type TwinFrame, type WhyResult } from './types';
 
 const POLL_MS = 2000;
@@ -66,6 +68,9 @@ export default function AssetPage() {
 
 function AssetView({ domain, machineId }: { domain: string; machineId: string }) {
   const { frame, error, retry } = useFrame(domain, machineId);
+  // Pushed readings (HTTP, WebSocket, MQTT, Modbus bridge) refresh the frame at once instead of on the next poll.
+  const live = useContext(AssetSourceContext) === apiSource;
+  useStream(live ? machineId : null, retry);
   const source = useContext(AssetSourceContext);
   const { theme } = useTheme();
   const kiosk = useKiosk();
@@ -80,7 +85,7 @@ function AssetView({ domain, machineId }: { domain: string; machineId: string })
   const channels = useMemo(() => new Map(frame?.channels.map(c => [c.feature, c])), [frame]);
 
   if (error && !frame) {
-    const notFound = errorMessage(error).includes('404');
+    const notFound = statusOf(error) === 404;
     return (
       <Page title={machineId} purpose="3D Asset View">
         {notFound ? (
@@ -118,14 +123,14 @@ function AssetView({ domain, machineId }: { domain: string; machineId: string })
     try {
       setWhy({ busy: false, result: await source.why(frame), error: null });
     } catch (e) {
-      const m = errorMessage(e);
-      const msg = m.includes('403')
+      const s = statusOf(e);
+      const msg = s === 403
         ? 'Explanations need an operator or admin role.'
-        : m.includes('409')
+        : s === 409
           ? 'The model is still collecting its first 30 readings for this machine.'
-          : m.includes('404')
+          : s === 404
             ? frame.rul_note ?? 'No model explains this machine yet.'
-            : m;
+            : errorMessage(e);
       setWhy({ busy: false, result: null, error: msg });
     }
   };
@@ -283,6 +288,7 @@ function AssetView({ domain, machineId }: { domain: string; machineId: string })
           <p className="ax-asset__note">Load per part is a heuristic: the bound sensor furthest toward its load end, as a share of its range.</p>
         </aside>
       </div>
+      {!kiosk.active && <AssetInsights frame={frame} focus={selChannels} />}
     </Page>
   );
 }

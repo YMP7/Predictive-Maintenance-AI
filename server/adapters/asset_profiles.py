@@ -210,3 +210,31 @@ def profile_dict(domain: str, p: AssetProfile) -> dict:
         "attribution": p.attribution,
         "rul_note": p.rul_note,
     }
+
+
+# Channels whose rise means wear; speed, pressure and power factor are shown but not weighted.
+_MODBUS_HEALTH_WEIGHTS = {"temperature_c": 1.0, "vibration_mms": 1.0, "current_a": 0.5}
+
+
+def sensor_profile_template(domain: str, machine_id: str, simulated: bool = False) -> Optional[dict]:
+    """A ready SensorProfile (as a dict) for machine types with a known register map, or None.
+
+    Used by the onboarding wizard and scripts/modbus_bridge.py. Only Modbus has one today: its
+    channels, units and valid ranges come from ModbusAdapter's default register map.
+    """
+    if domain != "modbus":
+        return None
+    from server.adapters.modbus_adapter import DEFAULT_REGISTER_MAP
+
+    return {
+        "machine_id": machine_id,
+        "domain": "modbus",
+        "display_name": f"Motor-driven pump {machine_id}",
+        "simulated": simulated,
+        "channels": [
+            {"channel": c.name, "feature": c.name, "unit": c.unit, "valid_min": c.min_val, "valid_max": c.max_val,
+             "sampling_hz": 1.0, "health_weight": _MODBUS_HEALTH_WEIGHTS.get(c.name, 0.0),
+             "part": MOTOR_PUMP.channels[c.name].part if c.name in MOTOR_PUMP.channels else None}
+            for c in DEFAULT_REGISTER_MAP
+        ],
+    }

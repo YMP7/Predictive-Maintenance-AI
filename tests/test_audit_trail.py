@@ -112,6 +112,38 @@ def test_db_outage_retries_in_order(tmp_path):
     assert len(A.read_jsonl(tmp_path)) == 3
 
 
+def test_restart_backfills_events_the_database_never_got(tmp_path):
+    """A DB insert still pending when the process exits survives in the JSONL; the next start inserts it."""
+    db = {}
+
+    def down(row):
+        raise RuntimeError("database unavailable")
+
+    first = new_log(tmp_path, sink=down)
+    record_n(first, 2)
+    first.close()  # exits with both rows pending
+    assert db == {}
+
+    second = A.AuditLog(jsonl_dir=tmp_path, db_sink=lambda r: db.__setitem__(r["seq"], r["hash"]),
+                        db_seqs=lambda: set(db), load_tail=True)
+    record_n(second, 1)
+    second.flush(retry=True)
+    assert sorted(db) == [1, 2, 3]
+    events = A.read_jsonl(tmp_path)
+    assert {e["seq"]: e["hash"] for e in events} == db and A.verify_chain(events).ok
+
+
+def test_backfill_skips_rows_already_in_the_database(tmp_path):
+    first = new_log(tmp_path)
+    record_n(first, 2)
+    first.close()
+    inserted = []
+    second = A.AuditLog(jsonl_dir=tmp_path, db_sink=lambda r: inserted.append(r["seq"]), db_seqs=lambda: {1, 2},
+                        load_tail=True)
+    second.flush(retry=True)
+    assert inserted == []
+
+
 # ---------------------------------------------------------------- redaction
 
 

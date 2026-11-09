@@ -139,15 +139,35 @@ def test_asset_list_and_profile_endpoints(svc, client):
     assets = client.get("/api/assets", headers=H).json()["assets"]
     pump = next(a for a in assets if a["machine_id"] == "pump_m1")
     assert pump["domain"] == "modbus" and pump["kind"] == "motor_pump" and pump["simulated"] is True
+    assert pump["rul"] is None and "ts" in pump  # no trained model for the pump (FUTURE-WORK)
     prof = client.get("/api/atlas/domain/cmapss/profile", headers=H).json()
     assert prof["kind"] == "turbofan" and prof["channels"]["s8"]["part"] == "fan"
     assert client.get("/api/atlas/domain/nope/profile", headers=H).status_code == 404
+
+
+def test_snapshot_rul_carries_unit_and_uncertainty():
+    from server.adapters.asset_profiles import get_asset_profile
+    from server.asset_view import snapshot_rul
+    r = snapshot_rul(get_asset_profile("cmapss"), {"rul_cycles": 88.5, "uncertainty": 9.2, "using_lstm": True})
+    assert r["value"] == 88.5 and r["unit"] == "cycles" and r["uncertainty"] == 9.2
+    assert snapshot_rul(get_asset_profile("cmapss"), {"rul_cycles": None}) is None
 
 
 def test_unknown_asset_is_404_and_bad_domain_is_422(svc, client):
     assert client.get("/api/assets/ghost/frame?domain=modbus", headers=H).status_code == 404
     assert client.get("/api/assets/pump_m1/frame?domain=cmapss", headers=H).status_code == 404
     assert client.get("/api/assets/pump_m1/frame?domain=bad%20domain", headers=H).status_code == 422
+
+
+def test_profile_template_binds_parts_and_is_admin_only(client):
+    from server.backend_api import app
+    from server.auth import User, get_current_user
+    assert client.get("/api/admin/sensor-profiles/template?domain=modbus&machine_id=p1", headers=H).status_code == 403
+    app.dependency_overrides[get_current_user] = lambda: User(username="t_admin", role="admin")
+    t = client.get("/api/admin/sensor-profiles/template?domain=modbus&machine_id=p1&simulated=true", headers=H).json()
+    SensorProfile(**t)
+    assert t["simulated"] is True and {c["channel"]: c["part"] for c in t["channels"]}["vibration_mms"] == "bearing_de"
+    assert client.get("/api/admin/sensor-profiles/template?domain=laptop&machine_id=p1", headers=H).status_code == 404
 
 
 def test_frame_needs_a_session():

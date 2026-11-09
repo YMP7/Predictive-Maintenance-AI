@@ -9,6 +9,7 @@ import '@fontsource/jetbrains-mono/600.css';
 import './design/tokens.css';
 import './design/base.css';
 import './design/components.css';
+import './design/pages.css';
 
 import App from './App.tsx';
 import { initKioskFromUrl } from './app/kioskState';

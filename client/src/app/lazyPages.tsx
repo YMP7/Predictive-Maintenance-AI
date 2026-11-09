@@ -1,11 +1,10 @@
-import { lazy, Suspense, type ReactNode } from 'react';
+import { lazy, Suspense, type ComponentType, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router';
 
 import { SkeletonRows } from '../design/states';
 
 /* Legacy pages keep the old stylesheet and stay reachable until P4 replaces them (removed in P7). */
 const LegacyStyles = lazy(() => import('./LegacyStyles'));
-const Login = lazy(() => import('../pages/Login'));
 const Home = lazy(() => import('../pages/Home'));
 const Dashboard = lazy(() => import('../pages/Dashboard'));
 
@@ -17,12 +16,53 @@ function WithLegacyStyles({ children }: { children: ReactNode }) {
   );
 }
 
-export function LegacyLogin() {
-  return (
-    <WithLegacyStyles>
-      <Login />
-    </WithLegacyStyles>
-  );
+/* P4 product pages, each its own chunk. */
+const suspended = (C: ComponentType) => (
+  <Suspense fallback={<SkeletonRows rows={6} />}>
+    <C />
+  </Suspense>
+);
+
+const LoginImpl = lazy(() => import('../pages/ops/LoginPage'));
+const FleetImpl = lazy(() => import('../pages/ops/FleetPage'));
+const AlarmsImpl = lazy(() => import('../pages/ops/AlarmsPage'));
+const WorkOrdersImpl = lazy(() => import('../pages/ops/WorkOrdersPage'));
+const CrossDomainImpl = lazy(() => import('../pages/ops/CrossDomainPage'));
+const ChatImpl = lazy(() => import('../pages/ops/ChatPage'));
+const OnboardingImpl = lazy(() => import('../pages/ops/OnboardingPage'));
+const UsersImpl = lazy(() => import('../pages/ops/AdminPages').then(m => ({ default: m.UsersPage })));
+const DevicesImpl = lazy(() => import('../pages/ops/AdminPages').then(m => ({ default: m.DevicesPage })));
+const DiagnosticsImpl = lazy(() => import('../pages/ops/AdminPages').then(m => ({ default: m.DiagnosticsPage })));
+
+export function LoginPage() {
+  return suspended(LoginImpl);
+}
+export function FleetPage() {
+  return suspended(FleetImpl);
+}
+export function AlarmsPage() {
+  return suspended(AlarmsImpl);
+}
+export function WorkOrdersPage() {
+  return suspended(WorkOrdersImpl);
+}
+export function CrossDomainPage() {
+  return suspended(CrossDomainImpl);
+}
+export function ChatPage() {
+  return suspended(ChatImpl);
+}
+export function OnboardingPage() {
+  return suspended(OnboardingImpl);
+}
+export function UsersPage() {
+  return suspended(UsersImpl);
+}
+export function DevicesPage() {
+  return suspended(DevicesImpl);
+}
+export function DiagnosticsPage() {
+  return suspended(DiagnosticsImpl);
 }
 
 export function LegacyHome() {

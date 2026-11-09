@@ -22,6 +22,7 @@ from slowapi.errors import RateLimitExceeded
 from server import audit as _audit
 from server.adapters.domain_profile import DOMAIN_PROFILES
 from server.data_service import get_data_service
+from server.operations_api import audit_work_order
 from server import machine_registry
 from server.machine_registry import MachineConfig, NewMachine
 from server.database import pool
@@ -433,7 +434,8 @@ def get_work_orders(
             params.append(limit)
             rows = conn.execute(
                 f"""
-                SELECT order_id, machine_id, action, urgency, status, created_at, resolved_at, notes, created_by
+                SELECT order_id, machine_id, action, urgency, status, created_at, resolved_at, notes, created_by,
+                       assignee, domain, alarm_id, updated_at
                 FROM work_orders {where}
                 ORDER BY created_at DESC
                 LIMIT %s
@@ -452,6 +454,10 @@ def get_work_orders(
                 "resolved_at": row[6].isoformat() if row[6] and hasattr(row[6], "isoformat") else None,
                 "notes": row[7],
                 "created_by": row[8],
+                "assignee": row[9],
+                "domain": row[10],
+                "alarm_id": row[11],
+                "updated_at": row[12].isoformat() if row[12] else None,
             }
             for row in rows
         ]
@@ -459,16 +465,6 @@ def get_work_orders(
     except Exception as e:
         logger.error(f"Error fetching work orders: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve work orders")
-
-
-def _audit_work_order(conn, row, username: str, result: str) -> None:
-    """Record a human status change in the same audit table as agent creation."""
-    conn.execute(
-        "INSERT INTO work_order_audit_log (id, timestamp, machine_id, action, urgency, justification, validation_result) VALUES (%s, NOW(), %s, %s, %s, %s, %s)",
-        (str(uuid.uuid4()), row[1], row[2], row[3], f"order {row[0]} by {username}", result),
-    )
-    _audit.audit(category="work_order", action=result.replace("HUMAN_", "").lower(), actor=username, actor_type="user",
-                 target=str(row[0]), details={"machine_id": row[1], "action": row[2], "urgency": row[3]})
 
 
 @app.post("/api/work-orders/{order_id}/approve")
@@ -479,14 +475,14 @@ def approve_work_order(order_id: str, current_user: User = Depends(require_opera
             result = conn.execute(
                 """
                 UPDATE work_orders
-                SET status = 'Open'
+                SET status = 'Open', updated_at = NOW()
                 WHERE order_id = %s AND status = 'Pending Approval'
                 RETURNING order_id, machine_id, action, urgency
                 """,
                 (order_id,)
             ).fetchone()
             if result:
-                _audit_work_order(conn, result, current_user.username, "HUMAN_APPROVED")
+                audit_work_order(conn, result, current_user.username, "HUMAN_APPROVED")
             conn.commit()
         if not result:
             raise HTTPException(status_code=404, detail="Pending work order not found or already processed")
@@ -506,14 +502,14 @@ def resolve_work_order(order_id: str, current_user: User = Depends(require_opera
             result = conn.execute(
                 """
                 UPDATE work_orders
-                SET status = 'Resolved', resolved_at = NOW()
-                WHERE order_id = %s AND status = 'Open'
+                SET status = 'Resolved', resolved_at = NOW(), updated_at = NOW()
+                WHERE order_id = %s AND status IN ('Open', 'In Progress')
                 RETURNING order_id, machine_id, action, urgency
                 """,
                 (order_id,)
             ).fetchone()
             if result:
-                _audit_work_order(conn, result, current_user.username, "HUMAN_RESOLVED")
+                audit_work_order(conn, result, current_user.username, "HUMAN_RESOLVED")
             conn.commit()
         if not result:
             raise HTTPException(status_code=404, detail="Open work order not found")

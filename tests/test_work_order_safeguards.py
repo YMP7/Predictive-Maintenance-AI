@@ -272,7 +272,8 @@ def test_resolve_pending_order_returns_404(_mock_database):
 
     assert res.status_code == 404
     queries = [c[0][0] for c in _mock_database.execute.call_args_list]
-    assert any("status = 'Open'" in q for q in queries)
+    # only Open or In Progress orders resolve; Pending Approval is excluded
+    assert any("status IN ('Open', 'In Progress')" in q for q in queries)
     assert not any("work_order_audit_log" in q for q in queries)
 
 

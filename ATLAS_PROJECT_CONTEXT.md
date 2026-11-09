@@ -131,7 +131,8 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 - **Current phase:** Industrial redesign on branch `feature/industrial-frontend` (plan: `docs/redesign/00_PLAN.md`). P0 discovery done, `main` merged in. **P1 done (2026-11-08):** ISA-101 design system in `client/src/design/`, AppShell, React Router routes for every product page (phase-labelled placeholders), kiosk mode, dev component gallery. ML core untouched.
 - **P2 done (2026-11-08):** append-only hash-chained audit trail (trigger plus non-owner `atlas_app` DB role), six ingest paths through the profile-driven `ConfigurableAdapter`, SSE live stream, admin-only read-only cognition trace with replay, admin-only `/api/admin/*`, `/api/ready`. pytest 378 passed. ML core untouched.
 - **P3 done (2026-11-08):** 3D Asset View ported from the teardown kit (`client/src/teardown/`), five machines, server-side part bindings (`server/adapters/asset_profiles.py`, `server/asset_view.py`), "Show why", kiosk tour, 2-D fallback, film in `docs/media/films/`. R3F and drei removed. See `docs/redesign/03_3D_DECISION.md`.
-- **Immediate Task:** GATE 2 review, then P4 (product pages wired to real endpoints).
+- **P4 done (2026-11-09):** product pages on real endpoints: Fleet, Asset Detail (trends, RUL band, recommended action to work order, live push), Cross-domain, Alarms (ISA-18.2 acknowledge, shelve, clear), Work orders (create, approve, reject, start, assign, resolve), Agent chat, Login, Admin (users and roles, onboarding wizard, devices, diagnostics). Backend: `server/operations_api.py`. Playwright e2e in `client/e2e/`. ADR-018 to ADR-024.
+- **Immediate Task:** P5, the Cognition Dashboard (`/admin/cognition`) and model registry.
 
 **Sequencing decision in effect:** AI core built first on C-MAPSS (Months 1–5); adapters for Laptop/Mobile/Server built and verified in Month 6; adaptive learning and cross-domain transfer verified in Month 7.
 

@@ -1,10 +1,13 @@
 import { Suspense, useCallback, useEffect, useState, type ReactNode } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { LogOut, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun } from 'lucide-react';
 
 import { useSession } from '../contexts/SessionContext';
 import { useTheme } from '../hooks/useTheme';
 import { API_BASE_URL, apiFetch } from '../lib/api';
+import { startClientEvents, track } from '../lib/events';
+import { useAlarms } from '../lib/ops';
+import { AlarmBanner } from './alarms';
 import { KioskBar } from '../app/kiosk';
 import { useKiosk } from '../app/kioskState';
 import { CommandPalette } from './CommandPalette';
@@ -160,6 +163,14 @@ function readCollapsed(): boolean {
   }
 }
 
+/** Alarms that need acknowledging, shown on every page; quiet when there are none. */
+function LiveAlarmBanner() {
+  const { alarms } = useAlarms(15_000);
+  const navigate = useNavigate();
+  const now = useNow(30_000);
+  return alarms ? <AlarmBanner alarms={alarms} now={now.getTime()} onOpen={() => navigate('/alarms')} /> : null;
+}
+
 /** Rail + header + banner slot + routed page. In kiosk mode only the page and a caption bar remain. */
 export function AppShell({ banner }: { banner?: ReactNode }) {
   const user = useSession();
@@ -196,6 +207,13 @@ export function AppShell({ banner }: { banner?: ReactNode }) {
     document.querySelector<HTMLElement>('#main h1')?.focus({ preventScroll: true });
   }, [location.pathname]);
 
+  // Interaction audit (D4): page views here, every button and link press in startClientEvents.
+  useEffect(() => {
+    if (user.username === 'gallery') return; // dev gallery has no server session
+    startClientEvents();
+    track('page_view', location.pathname);
+  }, [location.pathname, user.username]);
+
   return (
     <div className="ax-shell" data-collapsed={collapsed ? '' : undefined} data-kiosk={kiosk.active ? '' : undefined}>
       {!kiosk.active && (
@@ -212,7 +230,7 @@ export function AppShell({ banner }: { banner?: ReactNode }) {
       ) : (
         <div className="ax-banner-slot">
           {!online && <OfflineNotice />}
-          {banner}
+          {banner ?? (user.username === 'gallery' ? null : <LiveAlarmBanner />)}
         </div>
       )}
       <main id="main" className="ax-main">

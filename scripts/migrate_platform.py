@@ -119,6 +119,21 @@ STATEMENTS = [
     """,
     "SELECT create_hypertable('cognition_traces', 'time', if_not_exists => TRUE, migrate_data => TRUE)",
     "CREATE INDEX IF NOT EXISTS cognition_traces_machine_time ON cognition_traces (domain, machine_id, time DESC)",
+    # ---- P4: ISA-18.2 alarm states on the existing alerts table (created by scripts/migrate.py)
+    "ALTER TABLE IF EXISTS alerts ADD COLUMN IF NOT EXISTS state VARCHAR(16) NOT NULL DEFAULT 'unack'",
+    "ALTER TABLE IF EXISTS alerts ADD COLUMN IF NOT EXISTS state_by VARCHAR(100)",
+    "ALTER TABLE IF EXISTS alerts ADD COLUMN IF NOT EXISTS state_at TIMESTAMPTZ",
+    "ALTER TABLE IF EXISTS alerts ADD COLUMN IF NOT EXISTS state_reason TEXT",
+    "ALTER TABLE IF EXISTS alerts ADD COLUMN IF NOT EXISTS shelved_until TIMESTAMPTZ",
+    "DO $$ BEGIN IF to_regclass('alerts') IS NOT NULL THEN "
+    "UPDATE alerts SET state = 'ack' WHERE acknowledged AND state = 'unack'; END IF; END $$",
+    # ---- P4: work-order lifecycle; domain machine ids (unit_17, device names) exceed 10 characters
+    "ALTER TABLE IF EXISTS work_orders ALTER COLUMN machine_id TYPE VARCHAR(64)",
+    "ALTER TABLE IF EXISTS work_order_audit_log ALTER COLUMN machine_id TYPE VARCHAR(64)",
+    "ALTER TABLE IF EXISTS work_orders ADD COLUMN IF NOT EXISTS assignee VARCHAR(100)",
+    "ALTER TABLE IF EXISTS work_orders ADD COLUMN IF NOT EXISTS domain VARCHAR(32)",
+    "ALTER TABLE IF EXISTS work_orders ADD COLUMN IF NOT EXISTS alarm_id INTEGER",
+    "ALTER TABLE IF EXISTS work_orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ",
 ]
 
 

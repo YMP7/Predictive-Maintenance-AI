@@ -76,6 +76,41 @@ One entry per non-trivial decision. Format: context, options, choice, consequenc
 - **Choice:** A dev-only `/dev/assets` route renders the real `AssetPage` through an `AssetSourceContext` fed by fixtures. The fixtures are TwinFrames built by the server's `build_frame()` from the real profiles with seeded values; every channel is SIMULATED and the explanation is labelled synthetic. Production builds contain none of it (checked in `dist`).
 - **Consequences:** The live API path is covered by pytest (`tests/test_asset_view.py`), not by a signed-in browser run. That run happens in P4 once the backend is redeployed.
 
+## ADR-018: Alarm states on the existing `alerts` table; clearing is an operator act (P4)
+- **Context:** `alerts` has only an `acknowledged` flag. ISA-18.2 needs unacknowledged, acknowledged, shelved and cleared, with who, when and why. The pipelines that raise alarms do not report when a condition returns to normal.
+- **Choice:** Add `state`, `state_by`, `state_at`, `state_reason` and `shelved_until` to `alerts` (`scripts/migrate_platform.py`, idempotent; existing acknowledged rows become `ack`). `server/operations_api.py` holds one transition table: acknowledge (unack to ack), shelve (needs a reason and 5 min to 24 h), unshelve, clear (ack to cleared, needs a reason). An expired shelve reads as unacknowledged again. The state is re-checked inside the UPDATE, so two operators cannot both act on one alarm (409). Every transition is audited with the reason.
+- **Consequences:** Return to normal is not detected automatically; an operator clears with a reason and the dialog says so (FUTURE-WORK: derive `rtn_unack` from the machine's live status). `acknowledged` is kept in step for older readers.
+
+## ADR-019: Work-order lifecycle and assignment (P4)
+- **Context:** Work orders could be approved and resolved only; machine ids were limited to 10 characters, too short for `unit_17` or onboarded device names.
+- **Choice:** Pending Approval to Open (approve) or Rejected (reject, reason required); Open to In Progress (start); Open or In Progress to Resolved. Operators and admins create orders (from the page, an alarm, or the asset's recommended action) and assign them to an operator or admin. `machine_id` widens to 64 characters; `assignee`, `domain`, `alarm_id` and `updated_at` are added. The existing approve and resolve endpoints keep their paths; resolve now also accepts In Progress.
+- **Consequences:** One person may create and approve the same order; a four-eyes rule is not enforced (the audit trail shows both actions with the same name). Rejections are terminal.
+
+## ADR-020: Interaction events by keepalive fetch, not sendBeacon (P4)
+- **Context:** The brief names `navigator.sendBeacon` for client events. The API's CSRF check needs the `X-API-Request` header, which sendBeacon cannot set.
+- **Choice:** `client/src/lib/events.ts` batches page views and every button or link press (its visible name and `aria-pressed`, never field values) and flushes every 10 s and when the page is hidden, with `fetch(..., {keepalive: true})`. It starts only after sign-in, so nothing on the login form is recorded.
+- **Consequences:** Same delivery guarantee as sendBeacon (survives page close) without weakening CSRF. Delivery stays best effort; a failed batch is dropped, never retried in the UI.
+
+## ADR-021: Templates for known devices come from the adapter layer (P4)
+- **Context:** The onboarding wizard should fill in channels, units and ranges for devices ATLAS already knows. Hard-coding a Modbus register map in the wizard would put domain knowledge in the frontend.
+- **Choice:** `sensor_profile_template()` in `server/adapters/asset_profiles.py` builds a SensorProfile from `ModbusAdapter`'s register map, with part bindings; `GET /api/admin/sensor-profiles/template` serves it and `scripts/modbus_bridge.py` reuses it. Other machine types return 404 and the wizard asks for a hand mapping.
+- **Consequences:** The wizard has no domain branches. MQTT onboarding still needs a broker account per device in `mosquitto/config` (the wizard says so); creating broker accounts from the UI is FUTURE-WORK.
+
+## ADR-022: Asset trends from the session, not a history query (P4)
+- **Context:** Asset Detail needs live trends and a RUL band. Snapshot domains (C-MAPSS, laptop, phone, server) keep only the latest reading in memory; pushed machines are in `sensor_readings`.
+- **Choice:** The page accumulates the frames it polls (every 2 s, up to 300 points) and draws RUL with a ± 1 sd band and the selected part's channels. Pushed readings arrive over the SSE stream and refresh the frame at once.
+- **Consequences:** Trends start when the page opens ("Since this page opened" on the panel). A history endpoint over `sensor_readings` and the cognition traces can back longer trends in P5 (replay).
+
+## ADR-023: The browser reads the live stream with fetch, not EventSource (P4)
+- **Context:** `EventSource` cannot send headers, so the API's CSRF check (`X-API-Request`) refused the SSE stream from every browser with 403; only header-capable clients could use it since P2.
+- **Choice:** Keep the CSRF rule for every path. `client/src/lib/useStream.ts` opens the stream with `fetch` (header set), parses the `text/event-stream` body itself and reconnects after 3 s. An exemption for the stream path was considered and rejected: it would weaken a security control for a client-side convenience.
+- **Consequences:** No server change. Pushed readings reach the asset page in 0.6 to 0.9 s through the dev proxy (measured by e2e flow 3).
+
+## ADR-024: Audit rows the database missed are backfilled from the mirror at start-up (P4)
+- **Context:** After the e2e run `audit_verify.py` reported the database chain broken at seq 2: seq 1 sat in the JSONL mirror only. The writer keeps failed inserts in memory and retries in order, but a process that exits with inserts pending loses them, while the next start resumes the chain from the mirror.
+- **Choice:** At start-up `AuditLog` reads the sequence numbers already in `audit_events` and queues every mirror event the database lacks, in order, before new events. Tests cover the exit-with-pending case and the no-duplicate case.
+- **Consequences:** The database and the mirror converge after any restart; `audit_verify` reported both intact (3,539 events) after the final e2e run. Start-up reads all sequence numbers once (a range query is the upgrade when the table grows large).
+
 ## ADR-004: PCA, not UMAP (P0)
 - **Context:** D5 asks for a "PCA/UMAP" 2-D projection of 32-dim states.
 - **Choice:** PCA via numpy SVD. It avoids a new heavy dependency (umap-learn pulls in numba) and is deterministic.

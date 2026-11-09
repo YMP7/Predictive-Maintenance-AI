@@ -46,20 +46,20 @@ export function AlarmBanner({ alarms, onOpen, now }: { alarms: Alarm[]; onOpen?:
   );
 }
 
-export function AlarmTable({
+export function AlarmTable<T extends Alarm>({
   alarms,
   actions,
   onSelect,
   selectedId,
 }: {
-  alarms: Alarm[];
-  /** Per-row controls (acknowledge, shelve); wired to the API in P4. */
-  actions?: (a: Alarm) => ReactNode;
-  onSelect?: (a: Alarm) => void;
+  alarms: T[];
+  /** Per-row controls (acknowledge, shelve). */
+  actions?: (a: T) => ReactNode;
+  onSelect?: (a: T) => void;
   selectedId?: string | null;
 }) {
-  const columns = useMemo<Column<Alarm>[]>(() => {
-    const cols: Column<Alarm>[] = [
+  const columns = useMemo<Column<T>[]>(() => {
+    const cols: Column<T>[] = [
       { key: 'priority', header: 'Priority', width: '8rem', render: a => <PriorityLabel priority={a.priority} state={a.state} />, sortValue: a => rank(a.priority) },
       { key: 'state', header: 'State', width: '12rem', render: a => STATE_LABEL[a.state], sortValue: a => STATE_LABEL[a.state] },
       { key: 'raisedAt', header: 'Raised', width: '11rem', render: a => <Timestamp value={a.raisedAt} />, sortValue: a => a.raisedAt },

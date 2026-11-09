@@ -30,24 +30,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from server.adapters.asset_profiles import sensor_profile_template  # noqa: E402
 from server.adapters.modbus_adapter import DEFAULT_REGISTER_MAP, ModbusAdapter  # noqa: E402
-
-# the channels whose rise means wear; speed, pressure and power factor are shown but not weighted
-HEALTH_WEIGHTS = {"temperature_c": 1.0, "vibration_mms": 1.0, "current_a": 0.5}
 
 
 def sensor_profile(machine_id: str, simulated: bool) -> dict:
-    return {
-        "machine_id": machine_id,
-        "domain": "modbus",
-        "display_name": f"Motor-driven pump {machine_id}",
-        "simulated": simulated,
-        "channels": [
-            {"channel": c.name, "feature": c.name, "unit": c.unit, "valid_min": c.min_val, "valid_max": c.max_val,
-             "sampling_hz": 1.0, "health_weight": HEALTH_WEIGHTS.get(c.name, 0.0)}
-            for c in DEFAULT_REGISTER_MAP
-        ],
-    }
+    return sensor_profile_template("modbus", machine_id, simulated)
 
 
 def push(api: str, machine_id: str, token: str, values: dict) -> int:

@@ -5,14 +5,29 @@
 
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
+/** Non-2xx reply. The message keeps the "API error <status>: <detail>" form older callers match on. */
+export class ApiError extends Error {
+  status: number;
+  detail: string;
+  constructor(status: number, detail: string) {
+    super(`API error ${status}: ${detail}`);
+    this.status = status;
+    this.detail = detail;
+  }
+}
+
+export const statusOf = (err: unknown) => (err instanceof ApiError ? err.status : null);
+
 /**
- * Typed fetch wrapper with error handling.
+ * Typed fetch wrapper with error handling. Every call carries a fresh correlation ID, which the
+ * server copies into the audit trail and its logs.
  */
 export async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-API-Request': 'true', // CSRF mitigation
+    'X-Correlation-ID': crypto.randomUUID(),
     ...options?.headers as Record<string, string>
   };
   
@@ -41,7 +56,7 @@ export async function apiFetch<T>(endpoint: string, options?: RequestInit): Prom
       // Ignore JSON parse errors for non-JSON responses
     }
     
-    throw new Error(`API error ${response.status}: ${errorMessage}`);
+    throw new ApiError(response.status, errorMessage);
   }
 
   return response.json() as Promise<T>;
