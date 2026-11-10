@@ -1,5 +1,5 @@
 ---
-title: "ATLAS: An Adaptive Machine Cognition Platform for Explainable Predictive Maintenance Across Heterogeneous Machine Systems"
+title: "ATLAS: An Adaptive Machine Cognition Platform for Explainable Predictive Maintenance"
 ---
 
 ::: {custom-style="Author"}
@@ -9,62 +9,56 @@ title: "ATLAS: An Adaptive Machine Cognition Platform for Explainable Predictive
 :::
 
 ::: {custom-style="Abstract"}
-***Abstract*—Predictive-maintenance (PdM) systems usually stop at estimating remaining useful life (RUL), leaving open what to do about the estimate and why an operator should trust it. We present ATLAS, a modular platform that couples RUL prediction with memory-grounded explanation and cost-aware decision support, and that runs unchanged on different machines through a thin adapter layer. A recurrent world model with additive temporal attention encodes sensor windows into a shared 32-dimensional state; a vector-indexed memory of labeled run-to-failure experiences supplies neighbor citations, a calibrated confidence score and an uncertainty proxy; a Monte Carlo decision graph ranks four maintenance actions by expected cost under action-specific lead times. On NASA C-MAPSS FD001 the prediction engine reaches RMSE 15.22 ± 0.31 and PHM score 375.0 ± 21.9 over five seeds. Ablations show a 47.2% reduction in simulated fleet cost against a fixed-threshold rule with no missed imminent failures, and a Spearman correlation of −0.51 between grounded confidence and absolute error. Applying the architecture to laptop, mobile and server telemetry, a cross-domain study shows that learned representations are domain-specific: cross-domain memory retrieval inflates error 7–8× for two of three domains. End-to-end CPU latency is 21.8 ms per request. We also report 13 development defects, nearly all sharing one signature (a plausible output computed by the wrong method), and the regression guards that prevent them.**
+***Abstract*—Predictive-maintenance (PdM) systems usually stop at a remaining-useful-life (RUL) estimate, leaving open what to do about it and why to trust it. ATLAS couples RUL prediction with memory-grounded explanation and cost-aware decision support in one architecture shared across machine types through an adapter layer, with a per-domain encoder. An attention LSTM encodes sensor windows into a 32-dimensional state; a memory of labeled run-to-failure cases supplies citations and a dispersion-based confidence score; a Monte Carlo decision graph ranks four maintenance actions by expected cost under action-specific lead times. On NASA C-MAPSS FD001 the predictor reaches RMSE 15.22 ± 0.31 over five seeds. The decision graph costs 47% less than a fixed 30-cycle threshold rule, a gap that comes from two units, but 7.2% more than a threshold rule tuned on held-out engines (95% CI: 5.8% less to 24.3% more), and more on all five retrained models. Confidence correlates with absolute error (Spearman −0.51) only through the spread of neighbor labels, and its intervals are not calibrated. On simulated compute telemetry, retrieval through another domain's encoder and memory inflates error 2.6–11.6×, so memory stays partitioned by domain. End-to-end CPU latency is 21.8 ms. We also report development defects and the guards that prevent them.**
 
-***Index Terms*—predictive maintenance, remaining useful life, explainable AI, digital twin, decision support, cross-domain representation, industrial IoT.**
+***Index Terms*—predictive maintenance, remaining useful life, explainable AI, decision support, maintenance cost, industrial IoT.**
 :::
 
 # Introduction
 
 Unplanned equipment failure is costly, and most deployed PdM systems stop at an RUL estimate or a threshold alarm. Operators are left with two questions: what to do about the estimate, given its uncertainty and the cost of acting too early or too late, and why the estimate deserves trust. Published RUL work on benchmarks such as NASA C-MAPSS [1] concentrates on point-prediction accuracy [2]–[5]. Interpretable and decision-aware variants exist [6], [7], but they are typically evaluated on a single dataset and a single machine type, and they rarely tie explanations to verifiable historical evidence.
 
-ATLAS addresses the gap between prediction and decision with one architecture that (i) predicts RUL, (ii) grounds each prediction in citations to labeled historical cases, (iii) ranks maintenance actions by simulated expected cost, and (iv) runs unchanged on different machines through an adapter layer. The contributions are:
+ATLAS links prediction to decision with one architecture that predicts RUL, grounds each prediction in labeled historical cases, ranks maintenance actions by simulated expected cost, and is shared across machine types through adapters, with per-domain encoders and memory. The contributions are:
 
 1. An integrated pipeline (world model, memory, explanation, Monte Carlo decision graph) evaluated end to end on C-MAPSS FD001 with multi-seed statistics.
 2. A memory-grounding rule with a circularity guard: explanations may cite only neighbors carrying ground-truth labels, never the model's own predictions.
-3. A lead-time-aware decision model with a deterministic ranking that breaks ties toward the safer action.
-4. A four-domain study (turbofan, laptop, mobile, server) showing, with a distribution-distance metric and a retrieval diagnostic, that learned representations are domain-specific, including one result that looks like positive transfer but is not.
-5. A verification methodology and defect catalogue (13 defects, 2 near-misses) with regression guards, and an adapter SDK whose conformance suite enforces those guards for new machine types.
+3. A lead-time-aware decision model with a deterministic, safety-first tie-break, evaluated against fixed, cascaded and tuned threshold rules with a cost breakdown and a sensitivity sweep.
 
-We do not claim state-of-the-art RUL accuracy, validation on real run-to-failure data outside C-MAPSS, or production readiness (Section VI).
+We also report a cross-domain retrieval diagnostic on simulated compute telemetry and a catalogue of development defects. We claim neither state-of-the-art RUL accuracy, nor a cost advantage over a tuned threshold rule, nor validation on real run-to-failure data outside C-MAPSS (Section VI).
 
 # Literature Review
 
-**RUL prediction.** C-MAPSS [1] is the standard turbofan degradation benchmark and defines the asymmetric PHM score. Recurrent models set early baselines (an LSTM reports RMSE 16.14 on FD001 [2]). Attention-based approaches followed [3]; transformer architectures [4] and attention-LSTM variants with feature self-attention [5] report substantially lower RMSE on FD001 and FD003. These works optimise point accuracy; none connects the estimate to a maintenance action or to auditable evidence. Our prediction engine is deliberately simple (LSTM with additive attention [8]) because the contribution is the system around it.
+**RUL prediction.** C-MAPSS [1] is the standard turbofan benchmark and defines the asymmetric prognostics and health management (PHM) score. A long short-term memory (LSTM) network reports a root-mean-square error (RMSE) of 16.14 on FD001 [2]; attention [3], transformer [4] and attention-LSTM [5] models report lower RMSE. These works optimise point accuracy and stop at the estimate. Our predictor is deliberately simple (LSTM with additive attention [8]); the contribution is the system around it.
 
-**Interpretable and decision-aware PdM.** Özcan [6] couples interpretable ensemble RUL prediction with dynamic maintenance scheduling on C-MAPSS, the closest work to our scope. Cummins *et al.* [7] survey explainable PdM and identify the lack of standardized evaluation of explanation quality as an open challenge. Kobayashi and Alam [9] study explainable, trustworthy AI for an intelligent digital twin on RUL, using attribution to build operator trust. ATLAS differs in grounding explanations in a labeled case memory, in modelling action-specific lead times with Monte Carlo sampling, and in the multi-domain adapter design. Attribution uses perturbation (occlusion [10]) rather than SHAP [11] to stay model-agnostic and cheap on CPU.
+**Interpretable and decision-aware PdM.** Özcan [6] couples interpretable ensemble RUL prediction with maintenance scheduling on C-MAPSS, the closest work to ours. Cummins *et al.* [7] note the lack of standardized evaluation of explanation quality, and Kobayashi and Alam [9] use attribution to build trust in a digital twin for RUL. Nguyen and Medjaher [10] turn LSTM prognostics into multi-horizon failure probabilities for maintenance planning, and de Pater *et al.* [11] schedule a fleet of C-MAPSS engines from alarms on imperfect prognostics. These optimise schedules over a horizon or a fleet; ATLAS makes a per-unit recommendation at each request and grounds it in a labeled case memory. Attribution uses occlusion [12] rather than SHAP [13] to stay model-agnostic and cheap.
 
-**Memory and retrieval.** Retrieval of similar historical trajectories has a long history in similarity-based prognostics [12]. Retrieval- and memory-augmented designs motivate keeping experience in an external store rather than only in parametric weights. Our use differs in the labeling rule and in using retrieval for confidence and uncertainty, not only for prediction.
+**Uncertainty, memory and simulation.** Monte Carlo dropout [14] is a standard predictive-uncertainty method; ATLAS instead uses the label spread of retrieved neighbors, and we do not compare the two. Retrieval of similar trajectories underlies similarity-based prognostics [15], and retrieval-augmented models keep knowledge in an external store [16]; ATLAS uses retrieval for citations, confidence and uncertainty. Monte Carlo simulation is an established way to compare maintenance policies under uncertain lifetimes [17]; ATLAS applies it at each request.
 
-**Monte Carlo maintenance optimisation.** Monte Carlo simulation is an established tool for comparing maintenance strategies of degrading systems under uncertain lifetimes. ATLAS applies the idea at inference time: each recommendation is a Monte Carlo evaluation of four candidate actions with explicit lead times.
-
-**Cross-domain transfer.** Domain adaptation for RUL is active: LAMA-Net [13] aligns latent representations with MMD [14] and manifold learning across C-MAPSS subsets, and transfer-component approaches [15] learn domain-invariant features. These methods study adaptation among *similar* machines (turbofan to turbofan). Whether representations transfer between *physically different* machine classes is rarely measured. We use MMD and centroid similarity as diagnostics, not as an adaptation method. MetroPT [16] provides real compressor data and is a planned validation target.
-
-**Research gap.** From this review: (1) RUL models are evaluated as regressors, with no integrated path to a cost-aware action; (2) explanations are rarely grounded in verifiable labeled precedent, and their quality is seldom measured against prediction error; (3) systems are validated on one dataset, leaving cross-machine behaviour unmeasured; and (4) the software defects that produce plausible-but-wrong pipelines are not systematically catalogued. ATLAS targets all four with one open, reproducible architecture.
+**Cross-domain transfer.** LAMA-Net [18] aligns latent representations across C-MAPSS subsets with maximum mean discrepancy [19], and transfer component analysis [20] learns domain-invariant features; both adapt among similar machines. ATLAS does not adapt; it partitions memory by domain. MetroPT [21] is a planned real-data target.
 
 # Methodology and Architecture
 
 Figure 1 shows the architecture. Data flows machine → adapter → world model → memory and Machine DNA → explanation → simulation → decision graph → (optional) agent safety gate, with a learning engine that retrains the world model offline.
 
-![**Fig. 1.** ATLAS architecture. Adapters normalize each machine's telemetry into a canonical window. The world model yields a 32-d state and RUL estimate; memory, Machine DNA and explainability ground the estimate; Monte Carlo simulation and the decision graph rank maintenance actions. The LLM agent can raise work orders only through the safety gate, and every order awaits human approval.](figure1.png){width=3.4in}
+![**Fig. 1.** ATLAS architecture. Adapters normalize each machine's telemetry into a canonical window. The world model yields a 32-d state and RUL estimate; memory, Machine DNA and explainability ground the estimate; Monte Carlo simulation and the decision graph rank maintenance actions. The LLM agent can raise work orders only through the safety gate, and every order awaits human approval.](figure1.png){width=3.2in}
 
 ## Adapter Layer and Canonical Features
 
-Every machine is reached through an adapter returning a normalized reading: domain, machine id, timestamp, a health index in [0,1], a feature dictionary, raw channels and an optional ground-truth RUL label. The adapter is the only place with domain-specific code; downstream components never branch on domain. Adapters exist for C-MAPSS (14 informative sensors after dropping 7 near-constant ones), laptop (psutil), Android mobile (Termux), server (SSH or calibrated simulation) and Modbus TCP; a conformance suite enforces the contract for any new adapter. The health index has two meanings: for C-MAPSS (Category A) it is degradation toward failure; for compute domains (Category B) it is instantaneous operational stress, not wear.
+Each machine is reached through an adapter that returns a normalized reading (domain, machine id, timestamp, health index in [0,1], features, raw channels, optional RUL label); only adapters contain domain-specific code. Adapters exist for C-MAPSS (14 informative sensors), laptop, Android mobile, server and Modbus TCP, and a conformance suite checks new ones. For C-MAPSS the health index is computed from the RUL label, $1-\min(\mathrm{RUL},125)/125$, so it is used only for display and Machine DNA and enters no reported result; for compute domains it measures operational stress, not wear.
 
 ## World Model
 
 A window of $L=30$ steps with $D$ canonical features passes through a two-layer LSTM (hidden size 64) giving $h_1,\dots,h_L$. Additive attention [8] computes
 
-$$e_t = v_a^{\top}\tanh(W_a h_t + b_a),\quad \alpha_t=\frac{\exp(e_t)}{\sum_{j=1}^{L}\exp(e_j)},\quad c=\sum_{t=1}^{L}\alpha_t h_t qquad (1)$$
+$$e_t = v_a^{\top}\tanh(W_a h_t + b_a),\quad \alpha_t=\frac{\exp(e_t)}{\sum_{j=1}^{L}\exp(e_j)},\quad c=\sum_{t=1}^{L}\alpha_t h_t \qquad (1)$$
 
 and a linear projection gives the 32-dimensional state
 
-$$z = W_z c + b_z \in \mathbb{R}^{32}. qquad (2)$$
+$$z = W_z c + b_z \in \mathbb{R}^{32}. \qquad (2)$$
 
-A linear head yields the RUL estimate, clamped at inference for physical non-negativity:
+A linear head yields the RUL estimate, clamped at zero:
 
-$$\hat{y} = \max\!\big(0,\; w^{\top} z + b\big). qquad (3)$$
+$$\hat{y} = \max\!\big(0,\; w^{\top} z + b\big). \qquad (3)$$
 
 RUL targets are clipped at 125 cycles. Training uses mean-squared error with Adam, a unit-level 80/20 split, early stopping, and a single evaluation on the official test set using the last window of each test unit.
 
@@ -72,59 +66,59 @@ RUL targets are clipped at 125 cycles. Training uses mean-squared error with Ada
 
 Experiences are stored in a pgvector index with domain, machine id, cycle, the 32-d state, the ground-truth RUL label and, separately, the model's predicted RUL. For a query state $z_q$ the cosine distance to a stored $z_i$ is
 
-$$d(z_q,z_i)=1-\frac{z_q\cdot z_i}{\lVert z_q\rVert_2\,\lVert z_i\rVert_2}. qquad (4)$$
+$$d(z_q,z_i)=1-\frac{z_q\cdot z_i}{\lVert z_q\rVert_2\,\lVert z_i\rVert_2}. \qquad (4)$$
 
-The $k=5$ nearest labeled neighbors are retrieved, excluding the query's own record. Only experiences with ground-truth labels may be cited (circularity guard). Retrieval is partitioned by domain key to avoid negative transfer.
+At run time the $k=5$ nearest labeled neighbors are retrieved, excluding the query's own record. Only experiences with ground-truth labels may be cited (circularity guard). Retrieval is partitioned by domain key. In the ablations of Section V-B the memory holds the 20,631 windows of the 100 FD001 training engines, the queries are the last windows of the 100 test engines, a disjoint set of engines, and $k=10$; no test engine can therefore retrieve its own history.
 
 ## Machine DNA
 
-A 16-d per-unit fingerprint summarizes degradation character (whole-life slopes of state norm and life-fraction health, thermal and speed sensor slopes, and terminal slopes over the last 20% of life). Each dimension is z-scored over the unit population, $\mathbf{z}_{\mathrm{DNA}}=(\mathbf{x}-\boldsymbol\mu)/\boldsymbol\sigma$, with persisted statistics applied identically to stored and query vectors.
+A 16-d per-unit fingerprint of degradation slopes, z-scored over the unit population, supports similarity search between units; it is not used in the reported results.
 
 ## Explainability
 
-Let $\bar d$ be the mean cosine distance to the retained neighbors and $\sigma^2$ the variance of their RUL labels. Confidence is
+Let $d_1,\dots,d_k$ be the cosine distances to the retained neighbors, $\bar s=\frac1k\sum_i 1/(1+d_i)$ their mean similarity, and $\sigma^2$ the variance of their RUL labels. Confidence is
 
-$$\mathcal{C}=\frac{1}{1+\bar d}\cdot\frac{1}{1+\sigma^{2}}, qquad (5)$$
+$$\mathcal{C}=\bar s\cdot\frac{1}{1+\sigma^{2}}, \qquad (5)$$
 
-bounded in $(0,1]$ with no division-by-zero. Attribution replaces sensor channel $j$ over the whole window by a reference value, re-runs the model, and records the change $\Delta_j = f(X)-f(X_{\setminus j})$; channels are ranked by $|\Delta_j|$. Explanation text is template-based, not LLM-generated.
+Because $\sigma^2$ is in cycles² (typically $10^2$–$10^3$ here), $\mathcal C$ is small (mean 0.035 on the test set) and in effect a decreasing function of neighbor label spread: a ranking score, not a probability. Attribution occludes each sensor channel over the window and ranks channels by the change in $\hat y$; explanation text is template-based.
 
 ## Monte Carlo Simulation and Decision Graph
 
 Given estimate $\hat y$ and neighbor variance $\sigma^2$, draw $M=1000$ samples $y^{(m)}\sim\mathcal N(\hat y,\sigma^2)$ clipped to $[0,125]$. Four actions $a\in\mathcal A$ are evaluated (continue, schedule soon, schedule now, replace immediately) with lead times $\tau(a)=30,10,3,0$ cycles. The sample cost is
 
-$$C(y,a)=\begin{cases}C_{f}, & y\le\tau(a)\\ 0, & y>\tau(a),\ a=\text{continue}\\ C_{b}+C_{d}\,u(a), & \text{otherwise}\end{cases} qquad (6)$$
+$$C(y,a)=\begin{cases}C_{f}, & y\le\tau(a)\\ 0, & y>\tau(a),\ a=\text{continue}\\ C_{b}+C_{d}\,u(a), & \text{otherwise}\end{cases} \qquad (6)$$
 
-with $C_f=1000$, $C_b=50$, $C_d=5$ and urgency multiplier $u(a)\in\{1,1.5,2\}$ (illustrative, not fitted to financial data). Expected cost, failure probability and cost dispersion are
+with $C_f=1000$, $C_b=50$, $C_d=5$ and urgency multiplier $u(a)\in\{1,1.5,2\}$ (illustrative). Expected cost, failure probability and cost dispersion are
 
-$$\mathbb E[C(a)]=\tfrac1M\sum_m C(y^{(m)},a),\quad p_f(a)=\tfrac1M\sum_m \mathbb I\big(y^{(m)}\le\tau(a)\big),qquad (7)$$
+$$\mathbb E[C(a)]=\tfrac1M\sum_m C(y^{(m)},a),\quad p_f(a)=\tfrac1M\sum_m \mathbb I\big(y^{(m)}\le\tau(a)\big),\qquad (7)$$
 
-$$\sigma_C(a)=\sqrt{\tfrac1M\sum_m\big(C(y^{(m)},a)-\mathbb E[C(a)]\big)^2}.qquad (8)$$
+$$\sigma_C(a)=\sqrt{\tfrac1M\sum_m\big(C(y^{(m)},a)-\mathbb E[C(a)]\big)^2}.\qquad (8)$$
 
 The recommendation is the lexicographic minimum
 
-$$a^{*}=\arg\min_{a\in\mathcal A}\big(\mathbb E[C(a)],\,-p_f(a),\,\sigma_C(a),\,\mathrm{name}(a)\big), qquad (9)$$
+$$a^{*}=\arg\min_{a\in\mathcal A}\big(\mathbb E[C(a)],\,p_f(a),\,\sigma_C(a),\,\mathrm{name}(a)\big), \qquad (9)$$
 
-so a cost tie favors the safer, more urgent action, and a safety override forces immediate replacement if $\hat y\le 10$ cycles or the health index is $\le0.20$.
+so a cost tie favors the action with the lower failure probability. There is no separate hard safety override: Eq. (9) alone produces every recommendation reported here.
 
 ## Learning Engine and Agent Safety Gate
 
-Retraining is periodic and batch, not online. A candidate model replaces the active checkpoint only if its held-out RMSE is within the 3% tolerance of the active model (reflecting the 2–4% seed variance we measured); promotion is an atomic file replacement and every run is audited. A language-model assistant may propose work orders only through a structured tool requiring a live alert (under 24 h old, severity threshold), an exact fault-type match, an allowed action for that fault, and a server-stamped creator. Orders start as *Pending Approval* and become active only through a role-checked human approval; the agent has no function that actuates a machine.
+Retraining is batch. A candidate replaces the active model only if its held-out RMSE is within 3% of the active model's, so repeated promotions could drift; comparing against the best checkpoint is planned. A language-model assistant can propose work orders only through a structured tool tied to a live alert and to an allowed action for its fault type; every order needs role-checked human approval, and the agent cannot actuate a machine.
 
 # Experimental Setup
 
-**Data.** C-MAPSS FD001 (100 training and 100 test engines, one operating condition, one fault mode) [1]. Laptop and mobile data come from the project's adapters; the server domain runs a calibrated simulation by default (an SSH path exists but was not exercised on real cloud hardware). Compute-domain encoders are pretrained by self-supervised next-step prediction on simulation profiles calibrated to real telemetry.
+**Data.** C-MAPSS FD001 (100 training and 100 test engines, one operating condition, one fault mode) [1]. The laptop, mobile and server results use synthetic data only. For each domain a seeded generator produces 1,250 windows of 30 steps × 5 channels (e.g., CPU, memory, disk, battery, network); the first 1,000 form the memory and the last 250 the queries. Each domain's encoder is pretrained by next-step prediction on its own data. The retrieval label is a per-domain stress composite in [0,1] (e.g., laptop $0.7\,\mathrm{cpu}+0.3\,\mathrm{mem}$), not a time to failure.
 
 **Metrics.** RMSE and the asymmetric PHM score [1]:
 
-$$S=\sum_{d_i<0}\big(e^{-d_i/13}-1\big)+\sum_{d_i\ge0}\big(e^{d_i/10}-1\big),\quad d_i=\hat y_i-y_i. qquad (10)$$
+$$S=\sum_{d_i<0}\big(e^{-d_i/13}-1\big)+\sum_{d_i\ge0}\big(e^{d_i/10}-1\big),\quad d_i=\hat y_i-y_i. \qquad (10)$$
 
-Cross-domain diagnostics are the maximum mean discrepancy [14] and the error inflation ratio
+Grounding quality is the Spearman correlation $r_s$ between $\mathcal C$ and $|\hat y-y|$, with a 95% bootstrap confidence interval (2,000 resamples), plus the coverage of central intervals of $\mathcal N(\hat y,\sigma^2)$. For compute domains a query is predicted as the mean label of its $k=5$ Euclidean nearest neighbors in the latent space of the encoder under test, and the error inflation ratio is
 
-$$\mathrm{MMD}^2(P,Q)=\mathbb E[k(x,x')]-2\mathbb E[k(x,y)]+\mathbb E[k(y,y')],\qquad \mathrm{EIR}=\frac{\mathrm{RMSE}_{\mathrm{cross}}}{\mathrm{RMSE}_{\mathrm{within}}}. qquad (11)$$
+$$\mathrm{EIR}=\frac{\mathrm{RMSE}_{\mathrm{cross}}}{\mathrm{RMSE}_{\mathrm{within}}}. \qquad (11)$$
 
-Grounding quality is the Spearman correlation $r_s$ between $\mathcal C$ and $|\hat y-y|$.
+**Decision baselines.** (i) A fixed rule replaces when $\hat y<30$ and otherwise continues. (ii) A cascade replaces below 30 and schedules soon below 60. (iii) A tuned rule uses three thresholds (replace < schedule now < schedule soon) from $\{0,5,\dots,100\}$, chosen to minimise mean Eq. (6) cost on the checkpoint's 20 held-out validation engines, so no test outcome is used. All policies are charged by Eq. (6) against the true test RUL. A variant also charges discarded life, $C_\ell\,(y-\tau(a))$ per executed maintenance with $C_\ell=0.4$ per cycle. A sweep covers $C_f\in\{250,\dots,4000\}$, $\tau(\text{continue})\in\{15,20,30\}$ and $C_\ell\in\{0,0.4\}$, re-optimising the tuned rule and ATLAS each time. Savings carry a paired bootstrap 95% CI.
 
-**Protocol.** Five seeds (42–46), each with its own unit split and initialization; mean ± std is reported. Experiments ran CPU-only on one workstation (10 cores, 15.7 GB RAM, PyTorch 2.10 CPU). CPU training is not bit-reproducible; about ±0.3 RMSE should be expected on reruns.
+**Protocol.** Five seeds (42–46), each with its own unit split; mean ± std is reported. The ablations use the seed-46 checkpoint (RMSE 15.42, PHM 394.7; Fig. 2), and the grounding and decision analyses are repeated on five retrained checkpoints. All runs are CPU-only (10 cores, PyTorch 2.10); reruns vary by about ±0.3 RMSE.
 
 # Results and Discussion
 
@@ -140,46 +134,43 @@ Table I gives FD001 test-set accuracy.
 | LSTM + attention (5 seeds) | 15.22 ± 0.31 | 375.0 ± 21.9 |
 | LSTM from literature [2] | 16.14 | 338 |
 
-Attention reduced the PHM coefficient of variation from 19.6% to 5.8% and slightly lowered RMSE. Our RMSE is lower than [2] but our PHM score is higher, meaning errors skew later; the comparison is directional, as implementations differ. More recent attention and transformer models [3]–[5] report lower RMSE, so we make no state-of-the-art claim: the prediction engine is intentionally a modest component. An earlier single run (RMSE 15.02) was a favorable seed, which is why multi-seed statistics are reported. Figures 2 and 3 show training loss and per-unit predictions.
+Attention lowered the PHM coefficient of variation from 19.6% to 5.8%. Our RMSE is below [2] but our PHM score is higher (errors skew late); implementations differ, and newer models [3]–[5] report lower RMSE, so we claim no state of the art. An earlier single run (RMSE 15.02) was a favorable seed.
 
-![**Fig. 2.** Training and validation MSE on FD001 for one run; the checkpoint at epoch 44 is kept.](figure2.png){width=3.2in}
+![**Fig. 2.** Predicted versus true RUL for the 100 test units (ablation checkpoint: RMSE 15.42, PHM 394.7). Crosses mark units with true RUL ≤ 30 whose estimate is late.](figure4.png){width=2.8in}
 
-![**Fig. 3.** Predicted versus true RUL for the 100 test units (RMSE 15.42, PHM 394.7). Crosses mark units with true RUL ≤ 30 whose estimate is late.](figure4.png){width=3.2in}
+## Decision Value
 
-## Decision-Value and Grounding Ablations
+: TABLE II. Decision policies on 100 FD001 test units (ablation checkpoint). Actions: continue/soon/now/replace; Fail.: lead-time failures; Disc.: remaining-life cycles discarded by executed maintenance; costs in \$, by Eq. (6) and with a discarded-life charge.
 
-: TABLE II. Ablation results (FD001, 100 test units).
+| Policy | Actions | Fail. | Disc. | Cost | + life |
+|:--|:--|:--|:--|:--|:--|
+| Fixed (< 30) | 76/0/0/24 | 2 | 424 | 3,440 | 3,610 |
+| Cascade (30/60) | 65/11/0/24 | 0 | 845 | 2,045 | 2,383 |
+| Tuned (10/20/45) | 70/17/8/5 | 0 | 470 | 1,695 | 1,883 |
+| ATLAS | 68/14/13/5 | 0 | 718 | 1,817.50 | 1,812.30 |
 
-| Ablation | Baseline | ATLAS |
+In Table II, the fixed rule's \$3,440 is 24 replacements at \$60 plus two \$1,000 lead-time failures (units with true RUL 28 and 29 that it continued), so the 47% saving of ATLAS against it rests on two units. Against the tuned rule, fixed before any test outcome was seen, ATLAS costs 7.2% more (paired bootstrap 95% CI: 5.8% less to 24.3% more): it replaces 5 units with 296 cycles of remaining life, three of them in early life, where neighbor variance was large and the Gaussian put tail mass near failure. Charging discarded life reverses the sign (ATLAS costs 3.8% less; 95% CI: 0.9% more to 12.0% less) because ATLAS then replaces only 2 units. Over the 30 sweep settings ATLAS beats the tuned rule in 12 (median −3.1%), the fixed rule in 18 and the cascade in 22 (Fig. 3b). On five retrained checkpoints it saves 25–73% against the fixed rule but costs 7–216% more than the tuned rule, and on two it has lead-time failures of its own (seed 44: three units continued at true RUL 21–29; seed 45: one scheduled soon at true RUL 10). We therefore claim no cost advantage over a tuned rule; the decision graph differs in needing costs and lead times rather than labeled data to set its thresholds.
+
+On the 10 near-failure units (true RUL ≤ 15) ATLAS acted urgently on 9 and the cascade on 10; one unit (true RUL 14) was scheduled soon with a 4-cycle margin. This is approximate safety parity, not an advantage.
+
+![**Fig. 3.** Decision value. (a) Total cost of four policies under Eq. (6), and with a discarded-life charge of 0.4 per cycle (tuned rule and ATLAS re-optimised). (b) ATLAS saving relative to the tuned rule across failure cost $C_f$ and $\tau(\text{continue})$, without discarded-life cost; negative values mean ATLAS costs more.](figure5.png){width=3.4in}
+
+## Grounding and Confidence
+
+: TABLE III. Spearman $r_s$ between a score and absolute error (100 test units; 95% bootstrap CI).
+
+| Score | Ablation checkpoint | Five retrained checkpoints |
 |:--|:--|:--|
-| Total simulated cost | \$3,440.00 | \$1,817.50 (−47.17%) |
-| Missed imminent failures (RUL ≤ 5) | 0 | 0 |
-| Cost on 30 disputed units vs. threshold cascade | \$1,530 | \$1,370 (−10.46%) |
-| Near-failure urgent response (RUL ≤ 15, n=10) | 100% | 90% |
-| Confidence–error $r_s$ | undefined (constant 0.5) | −0.509 |
-| Citation availability | 0% | 100% |
+| $\mathcal C$, Eq. (5) | −0.51 [−0.66, −0.33] | −0.45 ± 0.04 |
+| $\mathcal C$ with $\sigma^2/125^2$ | −0.51 [−0.66, −0.33] | −0.45 ± 0.04 |
+| Neighbor label spread only ($-\sigma$) | −0.51 [−0.66, −0.33] | −0.45 ± 0.04 |
+| Prediction only ($-\hat y$, no memory) | −0.45 [−0.61, −0.26] | −0.43 ± 0.04 |
 
-Against a fixed rule (replace below a 30-cycle estimate), the full pipeline cut simulated cost by 47.17% with no missed imminent failures under either policy; it schedules maintenance for 27 units and replaces 5, where the fixed rule replaces 24 (Fig. 4). The cost is premature replacement: 281 cycles of remaining life were discarded on 3 early-life units, where neighbor variance was large and the symmetric Gaussian placed tail mass near failure. This exposes a limitation of Gaussian uncertainty in early life. On near-failure units, 9 of 10 received urgent actions against 10 of 10 for the cascade, so the data show approximate safety parity, not a safety advantage; one unit (true RUL 14) was scheduled with only a 4-cycle margin. The negative $r_s=-0.509$ shows grounded confidence falls as error rises, which a constant ungrounded prior cannot do. Seeded results are reproducible, but near-tied expected costs remain sensitive to sampling in deployment; a deferral margin to a human is recommended.
+Confidence falls as error rises, but its ranking equals that of neighbor label spread alone, and the prediction itself ranks errors almost as well (Table III). The ungrounded baseline, a constant 0.5, has no defined $r_s$. The Monte Carlo intervals cover the true RUL for 63%, 85%, 87% and 91% of units at nominal 50%, 80%, 90% and 95% (similar across seeds), so neither the score nor the intervals are calibrated; we use $\mathcal C$ only to rank predictions. Every explanation cites labeled neighbors by construction, which is not evidence of explanation quality.
 
-![**Fig. 4.** Decision-value ablation. (a) Total simulated cost. (b) Recommended actions per policy.](figure5.png){width=3.3in}
+## Cross-Domain Retrieval Diagnostic
 
-## Cross-Domain Study
-
-MMD between C-MAPSS and each compute domain is about 1.23, against 0.90–0.93 among compute domains, so physical-degradation data separates cleanly from operational-load data (Fig. 5a). Centroid cosine similarities lie between −0.22 and 0.15, i.e. roughly orthogonal latent subspaces (Fig. 5b).
-
-: TABLE III. Retrieval RMSE (normalized scale), within-domain vs. C-MAPSS memory.
-
-| Domain | Within | Cross | EIR |
-|:--|:--|:--|:--|
-| Laptop | 0.0961 | 0.0858 | 0.89× |
-| Mobile | 0.0301 | 0.2495 | 8.30× |
-| Server | 0.0404 | 0.2868 | 7.10× |
-
-Mobile and server show strong negative transfer. Laptop's ratio below 1 is *not* beneficial transfer: its within-domain baseline is weakest (four workload regimes), and out-of-distribution queries regress to the global label mean, which lies near the laptop mean; the latent distance gap (0.28 within vs. 10.82 across) confirms the queries are not semantically close. In a 3×3 compute-domain matrix every domain is best on its own encoder, with 2.57×–11.56× inflation elsewhere (Fig. 6). These results support domain-specific encoders bridged by a shared architecture, rather than one shared encoder.
-
-![**Fig. 5.** Cross-domain diagnostics in latent space. (a) MMD. (b) Centroid cosine similarity.](figure6.png){width=3.3in}
-
-![**Fig. 6.** Retrieval diagnostic: within-domain vs. C-MAPSS memory RMSE, and 3×3 cross-compute inflation.](figure7.png){width=3.3in}
+This diagnostic asks only whether retrieval can share memory across domains; the compute domains have no failures, and their labels measure stress. In a 3×3 matrix, queries of one domain are encoded by a second domain's encoder and matched to that domain's memory and labels, so query and memory share one latent space. Each domain is best on its own encoder and memory (within-domain RMSE 0.096 laptop, 0.030 mobile, 0.040 server). The other cells inflate error 2.57× and 3.87× for laptop queries (mobile and server memory), 11.56× and 2.66× for mobile queries (laptop and server), and 4.38× and 2.80× for server queries (laptop and mobile). Because foreign labels are different stress composites, part of this is built in: the result confirms that memory must stay partitioned by domain, not that the representations differ intrinsically. An earlier draft also compared C-MAPSS and compute latents by maximum mean discrepancy, cosine similarity and retrieval; those comparisons put vectors from independently trained encoders in one space, so we removed them.
 
 ## System Performance
 
@@ -189,26 +180,40 @@ Mobile and server show strong negative transfer. Laptop's ratio below 1 is *not*
 |:--|:--|
 | World model (C-MAPSS) | 0.63 |
 | pgvector retrieval (k=10, 17,737 vectors) | 1.18 |
+| Machine DNA lookup | 0.96 |
 | Occlusion attribution (14 passes) | 10.40 |
 | Monte Carlo (1,000 rollouts) | 1.60 |
 | End-to-end, C-MAPSS | 21.78 |
 | End-to-end, laptop / mobile / server | 6.70 / 6.84 / 10.49 |
 
-Occlusion attribution dominates; isolated stages sum to 14.8 ms and the remaining 7 ms is inter-stage overhead, chiefly checkouts from two separate database connection pools (a named optimization target). Context-endpoint throughput plateaued near 49 requests/s and the full decision endpoint peaked at 17.4 requests/s with no errors; isolated-process memory was about 282 MB (Fig. 7). Latency is far below standard industrial polling intervals (1–5 s).
+Occlusion attribution dominates latency (Table IV); isolated stages sum to 14.8 ms, and the remaining 7 ms is inter-stage overhead, chiefly checkouts from two database connection pools. Throughput peaked at 49 requests/s for context and 17.4 requests/s for full decisions, with no errors, at about 282 MB of process memory.
 
-![**Fig. 7.** System performance on CPU. (a) Per-stage latency, one C-MAPSS request. (b) Throughput versus concurrent clients.](figure8.png){width=3.3in}
+## Development Defects and Guards
 
-## Verification Methodology and Defects
+We logged 13 defects and 2 near-misses as they were found (a record of practice, not a controlled study); nearly all were a plausible result computed by the wrong method. Table V lists six. Others: scoring all windows instead of the last per unit (baseline RMSE 48.8 instead of 15.4), mixed clipped and raw RUL scales, and retrieval returning the query itself. This revision found one more: the manuscript described a safety override that the code lacks. Each defect now has a permanent regression test, and the adapter conformance suite applies these checks to new machine types.
 
-We logged 13 defects and 2 near-misses; nearly all are a plausible result computed by the wrong method. Examples: a terminal ReLU zeroing RUL for about half of initializations; scoring all windows instead of the last per unit, which inflated a baseline RMSE to 48.8 against a true 15.4 and defeated a promotion gate; clipped and raw RUL scales mixed between subsystems; retrieval returning the query itself; an alphabetical tie-break favoring inaction; an inverted similarity sign; a live API silently routing three domains to an untrained fallback; and an unauthenticated path-traversal file read found only by an independent second review. Practices that caught them: cross-checking against a second measurement, reading raw artifacts, one permanent regression test per defect, hard-coded test thresholds, a queryable trained-or-not flag per domain, and labeling data as simulated, replayed, estimated or measured. The adapter conformance suite applies these checks to any new machine type.
+: TABLE V. Selected defects, how each was detected, and the guard that now prevents it.
+
+| Defect | Detected by | Guard |
+|:--|:--|:--|
+| ReLU output head zeroed RUL for some initializations | Identical zero outputs across seeds | Multi-seed output-range test |
+| Cosine distance used as similarity, inverting confidence | Confidence–error sanity check | Sign test; $r_s$ reported |
+| Alphabetical tie-break favored inaction | Equal-cost borderline cases | Tie-break order test, Eq. (9) |
+| Cross-domain distances tracked padded dimensions | Implausibly uniform distances | Transfer-study unit test |
+| Live API used untrained fallback encoders | Live output vs. evaluation harness | Per-domain trained flag and test |
+| Path traversal in static file serving | Independent security review | Traversal-payload test suite |
 
 # Limitations and Threats to Validity
 
-Only one benchmark subset (FD001) is used. For laptop, mobile and server, memory holds no real run-to-failure cases, encoders are trained predominantly on simulation, and the server path is simulated by default; claims for these domains concern the architecture, not field accuracy. Health-index semantics differ between categories, so cross-domain similarity is a diagnostic, not proof of shared structure. The cost model is illustrative; savings are relative, not financial. Gaussian uncertainty is a simplification, domain-encoder results use one seed per domain, and the PHM score trails the cited baseline. Agent grounding validates structure, not the truth of free-text rationale; human approval remains the final barrier.
+Only FD001 is used. Compute-domain results are synthetic, without failures. Costs, lead times and urgency multipliers are illustrative, and the decision graph does not beat a tuned threshold rule. Confidence is uncalibrated and not compared with Monte Carlo dropout or ensembles. The C-MAPSS health index is label-derived, no hard safety override exists, model promotions can drift, domain encoders have one seed each, and the PHM score trails [2]. Agent grounding checks structure, not the truth of free text; human approval is the final barrier.
 
 # Conclusion and Future Work
 
-ATLAS shows that RUL prediction, memory-grounded explanation and cost-aware decisions can share one architecture across machine types, and that the main risks sit at the seams between components, which our verification practice targets. Future work: MC-dropout and ensemble uncertainty, multi-seed domain encoders, multi-condition C-MAPSS (FD002–FD004), a high-frequency vibration domain, validation on real industrial hardware and a cloud VM, and further protocol adapters (OPC-UA).
+ATLAS shows that RUL prediction, memory-grounded explanation and cost-aware decisions can share one architecture across machine types when encoders and memory stay per domain. Under illustrative costs its decision graph beats fixed and cascaded rules but not a tuned threshold rule, and its confidence ranks errors without being calibrated. Future work: real cost and lead-time data, calibrated uncertainty, a sensor-based health index, multi-condition C-MAPSS (FD002–FD004), a vibration domain and validation on real industrial hardware.
+
+# Code and Data Availability {.unnumbered}
+
+C-MAPSS is publicly available [1]. The ATLAS code, trained checkpoints and the scripts that regenerate Tables I–V are available from the authors on request.
 
 # References {.unnumbered}
 
@@ -231,17 +236,27 @@ ATLAS shows that RUL prediction, memory-grounded explanation and cost-aware deci
 
 [9] K. Kobayashi and S. B. Alam, "Explainable, interpretable and trustworthy AI for intelligent digital twin: Case study on remaining useful life," arXiv:2301.06676, 2023.
 
-[10] M. D. Zeiler and R. Fergus, "Visualizing and understanding convolutional networks," in *Proc. ECCV*, 2014.
+[10] K. T. P. Nguyen and K. Medjaher, "A new dynamic predictive maintenance framework using deep learning for failure prognostics," *Reliab. Eng. Syst. Saf.*, vol. 188, pp. 251–262, 2019, doi:10.1016/j.ress.2019.03.018.
 
-[11] S. M. Lundberg and S.-I. Lee, "A unified approach to interpreting model predictions," in *Proc. NeurIPS*, 2017.
+[11] I. de Pater, A. Reijns, and M. Mitici, "Alarm-based predictive maintenance scheduling for aircraft engines with imperfect Remaining Useful Life prognostics," *Reliab. Eng. Syst. Saf.*, vol. 221, art. 108341, 2022, doi:10.1016/j.ress.2022.108341.
 
-[12] T. Wang, J. Yu, D. Siegel, and J. Lee, "A similarity-based prognostics approach for remaining useful life estimation of engineered systems," in *Proc. Int. Conf. PHM*, 2008.
+[12] M. D. Zeiler and R. Fergus, "Visualizing and understanding convolutional networks," in *Proc. ECCV*, 2014.
 
-[13] M. Joseph and V. Lalwani, "LAMA-Net: Unsupervised domain adaptation via latent alignment and manifold learning for RUL prediction," arXiv:2208.08388, 2022.
+[13] S. M. Lundberg and S.-I. Lee, "A unified approach to interpreting model predictions," in *Proc. NeurIPS*, 2017.
 
-[14] A. Gretton, K. M. Borgwardt, M. J. Rasch, B. Schölkopf, and A. Smola, "A kernel two-sample test," *J. Mach. Learn. Res.*, vol. 13, pp. 723–773, 2012.
+[14] Y. Gal and Z. Ghahramani, "Dropout as a Bayesian approximation: Representing model uncertainty in deep learning," in *Proc. ICML*, PMLR vol. 48, 2016, pp. 1050–1059.
 
-[15] S. J. Pan, I. W. Tsang, J. T. Kwok, and Q. Yang, "Domain adaptation via transfer component analysis," *IEEE Trans. Neural Netw.*, vol. 22, no. 2, pp. 199–210, 2011.
+[15] T. Wang, J. Yu, D. Siegel, and J. Lee, "A similarity-based prognostics approach for remaining useful life estimation of engineered systems," in *Proc. Int. Conf. PHM*, 2008.
 
-[16] B. Veloso, R. P. Ribeiro, J. Gama, and P. M. Pereira, "The MetroPT dataset for predictive maintenance," *Sci. Data*, 2022, doi:10.1038/s41597-022-01877-3.
+[16] P. Lewis *et al.*, "Retrieval-augmented generation for knowledge-intensive NLP tasks," in *Proc. NeurIPS*, 2020.
+
+[17] M. Marseguerra and E. Zio, "Optimizing maintenance and repair policies via a combination of genetic algorithms and Monte Carlo simulation," *Reliab. Eng. Syst. Saf.*, vol. 68, no. 1, pp. 69–83, 2000, doi:10.1016/S0951-8320(00)00007-7.
+
+[18] M. Joseph and V. Lalwani, "LAMA-Net: Unsupervised domain adaptation via latent alignment and manifold learning for RUL prediction," arXiv:2208.08388, 2022.
+
+[19] A. Gretton, K. M. Borgwardt, M. J. Rasch, B. Schölkopf, and A. Smola, "A kernel two-sample test," *J. Mach. Learn. Res.*, vol. 13, pp. 723–773, 2012.
+
+[20] S. J. Pan, I. W. Tsang, J. T. Kwok, and Q. Yang, "Domain adaptation via transfer component analysis," *IEEE Trans. Neural Netw.*, vol. 22, no. 2, pp. 199–210, 2011.
+
+[21] B. Veloso, R. P. Ribeiro, J. Gama, and P. M. Pereira, "The MetroPT dataset for predictive maintenance," *Sci. Data*, 2022, doi:10.1038/s41597-022-01877-3.
 :::

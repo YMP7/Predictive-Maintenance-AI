@@ -63,8 +63,8 @@ h1 = h2 = 0
 for p in doc.paragraphs:
     if p.style.name == "Heading 1":
         t = p.text.strip()
-        if t.lower() == "references":
-            label = "REFERENCES"
+        if t.lower() in ("references", "code and data availability"):  # unnumbered back matter
+            label = t.upper()
         else:
             h1 += 1
             h2 = 0
@@ -145,11 +145,34 @@ last_abs._p.get_or_add_pPr().append(front)
 
 for c in sectPr.findall(qn("w:cols")):
     sectPr.remove(c)
+# body starts on page 1 under the abstract (a missing type means "next page")
+body_type = OxmlElement("w:type")
+body_type.set(qn("w:val"), "continuous")
+sectPr.insert(0, body_type)
 cols = OxmlElement("w:cols")
 cols.set(qn("w:num"), "2")
 cols.set(qn("w:space"), "360")
 grid = sectPr.find(qn("w:docGrid"))
 (grid.addprevious(cols) if grid is not None else sectPr.append(cols))
+
+# Front matter (title + 3-column author block) is hand-laid-out in front_matter.docx; splice it in
+# ahead of the generated abstract, replacing pandoc's Title/Author paragraphs.
+front_src = here / "front_matter.docx"
+if front_src.exists():
+    from docx.opc.constants import RELATIONSHIP_TYPE as RT
+    fdoc = Document(front_src)
+    first_abs = next(p for p in doc.paragraphs if p.style.name == "Abstract")._p
+    for p in [p for p in doc.paragraphs if p.style.name in ("Title", "Author")]:
+        p._p.getparent().remove(p._p)
+    rid = qn("r:id")
+    for el in fdoc.element.body.iterchildren():
+        if el.tag == qn("w:p") and el.xpath("string(.)").strip().startswith("Abstract"):
+            break
+        el = copy.deepcopy(el)
+        for h in el.iter(qn("w:hyperlink")):
+            if h.get(rid):
+                h.set(rid, doc.part.relate_to(fdoc.part.rels[h.get(rid)].target_ref, RT.HYPERLINK, is_external=True))
+        first_abs.addprevious(el)
 
 doc.save(out)
 print("wrote", out)
