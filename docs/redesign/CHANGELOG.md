@@ -1,5 +1,14 @@
 # Redesign Changelog
 
+## Before the first push: MQTT credentials rotated (2026-11-10)
+- **What:** the branch's base commit `1deba76` put the MQTT broker passwords in `.env.example`, and they were the same values the local broker used (the generator's development defaults). Before the branch was ever pushed:
+  - The owner's local broker passwords were rotated to new random values.
+  - `mosquitto/config/pwfile` was regenerated in the main checkout (not committed) and the broker restarted.
+  - `.env.example` now carries `CHANGE_ME` for all six.
+- **Why:** the brief forbids committing secrets. The old values remain in that commit's history but no longer open the broker.
+- **Verified:** the API connects to the broker with the new password; the old values are refused.
+- **Owner action:** the old Docker backend container keeps the old passwords in its environment and is refused by the broker until it is recreated (`docker compose up -d` from the main checkout).
+
 ## P7: Hardening and full verification (2026-11-10)
 - **What:**
   - **Removed** the legacy frontend: the old dashboard and home pages, the old components and views, `twin/machineModels.ts`, the old stylesheet, `check-twin`, and `_legacy/`. 26 files in all, kept in git history; `/dashboard` now redirects to `/fleet`.
