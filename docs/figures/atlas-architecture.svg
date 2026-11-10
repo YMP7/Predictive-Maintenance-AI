@@ -1,0 +1,102 @@
+<svg viewBox="0 0 1000 640" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="atlas-architecture-title atlas-architecture-desc">
+  <title id="atlas-architecture-title">ATLAS architecture, layer by layer</title>
+  <desc id="atlas-architecture-desc">Six layers: machine sources feed the adapter layer, whose normalised readings run through the frozen cognition pipeline; the FastAPI platform serves the results, stores them in TimescaleDB with a hash-chained audit trail, and shows them in the React app.</desc>
+  <style>
+    .bg { fill: #eceef1; }
+    .band { fill: #f7f8fa; }
+    .band2 { fill: #ffffff; }
+    .focal { fill: rgba(31, 95, 191, 0.07); stroke: #1f5fbf; stroke-width: 1; }
+    .rule { stroke: #d2d6dc; stroke-width: 1; }
+    .axis { stroke: #a9b0b9; stroke-width: 1; }
+    .head { fill: #5a6470; }
+    .idx { fill: #5a6470; font: 500 9px 'Geist Mono', ui-monospace, Consolas, monospace; letter-spacing: 0.14em; }
+    .idx-f { fill: #1f5fbf; font: 600 9px 'Geist Mono', ui-monospace, Consolas, monospace; letter-spacing: 0.14em; }
+    .name { fill: #14181d; font: 600 16px 'Geist', 'Inter', system-ui, 'Segoe UI', sans-serif; }
+    .sub { fill: #3d4650; font: 400 11px 'Geist Mono', ui-monospace, Consolas, monospace; }
+    .note { fill: #5a6470; font: 400 10px 'Geist Mono', ui-monospace, Consolas, monospace; letter-spacing: 0.04em; }
+    .note-f { fill: #1f5fbf; font: 500 10px 'Geist Mono', ui-monospace, Consolas, monospace; letter-spacing: 0.04em; }
+    .cap { fill: #5a6470; font: italic 400 12px 'Instrument Serif', Georgia, serif; }
+    .eyebrow { fill: #5a6470; font: 500 9px 'Geist Mono', ui-monospace, Consolas, monospace; letter-spacing: 0.18em; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #101316; }
+      .band { fill: #171b1f; }
+      .band2 { fill: #1e2328; }
+      .focal { fill: rgba(79, 143, 232, 0.12); stroke: #4f8fe8; }
+      .rule { stroke: #2b3239; }
+      .axis { stroke: #46505a; }
+      .head { fill: #8f99a4; }
+      .idx, .note, .cap, .eyebrow { fill: #8f99a4; }
+      .idx-f, .note-f { fill: #6ea8fe; }
+      .name { fill: #e9ecef; }
+      .sub { fill: #bcc4cc; }
+    }
+  </style>
+
+  <rect class="bg" width="1000" height="640"/>
+
+  <!-- Direction column (left margin) -->
+  <text class="eyebrow" x="40" y="72">READINGS</text>
+  <line class="axis" x1="64" y1="84" x2="64" y2="528"/>
+  <polygon class="head" points="60,528 68,528 64,536"/>
+  <text class="eyebrow" x="40" y="556">TO PEOPLE</text>
+
+  <!-- L6 Sources -->
+  <rect class="band2" x="120" y="80" width="840" height="76"/>
+  <line class="rule" x1="120" y1="156" x2="960" y2="156"/>
+  <text class="idx" x="140" y="112">L6</text>
+  <text class="name" x="200" y="112">Machine sources</text>
+  <text class="sub" x="200" y="134">C-MAPSS replay · laptop · phone · server (SSH) · Modbus pump (bridge)</text>
+  <text class="sub" x="200" y="148">any device: HTTP · WebSocket · MQTT · CSV/Parquet · manual entry</text>
+  <text class="note" x="940" y="112" text-anchor="end">per-device tokens, rate limits</text>
+
+  <!-- L5 Adapter layer -->
+  <rect class="band" x="120" y="156" width="840" height="76"/>
+  <line class="rule" x1="120" y1="232" x2="960" y2="232"/>
+  <text class="idx" x="140" y="188">L5</text>
+  <text class="name" x="200" y="188">Adapter layer</text>
+  <text class="sub" x="200" y="210">normalised readings: SI units, valid ranges, quality flags</text>
+  <text class="sub" x="200" y="224">configurable adapter + sensor profiles · asset profiles (3D part bindings)</text>
+  <text class="note" x="940" y="188" text-anchor="end">server/adapters/</text>
+
+  <!-- L4 Cognition (focal) -->
+  <rect class="focal" x="120" y="232" width="840" height="92"/>
+  <text class="idx-f" x="140" y="264">L4</text>
+  <text class="name" x="200" y="264">Cognition pipeline (frozen)</text>
+  <text class="sub" x="200" y="286">World Model (attention LSTM, 32-dim state) → AMKB memory ↔ Machine DNA (16-dim)</text>
+  <text class="sub" x="200" y="301">→ Adaptive Context → RUL → Monte Carlo → Decision Graph → Explainability</text>
+  <text class="sub" x="200" y="316">Learning Engine: batch retrain behind a 3 % validation gate</text>
+  <text class="note-f" x="940" y="264" text-anchor="end">server/atlas/</text>
+
+  <!-- L3 Platform -->
+  <rect class="band2" x="120" y="324" width="840" height="76"/>
+  <line class="rule" x1="120" y1="400" x2="960" y2="400"/>
+  <text class="idx" x="140" y="356">L3</text>
+  <text class="name" x="200" y="356">Platform API (FastAPI)</text>
+  <text class="sub" x="200" y="378">RBAC · CSRF · rate limits · audit middleware · ingest · SSE stream</text>
+  <text class="sub" x="200" y="392">alarms (ISA-18.2) · work orders · cognition trace · model registry</text>
+  <text class="note" x="940" y="356" text-anchor="end">/api, /api/admin</text>
+
+  <!-- L2 Storage -->
+  <rect class="band" x="120" y="400" width="840" height="76"/>
+  <line class="rule" x1="120" y1="476" x2="960" y2="476"/>
+  <text class="idx" x="140" y="432">L2</text>
+  <text class="name" x="200" y="432">Storage</text>
+  <text class="sub" x="200" y="454">TimescaleDB: sensor_readings · alerts · work_orders · cognition_traces</text>
+  <text class="sub" x="200" y="468">audit_events (hash-chained, append-only) + JSONL mirror · model registry files</text>
+  <text class="note" x="940" y="432" text-anchor="end">atlas_app: insert-only audit</text>
+
+  <!-- L1 App -->
+  <rect class="band2" x="120" y="476" width="840" height="76"/>
+  <text class="idx" x="140" y="508">L1</text>
+  <text class="name" x="200" y="508">React app</text>
+  <text class="sub" x="200" y="530">Fleet · Assets (3D) · Alarms · Work orders · Cross-domain · Chat · Evidence</text>
+  <text class="sub" x="200" y="544">admin: Cognition · Models · Onboarding · Devices · Users · Diagnostics</text>
+  <text class="note" x="940" y="508" text-anchor="end">viewer · operator · admin</text>
+
+  <!-- Stack outline -->
+  <rect x="120" y="80" width="840" height="472" fill="none" class="rule"/>
+
+  <!-- Caption -->
+  <text class="eyebrow" x="120" y="596">FOCAL LAYER</text>
+  <text class="cap" x="236" y="596">The cognition pipeline is the frozen core: the redesign added adapters, platform, storage and app around it, never inside it.</text>
+</svg>

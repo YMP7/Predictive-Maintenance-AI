@@ -206,7 +206,7 @@ Legend: **BUILD** = in scope and committed · **FUTURE** = named future work, ne
 - [x] P3: 3D Asset View (teardown), 5 machines, films *(60 fps on Intel UHD; 20-navigation leak check clean; WebGL-off fallback)*
 - [x] P4: product pages wired to real endpoints *(Playwright flows 1-4 and 6 pass; MQTT leg not run; audit chain intact after e2e)*
 - [x] P5: Cognition Dashboard *(10 stage panels, replay, drift, fleet health, model registry; Playwright flow 5 and trace snapshot test pass)*
-- [ ] P6: evidence page, title justification, docs
+- [x] P6: Evidence page and docs *(title matrix with live numbers; every cited path and evidence link checked; attribution faithfulness deletion test added)*
 - [ ] P7: hardening and full verification
 - [ ] Open decision: Modbus RUL model (FUTURE-WORK until approved)
 - [x] Decision: separate non-owner DB role for audit immutability *(both trigger and role, built in P2)*

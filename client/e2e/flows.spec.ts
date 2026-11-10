@@ -203,3 +203,25 @@ test('6. an operator cannot see the Cognition dashboard', async ({ browser }) =>
   const res = await api(page).get('/api/admin/cognition/unit_1/trace?domain=cmapss', { headers: H });
   expect(res.status()).toBe(403);
 });
+
+test('evidence: every number loads and every link opens a real page', async ({ browser }) => {
+  const page = await pageAs(browser, 'admin');
+  await page.goto('/about/evidence');
+  await expect(page.getByRole('heading', { level: 1, name: 'Evidence' })).toBeVisible();
+  for (const term of ['Adaptive', 'Machine Cognition', 'Platform', 'Explainable', 'Predictive Maintenance', 'Heterogeneous Machine Systems']) {
+    await expect(page.getByRole('heading', { level: 2, name: term, exact: true })).toBeVisible();
+  }
+  // live numbers came from the result files, not placeholders
+  await expect(page.getByText(/RMSE 15\.42, MAE 11\.81, PHM score 394\.7/)).toBeVisible();
+  await expect(page.getByText(/Deletion test on 100 FD001 test units/)).toBeVisible();
+  await expect(page.getByText('result file not found on this server')).toHaveCount(0);
+
+  const hrefs = [...new Set(await page.locator('main a[href^="/"]').evaluateAll(as => as.map(a => a.getAttribute('href')!)))];
+  expect(hrefs.length).toBeGreaterThan(8);
+  for (const href of hrefs) {
+    await page.goto(href);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByText('No page at this address'), href).toHaveCount(0);
+    await expect(page.getByText('Not available for your role'), href).toHaveCount(0);
+  }
+});

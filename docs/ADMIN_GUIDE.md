@@ -1,148 +1,123 @@
-# AI Digital Twin - Administrator Guide
+# ATLAS administrator guide
 
-This guide is intended for system administrators, IT staff, and developers who deploy, maintain, and troubleshoot the AI Digital Twin and Predictive Maintenance system.
+For whoever installs and runs ATLAS: the database and its roles, connecting machines, users, models, the audit trail and health. Operators' tasks are in [USER_GUIDE.md](USER_GUIDE.md).
 
----
+## 1. What runs where
 
-## 1. System Requirements
+| Piece | What it is | Default |
+|---|---|---|
+| API and web app | FastAPI (`server/integrated_server.py`), serves the built React app and `/api` | `http://localhost:8000` |
+| Database | TimescaleDB (PostgreSQL 16) in Docker | port 5433 |
+| Broker | Mosquitto, per-device accounts and ACLs (`mosquitto/config/`) | port 1883 |
+| Dev web server | Vite, proxies `/api` to `ATLAS_API_TARGET` | `http://localhost:3000` |
 
-* **Operating System**: Linux (Ubuntu 20.04 LTS or newer recommended) or Windows (10/11 with PowerShell / Git Bash).
-* **Hardware**:
-  * Minimum: 2 Cores CPU, 8 GB RAM, 20 GB Storage.
-  * Recommended: 4 Cores CPU, 16 GB RAM, 50 GB Storage.
-* **Software Dependencies**:
-  * Python 3.8+ (with `pip`)
-  * Node.js v18+ (with `npm` or `pnpm`)
-  * SQLite3 (Included by default in Python standard library)
-  * Optional: Docker and Docker Compose (for containerized deployments)
+Requirements: Python 3.11+ (3.13 tested), Node 20+, Docker. 8 GB RAM is enough; the models run on CPU.
 
----
+## 2. Install
 
-## 2. Installation and Setup
+Follow the [README quick start](../README.md#quick-start): configure `.env`, start the database and broker, run the three migrations (`migrate.py`, `migrate_atlas.py`, `migrate_platform.py`), seed development accounts, start the API, build or serve the web app.
 
-### Step 1: Clone the Repository
+`scripts/migrate_platform.py` is safe to re-run. It creates the audit, ingest, device and trace tables and the alarm and work-order columns, and the role `atlas_app`.
+
+### The application database role
+
+The audit table can only be appended to. Two things enforce that:
+- a trigger that refuses UPDATE and DELETE;
+- the role `atlas_app`, which has only SELECT and INSERT on `audit_events`.
+
+To use it:
+1. Set `ATLAS_APP_DB_PASSWORD` in `.env` and re-run `python scripts/migrate_platform.py`.
+2. Point the API at `atlas_app`: under Docker, set `API_DATABASE_URL`. For an API run directly, set its `DATABASE_URL` and keep the owner URL in `MIGRATION_DATABASE_URL` for migrations.
+
+Until you do this, the API connects as the owner and only the trigger protects the audit table.
+
+### On Windows
+
+Paths that contain `&` (like this repository's) break npm's `.cmd` wrappers. The `client/package.json` scripts call Node directly (`npm run build`, `npm run dev`, `npm run e2e` all work); avoid `npx` in such paths.
+
+## 3. Connect a machine (`/admin/onboarding`)
+
+The wizard has seven steps:
+1. Register the asset id (letters, digits, `_ . -`) and a display name.
+2. Pick the machine type, which sets its 3D model. **Load the register map** fills the channels where ATLAS knows the device (Modbus today).
+3. Pick the protocol and see an example payload.
+4. Map channels: device name, feature name, SI unit, scale and offset, valid range, sampling rate, health weight. Out-of-range values are flagged, never clipped.
+5. Save the profile and watch live samples. Send a test sample to see validation results.
+6. Bind each channel to a 3D part.
+7. Activate. ATLAS issues a device token and shows it **once**; only its SHA-256 hash is stored.
+
+Protocols:
+
+| Protocol | How the device sends | Auth |
+|---|---|---|
+| HTTP | `POST /api/ingest/<asset>` with `{"values": {...}}` or a batch of `samples` | `Authorization: Bearer <device token>` |
+| WebSocket | `ws://<host>:8000/api/ingest/ws/<asset>`, first message `{"token": ...}` | device token |
+| MQTT | topic `factory/<asset>/telemetry` | a broker account for that device in `mosquitto/config` (create it with `scripts/generate_mqtt_passwords.py`; the wizard does not) |
+| Modbus TCP | `python scripts/modbus_bridge.py --machine-id <asset> --host <plc> --port 502` with `ATLAS_DEVICE_TOKEN` set; `--simulate` runs the bundled simulator | device token |
+| CSV / Parquet | `POST /api/admin/ingest/<asset>/upload` (dry run first, then commit) | admin session |
+| Manual | operators' inspection readings, `POST /api/machines/<asset>/manual-readings` | operator session |
+
+Per-device limits: 10 messages per second sustained (burst 20) and 256 KB per push.
+
+**Devices** (`/admin/devices`) shows last seen, messages per minute, error rate and channel quality. **Rotate** issues a new token (the old one stops at once). **Revoke** disconnects the device for good.
+
+## 4. Users and roles (`/admin/users`)
+
+Change a user's role here; you cannot change your own. New accounts are created with `scripts/seed_dev.py` for development, or directly in the `users` table with a bcrypt hash (`server.auth.get_password_hash`). Passwords never pass through the web app.
+
+The server enforces roles:
+- every `/api/admin/*` path is admin-only;
+- writes to alarms and work orders need an operator or admin.
+
+The web app hides what a role cannot use, but the API is the control.
+
+## 5. Models (`/admin/models`, `/admin/cognition`)
+
+- **Registry:** lists each domain's World Model versions with their metrics.
+  - ATLAS archives a checkpoint under `data/models/registry/<domain>/` the first time it sees its content.
+  - **Make active** swaps in an older (or newer) version and reloads it. A reason is required, and the current weights are archived first, so the change can be undone the same way.
+- **Retrain:** runs the Learning Engine on the C-MAPSS training split. A candidate replaces the model only if its validation RMSE is within 3% of the best ever promoted; otherwise production is left alone.
+- **Cognition:** shows the pipeline for any machine.
+  - **Run live trace** stores a trace; the slider replays stored traces.
+  - The drift monitor needs at least 9 stored traces for a machine.
+
+## 6. The audit trail
+
+Every API request, sign-in, ingest batch, inference, decision, alarm and work-order action, model change and UI command is recorded. Records go to `audit_events` (hash-chained) and to a daily JSONL mirror in `logs/audit/`. Details: [AUDIT_TRAIL.md](AUDIT_TRAIL.md).
+
 ```bash
-git clone https://github.com/your-org/ai-digital-twin.git
-cd "ai-digital-twin"
+python scripts/audit_verify.py
+python scripts/audit_export.py --from 2026-11-01 --to 2026-11-10 --category alarm --format csv --out alarms.csv
 ```
 
-### Step 2: Configure Environment Variables
-Copy `.env.example` to `.env` (or create one) and configure the environment variables:
+`audit_verify.py` checks both copies and names the first broken record. Run only one API process per audit folder; a second process writing the same mirror forks the chain. If lines must be set aside, move them to `logs/audit/quarantine/` with the original file and a note, and never delete them. On start-up the API re-inserts any mirror events the database missed.
+
+## 7. Health
+
+- **Readiness:** `GET /api/ready` is public; it returns 503 when degraded. It reports:
+  - database connectivity;
+  - MQTT state;
+  - models loaded;
+  - audit writes pending.
+- **Status:** the header shows *Connected* or *API unreachable* from the same probe.
+- **Diagnostics** (`/admin/diagnostics`): readiness, which RUL models are loaded and their benchmark, and recorded pipeline latency.
+
+## 8. Docker
+
 ```bash
-# Example .env configuration
-PORT=8000
-HOST=0.0.0.0
-LOG_LEVEL=INFO
-LOG_FILE=./logs/agent.log
-DB_PATH=./data/digital_twin.db
-SIMULATION_ENABLED=true
-SIMULATION_INTERVAL=1.0
+docker compose up -d --build
+docker compose ps
 ```
+The API and web app are served at `http://localhost:8000`. Set `ENVIRONMENT=production` behind HTTPS so cookies are marked Secure. HTTPS itself needs a domain and is not configured here.
 
-### Step 3: Install Backend Dependencies
-Install the required Python packages:
-```bash
-pip install -r requirements.txt
-```
+## 9. Troubleshooting
 
-### Step 4: Install Frontend Dependencies
-Navigate to the `client` directory and install the Node modules:
-```bash
-cd client
-npm install
-```
-
----
-
-## 3. Launching Services (Local Development)
-
-### Method A: Single Integrated Server (Recommended)
-You can start the backend API and frontend simulator together using the integrated server script:
-```bash
-python integrated_server.py
-```
-This launches the FastAPI backend on `http://localhost:8000` and automatically initiates sensor telemetry simulation.
-
-### Method B: Separate Front-End Dev Server
-To run the front-end in hot-reload mode:
-```bash
-# Start backend
-python backend_api.py
-
-# In a separate terminal, start frontend
-cd client
-npm run dev
-```
-
-> [!WARNING]
-> **Windows Path & Ampersand Bug Workaround**
->
-> If your project directory path contains space or special characters like an ampersand (`&`), running standard `npm run build` will fail because Windows command wrappers (`.cmd` files) do not handle the ampersand correctly.
->
-> In such environments, bypass the `.cmd` wrappers and call the JS files directly via `node`:
-> * **TypeScript Compile**: `node node_modules/typescript/lib/tsc.js -b`
-> * **Vite Production Build**: `node node_modules/vite/bin/vite.js build`
-
----
-
-## 4. Production Deployment with Docker
-
-The prototype is fully containerized. You can deploy it using Docker and Docker Compose.
-
-### Build and Run with Docker Compose
-```bash
-# Build the images and run containers in detached mode
-docker-compose up --build -d
-
-# Verify containers are running
-docker ps
-```
-The services will be exposed at:
-* Backend API: `http://localhost:8000`
-* Frontend Dashboard: `http://localhost:8000`
-
----
-
-## 5. Monitoring and Maintenance
-
-### Health Checks
-The FastAPI backend exposes a health check endpoint:
-```bash
-curl http://localhost:8000/health
-```
-A healthy response returns: `{"status": "healthy", "timestamp": "..."}`.
-
-### Log Management
-All backend system logs, AI decisions, and warning details are written to the path specified by the `LOG_FILE` environment variable (default: `./logs/agent.log`).
-To tail the logs in real-time:
-```bash
-tail -f logs/agent.log
-```
-
-### Log Rotation (Linux Systems)
-On production environments, configure log rotation by copying the configuration from `scripts/setup_monitoring.sh` to `/etc/logrotate.d/ai-digital-twin` to prevent log files from exhausting disk space.
-
-### SQLite Database Maintenance
-The system stores telemetry data and alert logs in a local SQLite file (default: `./data/digital_twin.db`).
-* **Backup**: Since SQLite supports simple file copying, backup can be performed by copying `./data/digital_twin.db` when the database is idle:
-  ```bash
-  sqlite3 data/digital_twin.db ".backup backup_dt_db.db"
-  ```
-* **Performance**: A cron job can be set up to vacuum the database monthly:
-  ```bash
-  sqlite3 data/digital_twin.db "VACUUM;"
-  ```
-
----
-
-## 6. Troubleshooting
-
-### High CPU Usage
-If Python CPU utilization spikes:
-1. Ensure the simulation interval is not set too low. An interval of `< 0.1` seconds puts heavy load on SQLite I/O.
-2. Check if multiple simulation threads have been spawned by querying `/health` or restarting the service.
-
-### SQLite Database Locked Error
-If the database gets locked during concurrent writes:
-1. The backend uses thread-safe SQLite connection handling, but direct external database manipulations during simulation should be avoided.
-2. Consider increasing the SQLite timeout parameter or restarting the backend server.
+| Symptom | Check |
+|---|---|
+| API will not start: `JWT_SECRET_KEY` | Set it in `.env` (`openssl rand -hex 32`) |
+| Header says "API unreachable" | `curl http://localhost:8000/api/ready`; the database and broker containers (`docker compose ps`) |
+| A device's pushes return 401 | Token rotated or revoked; issue a new one on Devices |
+| A device's pushes return 429 | It sends faster than 10/s; batch samples instead |
+| Machine shows "No data" | Devices page: last seen and error rate; the profile's channel names must match what the device sends |
+| Sign-in returns "Too many sign-in attempts" | 5 attempts per minute per address; wait a minute |
+| `audit_verify` reports BROKEN | It names the first bad record; see section 6 before touching any file |

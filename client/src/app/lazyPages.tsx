@@ -34,6 +34,7 @@ const UsersImpl = lazy(() => import('../pages/ops/AdminPages').then(m => ({ defa
 const DevicesImpl = lazy(() => import('../pages/ops/AdminPages').then(m => ({ default: m.DevicesPage })));
 const CognitionImpl = lazy(() => import('../pages/ops/CognitionPage'));
 const ModelsImpl = lazy(() => import('../pages/ops/ModelsPage'));
+const EvidenceImpl = lazy(() => import('../pages/ops/EvidencePage'));
 const DiagnosticsImpl = lazy(() => import('../pages/ops/AdminPages').then(m => ({ default: m.DiagnosticsPage })));
 
 export function LoginPage() {
@@ -68,6 +69,9 @@ export function CognitionPage() {
 }
 export function ModelsPage() {
   return suspended(ModelsImpl);
+}
+export function EvidencePage() {
+  return suspended(EvidenceImpl);
 }
 export function DiagnosticsPage() {
   return suspended(DiagnosticsImpl);

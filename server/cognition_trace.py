@@ -321,7 +321,7 @@ def build_trace(domain: str, machine_id: str, k: int, seed: int) -> Dict[str, An
     return _jsonable(trace)
 
 
-@router.get("/api/admin/cognition/{machine_id}/trace")
+@router.get("/api/admin/cognition/{machine_id}/trace", summary="Every pipeline stage's output and latency for a machine; ?ts= replays a stored trace")
 def get_trace(
     machine_id: str,
     domain: str = Query(..., pattern=r"^[A-Za-z0-9_.-]{1,64}$"),

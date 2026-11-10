@@ -119,7 +119,7 @@ class ContextQueryRequest(BaseModel):
     )
     k: int = Field(10, ge=1, le=100, description="Number of neighbors to retrieve")
 
-@app.post("/api/context", response_model=AdaptiveContext)
+@app.post("/api/context", response_model=AdaptiveContext, summary="Adaptive context for a window: predicted RUL and AMKB neighbours")
 def get_context(req: ContextQueryRequest):
     if _ace is None:
         raise HTTPException(status_code=503, detail="ACE not initialized")
@@ -143,7 +143,7 @@ def get_context(req: ContextQueryRequest):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@app.post("/api/explain")
+@app.post("/api/explain", summary="Explanation for a window: occlusion attribution, justification, AMKB citations")
 def post_explain(req: ContextQueryRequest):
     if _ace is None or _explain_engine is None:
         raise HTTPException(status_code=503, detail="Atlas engines not initialized")
@@ -168,7 +168,7 @@ def post_explain(req: ContextQueryRequest):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@app.post("/api/decide")
+@app.post("/api/decide", summary="Decision Graph recommendation from Monte Carlo action outcomes")
 def post_decide(req: ContextQueryRequest):
     if _ace is None or _explain_engine is None or _simulation_engine is None or _decision_graph is None:
         raise HTTPException(status_code=503, detail="Atlas engines not initialized")
@@ -296,7 +296,7 @@ def get_learning_history(domain: str = "cmapss", limit: int = Query(20, ge=1, le
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/dna/{domain}/{machine_id}")
+@app.get("/api/dna/{domain}/{machine_id}", summary="Stored 16-dim Machine DNA of one unit")
 def get_dna(domain: str, machine_id: str):
     if _dna_engine is None:
         raise HTTPException(status_code=503, detail="DNA Engine not initialized")

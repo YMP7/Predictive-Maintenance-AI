@@ -129,6 +129,20 @@ One entry per non-trivial decision. Format: context, options, choice, consequenc
 - **Context:** The dataviz default diverging pair is blue against red. In this product red means an ISA-18.2 critical alarm.
 - **Choice:** Diverging blue against brown with a grey midpoint (`--viz-neg`, `--viz-pos`, `--viz-mid`), single-series marks in the accent blue. Light and dark steps were each run through the dataviz validator against their panel surface and pass every check (lightness, chroma, CVD separation, normal-vision floor, contrast). Each chart has a hover readout and a table of its values.
 
+## ADR-028: Evidence comes from result files, never from the page (P6)
+- **Context:** D7 asks for a title matrix backed by evidence, with anything unbacked marked FUTURE-WORK. The plan's "Explainable" evidence, an attribution faithfulness check, did not exist yet.
+- **Choice:**
+  - `scripts/attribution_faithfulness.py` runs a deletion test on the 100 FD001 test units.
+    - It masks the top-k sensors ranked by the Explainability Engine's own occlusion attribution against k random sensors (20 draws, seed 42), using the same zero-column occlusion.
+    - It only calls public methods of the frozen pipeline, and writes `data/attribution_faithfulness.json`, served at `/api/atlas/research/attribution-faithfulness`.
+  - `/about/evidence` renders every number from the result files through the API and shows a plain "result file not found" note instead of any default.
+  - `docs/TITLE_JUSTIFICATION.md` holds the same matrix with the command that reproduces each number.
+  - Tests check that every repository path either document cites exists. An e2e test checks that every number loads and every in-product link opens a real page.
+- **Consequences:**
+  - The k = 1 deletion result is true by construction (the top-ranked sensor is the one whose single masking moves RUL most); the doc and page lean on k ≥ 2 (top-2: 35.4 vs 16.8 cycles, 90% of units; top-3: 42.4 vs 23.3, 94%).
+  - The ablation's 47% cost reduction is always shown with its 281 cycles of early replacement.
+  - Unbacked cells (richer retrain history, attribution beyond C-MAPSS, Modbus RUL, HTTPS) are labelled FUTURE-WORK.
+
 ## ADR-004: PCA, not UMAP (P0)
 - **Context:** D5 asks for a "PCA/UMAP" 2-D projection of 32-dim states.
 - **Choice:** PCA via numpy SVD. It avoids a new heavy dependency (umap-learn pulls in numba) and is deterministic.

@@ -248,12 +248,12 @@ async def system_status():
         "timestamp": utc_timestamp()
     }
 
-@app.get("/api/dashboard/summary")
+@app.get("/api/dashboard/summary", summary="Simulator machines: status counts, alert counts, average RUL")
 async def get_dashboard_summary():
     summary = service.get_dashboard_summary()
     return JSONResponse(content=summary)
 
-@app.get("/api/machines")
+@app.get("/api/machines", summary="Registered simulator machines with their configuration")
 async def get_all_machines():
     machines = service.get_all_machines_info()
     return JSONResponse(content=machines)
@@ -294,7 +294,7 @@ def update_machine(machine_id: str, payload: MachineConfig):
     return {"machine_id": machine_id, **payload.model_dump()}
 
 
-@app.delete("/api/admin/machines/{machine_id}", dependencies=[Depends(require_admin)])
+@app.delete("/api/admin/machines/{machine_id}", dependencies=[Depends(require_admin)], summary="Remove a machine from the registry (stored history is kept)")
 def delete_machine(machine_id: str):
     before: Dict[str, Any] = {}
 
@@ -308,14 +308,14 @@ def delete_machine(machine_id: str):
     _audit.audit(category="admin", action="machine.delete", target=machine_id, details={"before": before, "after": None})
     return {"deleted": machine_id}
 
-@app.get("/api/machines/{machine_id}/status")
+@app.get("/api/machines/{machine_id}/status", summary="Latest status, fault type and RUL of one simulator machine")
 async def get_machine_status(machine_id: str):
     status = service.get_machine_status(machine_id)
     if status is None:
         raise HTTPException(status_code=404, detail="Machine not found")
     return JSONResponse(content=status)
 
-@app.get("/api/machines/{machine_id}/telemetry")
+@app.get("/api/machines/{machine_id}/telemetry", summary="Recent telemetry readings of one simulator machine")
 async def get_machine_telemetry(
     machine_id: str,
     limit: int = Query(default=100, ge=1, le=1000),
@@ -324,18 +324,18 @@ async def get_machine_telemetry(
     telemetry = service.get_machine_telemetry(machine_id, limit=limit)
     return JSONResponse(content=telemetry)
 
-@app.get("/api/machines/{machine_id}/trends")
+@app.get("/api/machines/{machine_id}/trends", summary="Vibration, temperature and current trends with min, mean and max")
 async def get_machine_trends(machine_id: str):
     require_machine(machine_id)
     trends = service.get_machine_trends(machine_id)
     return JSONResponse(content=trends)
 
-@app.get("/api/alerts/recent")
+@app.get("/api/alerts/recent", summary="Recent alerts from memory (legacy; /api/alarms carries the ISA-18.2 state)")
 async def get_recent_alerts(limit: int = Query(default=50, ge=1, le=500)):
     alerts = service.get_recent_alerts(limit=limit)
     return JSONResponse(content=alerts)
 
-@app.get("/api/alerts/machine/{machine_id}")
+@app.get("/api/alerts/machine/{machine_id}", summary="Recent alerts of one machine (legacy)")
 async def get_machine_alerts(
     machine_id: str,
     limit: int = Query(default=20, ge=1, le=500),
@@ -653,6 +653,18 @@ def atlas_ablations():
         with open(json_path, "r", encoding="utf-8") as f:
             return JSONResponse(content=json.load(f))
     raise HTTPException(status_code=404, detail="Ablation results not found")
+
+
+@app.get("/api/atlas/research/attribution-faithfulness",
+         summary="Deletion test of the occlusion attribution on the FD001 test set (scripts/attribution_faithfulness.py)")
+def atlas_attribution_faithfulness():
+    from pathlib import Path
+    import json
+    json_path = Path(__file__).resolve().parent.parent / "data" / "attribution_faithfulness.json"
+    if json_path.exists():
+        with open(json_path, "r", encoding="utf-8") as f:
+            return JSONResponse(content=json.load(f))
+    raise HTTPException(status_code=404, detail="Run scripts/attribution_faithfulness.py first")
 
 
 @app.get("/api/atlas/evaluation/summary")

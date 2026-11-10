@@ -1,0 +1,39 @@
+{
+  "dataset": "NASA C-MAPSS FD001 test set, terminal 30-cycle window per unit",
+  "model": "best_model.pt",
+  "method": "Deletion test: mask the top-k sensors ranked by occlusion attribution vs k random sensors (mean of 20 draws); occlusion = zeroed column, as in the Explainability Engine",
+  "seed": 42,
+  "k_values": [
+    1,
+    2,
+    3,
+    5
+  ],
+  "summary": {
+    "k1": {
+      "mean_abs_delta_top": 23.9491,
+      "mean_abs_delta_random": 9.7891,
+      "top_beats_random_pct": 100.0,
+      "n_units": 100
+    },
+    "k2": {
+      "mean_abs_delta_top": 35.4216,
+      "mean_abs_delta_random": 16.7819,
+      "top_beats_random_pct": 90.0,
+      "n_units": 100
+    },
+    "k3": {
+      "mean_abs_delta_top": 42.3612,
+      "mean_abs_delta_random": 23.2604,
+      "top_beats_random_pct": 94.0,
+      "n_units": 100
+    },
+    "k5": {
+      "mean_abs_delta_top": 45.5822,
+      "mean_abs_delta_random": 34.8121,
+      "top_beats_random_pct": 89.0,
+      "n_units": 100
+    }
+  },
+  "timestamp": "2026-11-10T02:43:24.640588Z"
+}

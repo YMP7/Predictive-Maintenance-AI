@@ -1,5 +1,29 @@
 # Redesign Changelog
 
+## P6: Evidence page and documentation (2026-11-10)
+- **What:**
+  - **`/about/evidence`** (all roles) and **`docs/TITLE_JUSTIFICATION.md`:** each title term with its claim, the files that implement it, where to see it in the product, and the number behind it.
+    - Numbers are read live from the recorded result files.
+    - Unbacked cells are labelled FUTURE-WORK.
+    - Each number comes with the command that reproduces it.
+  - **Attribution faithfulness:** `scripts/attribution_faithfulness.py`, a deletion test on the 100 FD001 test units, served at `/api/atlas/research/attribution-faithfulness`. Masking the top-2 attributed sensors moves RUL 35.4 cycles against 16.8 for random pairs (90% of units); top-3 gives 42.4 vs 23.3 (94%).
+  - **README rewritten:** locked title, the matrix with numbers, the page list, architecture, accurate quick start (dev URL is port 3000), security, a GIF from the asset tour film.
+  - **Guides:** `docs/USER_GUIDE.md` and `docs/ADMIN_GUIDE.md` rewritten for the routed product (the admin guide still described SQLite).
+  - **Final diagram:** `docs/figures/atlas-architecture.svg`, a six-layer stack in the product's tokens, light and dark.
+  - **OpenAPI:** the 13 operations without a summary now have one.
+  - **Clean-up:** the phase placeholder component is removed, now that every route is built.
+- **Why:** D7 and D8; ADR-028.
+- **Verified:**
+  - pytest **440 passed** (was 432; new: deletion-test maths, the served faithfulness result, every path cited by the doc and the page exists, every API operation described). Ruff is clean.
+  - `tsc -b` clean; eslint 0 errors (40 legacy warnings); initial JS 100 KB gz; Evidence a 3.4 KB gz lazy chunk.
+  - Playwright: 10 pass, including a new check that every Evidence number loads from its result file and every link on the page opens a real page for an admin.
+  - `audit_verify.py`: JSONL and database intact (5,149 events, same tip).
+  - Screens: `docs/media/screens/p6-evidence-*.png`.
+- **For P7:**
+  - `audit_verify.py` should compare only up to the shared tip while the API is writing; one run read the mirror and the database an event apart.
+  - A single-writer lock for the audit mirror.
+- **Not verified:** the README as rendered on GitHub (the SVG's dark-mode styles depend on the viewer honouring `prefers-color-scheme` inside an image).
+
 ## P5: Cognition Dashboard and model registry (2026-11-10)
 - **What:**
   - **`/admin/cognition`** (admin only), for any machine and stored time:

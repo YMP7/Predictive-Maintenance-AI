@@ -13,6 +13,7 @@ import {
   CrossDomainPage,
   DevicesPage,
   DiagnosticsPage,
+  EvidencePage,
   FleetPage,
   Gallery,
   LegacyDashboard,
@@ -24,10 +25,9 @@ import {
   UsersPage,
   WorkOrdersPage,
 } from './lazyPages';
-import { NotFoundPage, Pending } from './Pending';
+import { NotFoundPage } from './Pending';
 import { RequireRole, RequireSession } from './session';
 
-const pending = (title: string, purpose: string, phase: string, builds: string[]) => <Pending title={title} purpose={purpose} phase={phase} builds={builds} />;
 
 const productRoutes = [
   { index: true, element: <Navigate to="/fleet" replace /> },
@@ -46,7 +46,7 @@ const productRoutes = [
       </RequireRole>
     ),
   },
-  { path: 'about/evidence', element: pending('Evidence', 'Each word of the title, the feature that implements it, and the number that proves it.', 'P6', ['title justification matrix', 'live links into the product']) },
+  { path: 'about/evidence', element: <EvidencePage /> },
   {
     path: 'admin',
     element: (
