@@ -235,6 +235,23 @@
 }
 .ax-table th > span,
 .ax-table th > button { display: flex; align-items: center; gap: 0.25rem; width: 100%; padding: var(--space-2) var(--space-3); }
+/* Plain-text header cells (tables written without DataTable) get the same inset as DataTable's inner span. */
+.ax-table thead th:not(:has(> span, > button)) { padding: var(--space-2) var(--space-3); }
+/* Row headers (<th scope="row">) sit in the body: same box and rule as a data cell, not a sticky column header. */
+.ax-table tbody th {
+  position: static;
+  padding: 0 var(--space-3);
+  height: var(--row-h, 2.25rem);
+  background: none;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+.ax-table tbody tr:last-child th { border-bottom: 0; }
+/* First column lines up with the panel heading's inset. */
+.ax-table thead th:first-child:not(:has(> span, > button)),
+.ax-table tbody :is(th, td):first-child { padding-left: var(--space-4); }
 .ax-table th > button { border: 0; background: none; color: inherit; font: inherit; text-align: inherit; cursor: pointer; }
 .ax-table th > button:hover { color: var(--ink); }
 .ax-table th[data-align="right"] > * { justify-content: flex-end; }
