@@ -10,6 +10,7 @@ venv/
 env/
 logs/
 data/
+!data/models/
 client/node_modules/
 client/dist/
 client/.vite/

@@ -1,11 +1,30 @@
 import os
 import json
 import math
+import logging
 import threading
 from copy import deepcopy
 import numpy as np
 from datetime import datetime, timezone
 from typing import Dict, List, Tuple, Optional
+
+from server.fault_classifier import FaultClassifier, arbitrate
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_THRESHOLDS = {
+    "vibration": {"warning": 1.5, "critical": 3.0},
+    "temperature": {"warning": 60.0, "critical": 75.0},
+    "current": {"warning": 3.5, "critical": 4.5},
+}
+
+RECOMMENDATIONS = {
+    "Bearing Wear": "Lubricate bearings and schedule diagnostic verification.",
+    "Misalignment": "Perform shaft alignment correction procedures.",
+    "Rotor Imbalance": "Balance the rotor and check for loose or missing rotating mass.",
+    "Overheating": "Check cooling systems and reduce machine load.",
+    "Electrical Fault": "Inspect electrical connections and check current draw safety parameters.",
+}
 
 
 def utc_timestamp() -> str:
@@ -25,14 +44,13 @@ class FaultDetector:
             except Exception:
                 pass
 
+    def thresholds_for(self, machine_id: str) -> Dict:
+        return self.thresholds.get(machine_id, DEFAULT_THRESHOLDS)
+
     def detect_fault(self, reading: Dict) -> Tuple[str, List[str]]:
         machine_id = reading.get("machine_id", "M001")
-        m_thresh = self.thresholds.get(machine_id, {
-            "vibration": {"warning": 1.5, "critical": 3.0},
-            "temperature": {"warning": 60.0, "critical": 75.0},
-            "current": {"warning": 3.5, "critical": 4.5}
-        })
-        
+        m_thresh = self.thresholds_for(machine_id)
+
         vibration = reading.get("vibration")
         if not isinstance(vibration, dict):
             raise ValueError("reading.vibration must be an object")
@@ -201,9 +219,12 @@ class AlertGenerator:
     def __init__(self):
         pass
 
-    def generate_alerts(self, machine_id: str, fault_detector: FaultDetector, rul_estimator: RULEstimator, reading: Dict) -> List[Dict]:
+    def generate_alerts(self, machine_id: str, fault_detector: FaultDetector, rul_estimator: RULEstimator, reading: Dict,
+                        fault_type: Optional[str] = None) -> List[Dict]:
+        """``fault_type`` overrides the rule label (severity always comes from the rules)."""
         alerts = []
-        fault_type, issues = fault_detector.detect_fault(reading)
+        rule_fault, issues = fault_detector.detect_fault(reading)
+        fault_type = fault_type or rule_fault
         rul_info = rul_estimator.estimate_rul(machine_id)
         
         # 1. Fault Detection Alerts
@@ -248,6 +269,7 @@ class AIAgent:
         self.fault_detector = FaultDetector()
         self.rul_estimator = RULEstimator()
         self.alert_generator = AlertGenerator()
+        self.fault_classifier = FaultClassifier.load()
         self._machine_statuses: Dict[str, Dict] = {}
         self._lock = threading.RLock()
         
@@ -259,10 +281,26 @@ class AIAgent:
         if not isinstance(machine_id, str) or not machine_id.strip():
             raise ValueError("reading.machine_id must be a non-empty string")
 
-        fault_type, detected_issues = self.fault_detector.detect_fault(reading)
+        rule_fault, detected_issues = self.fault_detector.detect_fault(reading)
+        probabilities = None
+        if self.fault_classifier is not None:
+            try:
+                probabilities = self.fault_classifier.predict_proba(
+                    reading, self.fault_detector.thresholds_for(machine_id))
+            except Exception:
+                # A model failure must never cost the rule-based status and alerts.
+                logger.exception("Fault classifier failed on %s; using rules only", machine_id)
+        fault_type, diagnosis_source = arbitrate(rule_fault, bool(detected_issues), probabilities)
+        if probabilities is not None:
+            model_top = max(probabilities, key=probabilities.get)
+            if model_top != fault_type:
+                logger.info("Diagnosis disagreement on %s: rules=%s model=%s (p=%.2f), kept %s",
+                            machine_id, rule_fault, model_top, probabilities[model_top], fault_type)
+
         self.rul_estimator.update_degradation(machine_id, reading)
         rul_info = self.rul_estimator.estimate_rul(machine_id)
-        alerts = self.alert_generator.generate_alerts(machine_id, self.fault_detector, self.rul_estimator, reading)
+        alerts = self.alert_generator.generate_alerts(machine_id, self.fault_detector, self.rul_estimator, reading,
+                                                      fault_type=fault_type)
 
         status = "Normal"
         if any("Critical" in issue for issue in detected_issues):
@@ -270,26 +308,19 @@ class AIAgent:
         elif detected_issues:
             status = "Warning"
 
-        recommendation = "No action required"
-        if fault_type == "Bearing Wear":
-            recommendation = "Lubricate bearings and schedule diagnostic verification."
-        elif fault_type == "Misalignment":
-            recommendation = "Perform shaft alignment correction procedures."
-        elif fault_type == "Overheating":
-            recommendation = "Check cooling systems and reduce machine load."
-        elif fault_type == "Electrical Fault":
-            recommendation = "Inspect electrical connections and check current draw safety parameters."
-            
         result = {
             "machine_id": machine_id,
             "timestamp": reading.get("timestamp", utc_timestamp()),
             "status": status,
             "fault_type": fault_type,
+            "rule_fault_type": rule_fault,
+            "fault_probabilities": probabilities,
+            "diagnosis_source": diagnosis_source,
             "detected_issues": detected_issues,
             "rul_days": rul_info.get("rul_days"),
             "rul_confidence": rul_info.get("confidence", 0.0),
             "alerts": alerts,
-            "recommendation": recommendation
+            "recommendation": RECOMMENDATIONS.get(fault_type, "No action required")
         }
 
         with self._lock:

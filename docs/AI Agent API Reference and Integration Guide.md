@@ -231,7 +231,7 @@ Fault request body:
 }
 ```
 
-Valid modes: `normal`, `bearing_wear`, `misalignment`, `overheating`, and `electrical_fault`.
+Valid modes: `normal`, `bearing_wear`, `misalignment`, `rotor_imbalance`, `overheating`, and `electrical_fault`.
 
 If `API_KEY` is non-empty, control endpoints require:
 

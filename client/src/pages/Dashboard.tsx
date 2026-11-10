@@ -496,6 +496,25 @@ export const Dashboard: React.FC = () => {
                       </div>
                     </div>
 
+                    {currentMachine.fault_probabilities && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                          FAULT CLASSIFIER // label from {currentMachine.diagnosis_source === 'model' ? 'model' : 'rules'}
+                        </div>
+                        {Object.entries(currentMachine.fault_probabilities)
+                          .sort(([, a], [, b]) => b - a)
+                          .map(([label, p]) => (
+                            <div key={label} style={{ display: 'grid', gridTemplateColumns: '120px 1fr 44px', alignItems: 'center', gap: '8px', fontSize: '11px', fontFamily: 'var(--font-mono)' }}>
+                              <span style={{ color: label === currentMachine.fault_type ? 'var(--text-bright)' : 'var(--text-muted)' }}>{label}</span>
+                              <div style={{ height: '6px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-xs)' }}>
+                                <div style={{ width: `${Math.round(p * 100)}%`, height: '100%', background: 'var(--accent-cyan)', borderRadius: 'var(--radius-xs)' }} />
+                              </div>
+                              <span style={{ color: 'var(--text-primary)', textAlign: 'right' }}>{Math.round(p * 100)}%</span>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+
                     {/* Sensor Metric Tiles */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                       <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
@@ -547,7 +566,14 @@ export const Dashboard: React.FC = () => {
                           {t.faultInjection} (ADMIN PRIVILEGE)
                         </div>
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          {['Bearing Wear', 'Imbalance', 'Overheating', 'Misalignment', 'Normal'].map((mode) => (
+                          {([
+                            ['bearing_wear', 'Bearing Wear'],
+                            ['rotor_imbalance', 'Rotor Imbalance'],
+                            ['overheating', 'Overheating'],
+                            ['misalignment', 'Misalignment'],
+                            ['electrical_fault', 'Electrical Fault'],
+                            ['normal', 'Normal'],
+                          ] as const).map(([mode, label]) => (
                             <button
                               key={mode}
                               onClick={() => handleInjectFault(mode)}
@@ -562,7 +588,7 @@ export const Dashboard: React.FC = () => {
                                 cursor: 'pointer'
                               }}
                             >
-                              {mode}
+                              {label}
                             </button>
                           ))}
                         </div>

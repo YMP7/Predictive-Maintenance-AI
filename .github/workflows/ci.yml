@@ -94,7 +94,7 @@ jobs:
     services:
       timescaledb:
         # Same image as docker-compose.yml so CI and local dev match.
-        image: timescale/timescaledb:latest-pg16
+        image: timescale/timescaledb:2.28.2-pg16
         env:
           POSTGRES_DB: digital_twin
           POSTGRES_USER: dtwin
@@ -144,6 +144,11 @@ jobs:
         python scripts/migrate.py || { echo "Core migration failed"; exit 1; }
         python scripts/migrate_atlas.py || { echo "ATLAS migration failed"; exit 1; }
         python scripts/seed_dev.py || { echo "Seeding failed"; exit 1; }
+
+    - name: Re-run migrations on the populated database (must be idempotent)
+      run: |
+        python scripts/migrate.py || { echo "Core migration is not re-runnable"; exit 1; }
+        python scripts/migrate_atlas.py || { echo "ATLAS migration is not re-runnable"; exit 1; }
 
     - name: Verify database schema
       run: PGPASSWORD="ci-${{ github.run_id }}-${{ github.run_attempt }}" psql -h localhost -U dtwin -d digital_twin -c "\dt"

@@ -199,9 +199,9 @@ def post_decide(req: ContextQueryRequest):
 class RetrainRequest(BaseModel):
     domain: str = "cmapss"
     trigger_reason: str = "manual"
-    epochs: int = 5
-    batch_size: int = 128
-    lr: float = 1e-3
+    epochs: int = Field(5, ge=1, le=50)
+    batch_size: int = Field(128, ge=1, le=1024)
+    lr: float = Field(1e-3, gt=0, le=1.0)
 
 
 @app.post("/api/learn/retrain")
