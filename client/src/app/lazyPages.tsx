@@ -32,6 +32,8 @@ const ChatImpl = lazy(() => import('../pages/ops/ChatPage'));
 const OnboardingImpl = lazy(() => import('../pages/ops/OnboardingPage'));
 const UsersImpl = lazy(() => import('../pages/ops/AdminPages').then(m => ({ default: m.UsersPage })));
 const DevicesImpl = lazy(() => import('../pages/ops/AdminPages').then(m => ({ default: m.DevicesPage })));
+const CognitionImpl = lazy(() => import('../pages/ops/CognitionPage'));
+const ModelsImpl = lazy(() => import('../pages/ops/ModelsPage'));
 const DiagnosticsImpl = lazy(() => import('../pages/ops/AdminPages').then(m => ({ default: m.DiagnosticsPage })));
 
 export function LoginPage() {
@@ -60,6 +62,12 @@ export function UsersPage() {
 }
 export function DevicesPage() {
   return suspended(DevicesImpl);
+}
+export function CognitionPage() {
+  return suspended(CognitionImpl);
+}
+export function ModelsPage() {
+  return suspended(ModelsImpl);
 }
 export function DiagnosticsPage() {
   return suspended(DiagnosticsImpl);

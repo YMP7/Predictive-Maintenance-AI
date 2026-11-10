@@ -62,6 +62,14 @@ def model_ref(domain: str) -> Dict[str, Optional[str]]:
     return {"model": None, "version": None}
 
 
+def truth_cap(domain: str) -> Optional[float]:
+    """RUL cap of run-to-failure domains (C-MAPSS: 125 cycles), None elsewhere."""
+    from server.adapters.domain_profile import get_profile
+
+    p = get_profile(domain)
+    return float(p.rul_scale) if p.run_to_failure and p.rul_scale else None
+
+
 def rul_band(mean: float, variance: float) -> Dict[str, float]:
     std = max(float(np.sqrt(max(variance, 0.0))), 1e-3)  # same floor as SimulationEngine
     return {"mean": float(mean), "std": std, "p10": max(0.0, float(mean) - Z90 * std), "p90": float(mean) + Z90 * std}
@@ -90,6 +98,24 @@ class MemoryTraceStore:
                     and _parse_ts(t["ts"]) <= ts]
         return hits[-1] if hits else None
 
+    def history(self, domain: str, machine_id: str, limit: int) -> List[Dict[str, Any]]:
+        with self._lock:
+            hits = [t for t in self.items if t["domain"] == domain and t["machine_id"] == machine_id]
+        return sorted(hits, key=lambda t: t["ts"])[-limit:]
+
+    def summary(self) -> List[Dict[str, Any]]:
+        with self._lock:
+            items = list(self.items)
+        out: Dict[str, Dict[str, Any]] = {}
+        for t in items:
+            r = out.setdefault(t["domain"], {"domain": t["domain"], "traces": 0, "machines": set(), "lat": [], "last_trace": None})
+            r["traces"] += 1
+            r["machines"].add(t["machine_id"])
+            r["lat"].append(t.get("total_latency_ms") or 0.0)
+            r["last_trace"] = max(r["last_trace"] or t["ts"], t["ts"])
+        return [{"domain": d, "traces": r["traces"], "machines": len(r["machines"]),
+                 "mean_latency_ms": sum(r["lat"]) / len(r["lat"]), "last_trace": r["last_trace"]} for d, r in out.items()]
+
 
 class DbTraceStore:
     def save(self, trace: Dict[str, Any]) -> None:
@@ -104,6 +130,22 @@ class DbTraceStore:
             row = conn.execute("SELECT trace FROM cognition_traces WHERE domain = %s AND machine_id = %s AND time <= %s "
                                "ORDER BY time DESC LIMIT 1", (domain, machine_id, ts)).fetchone()
         return row[0] if row else None
+
+    def history(self, domain: str, machine_id: str, limit: int) -> List[Dict[str, Any]]:
+        from server.database import pool
+        with pool.connection() as conn:
+            rows = conn.execute("SELECT trace FROM cognition_traces WHERE domain = %s AND machine_id = %s "
+                                "ORDER BY time DESC LIMIT %s", (domain, machine_id, limit)).fetchall()
+        return [r[0] for r in reversed(rows)]
+
+    def summary(self) -> List[Dict[str, Any]]:
+        from server.database import pool
+        with pool.connection() as conn:
+            rows = conn.execute("SELECT domain, count(*), count(DISTINCT machine_id), "
+                                "avg((trace->>'total_latency_ms')::float), max(time) FROM cognition_traces "
+                                "GROUP BY domain").fetchall()
+        return [{"domain": r[0], "traces": r[1], "machines": r[2], "mean_latency_ms": r[3],
+                 "last_trace": r[4].isoformat() if r[4] else None} for r in rows]
 
 
 _STORE: Any = None
@@ -210,7 +252,7 @@ def build_trace(domain: str, machine_id: str, k: int, seed: int) -> Dict[str, An
         if dna is None:
             return {"dna": None, "reason": "No stored Machine DNA for this unit", "siblings": [], "drift": None}
         sibs = api._dna_engine.retrieve_similar(np.asarray(dna), k=5, domain=domain)
-        return {"dna": np.asarray(dna).tolist(), "drift": None, "drift_reason": "Baseline drift is computed in P5",
+        return {"dna": np.asarray(dna).tolist(), "drift": None, "drift_reason": "Drift against the first recorded trace: GET /api/admin/cognition/{id}/history",
                 "siblings": [{"machine_id": getattr(s, "machine_id", None), "distance": getattr(s, "similarity", None)}
                              for s in sibs if getattr(s, "machine_id", None) != machine_id]}
 
@@ -231,8 +273,12 @@ def build_trace(domain: str, machine_id: str, k: int, seed: int) -> Dict[str, An
     def rul_stage():
         band = rul_band(context.predicted_rul, variance)
         truth = getattr(reading, "rul_label", None)
-        return {**band, "neighbor_variance": variance, "ground_truth": truth,
-                "error": None if truth is None else band["mean"] - float(truth)}
+        cap = truth_cap(domain)
+        capped = None if truth is None else (min(float(truth), cap) if cap else float(truth))
+        # The model is trained on RUL capped at `cap` (piecewise-linear target), so error is measured against
+        # the capped truth; the raw label stays visible as ground_truth.
+        return {**band, "neighbor_variance": variance, "ground_truth": truth, "truth_cap": cap,
+                "ground_truth_capped": capped, "error": None if capped is None else band["mean"] - capped}
 
     band = timed("rul", rul_stage)
 

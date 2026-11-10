@@ -1,5 +1,37 @@
 # Redesign Changelog
 
+## P5: Cognition Dashboard and model registry (2026-11-10)
+- **What:**
+  - **`/admin/cognition`** (admin only), for any machine and stored time:
+    - Every stage with its latency: adapter raw to normalised with quality, the 32-dim state vector as a heat strip, a PCA trajectory of stored states.
+    - AMKB neighbours, the Machine DNA fingerprint with drift and siblings, and the adaptive context with SYNTHETIC badges.
+    - RUL with p10/p90 band over time, the Monte Carlo histogram with seed and N, Decision Graph costs and scores, occlusion attribution with AMKB citations, and learning history.
+  - **Replay:** a scrubber over stored traces (`?ts=` deep link).
+  - **Monitoring:** a drift monitor (data, model error, DNA) and fleet cognition health; recorded ablation and transfer-study results.
+  - **`/admin/models`:** archived versions per domain with metrics; activate (promote or roll back) with reason and confirmation; C-MAPSS retrain through the existing 3% gate.
+  - **Backend:**
+    - `server/cognition_admin.py`: history with PCA and drift, health, registry, activate.
+    - Trace stores gain `history` and `summary`.
+    - The RUL stage adds `truth_cap` and `ground_truth_capped`.
+  - **Charts:** `client/src/design/charts.tsx` (heat strip, scatter, bars, histogram, bar list, each with a hover readout and a values table); validated `--viz-*` colour tokens.
+- **Why:** D5; ADR-025 to ADR-027.
+- **Verified:**
+  - pytest **432 passed** (was 418; new: PCA projection, data/model/DNA drift, history and health from stored traces, admin-only access, registry archive and activate with audit and undo, the ground-truth cap, and a snapshot of every stage's output keys). Ruff is clean.
+  - `tsc -b` clean; eslint 0 errors (40 legacy warnings); initial JS 100 KB gz, Cognition a 7.8 KB gz lazy chunk.
+  - Playwright flow 5 passes (trace all ten stages, second live trace, scrub to the oldest stored trace, back to live, registry), with flows 1-4 and 6 still passing.
+  - Reviewed in the browser and fixed:
+    - RMSE against uncapped labels (80 became about 10 with the cap).
+    - Drift exploding on three traces.
+    - Stretched PCA axes.
+    - Charts drawn at half size and scaled up.
+    - Tables overflowing their panels.
+  - Screens: `docs/media/screens/p5-*.png`.
+- **Audit incident (not product behaviour):** a scratch script that regenerated the trace snapshot ran with the default audit folder while the API restarted. Both resumed the JSONL mirror from the same tail, so seq 3765-3767 appear twice in `logs/audit/2026-11-10.jsonl`. The database chain, written only by the API, is intact (4,243 events). The mirror lines were left untouched pending the owner's decision. Two processes sharing one mirror folder should be refused outright: a single-writer lock is added to the P7 hardening list.
+- **Not verified:**
+  - Activating a version against the real checkpoints (tested on temporary copies only).
+  - A full retraining run from the page.
+  - Keyboard-only and screen-reader passes.
+
 ## P4: Product pages on real endpoints (2026-11-09)
 - **What:**
   - **Pages** (`client/src/pages/ops/`):

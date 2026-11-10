@@ -67,6 +67,14 @@
   /* Health ramp for 0..1 health (3D tint, bars): grey when healthy, priority hues as it falls */
   --health-ok: #8a939d;
 
+  /* Charts (P5). Diverging pair is blue <-> brown, never red: red belongs to ISA-18.2 critical alarms.
+     Validated with the dataviz validator against --surface-panel (all checks pass). */
+  --viz-neg: #1f5fbf;
+  --viz-pos: #9c5a14;
+  --viz-mid: #e6e9ed;
+  --viz-mark: #1f5fbf;
+  --viz-quiet: #a9b0b9;
+
   /* Type */
   --type-ui: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
   --type-num: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
@@ -163,6 +171,12 @@
   --q-sim: #aab4be;
   --q-sim-soft: #232930;
   --health-ok: #6b7580;
+
+  --viz-neg: #4f8fe8;
+  --viz-pos: #b8732c;
+  --viz-mid: #2b3239;
+  --viz-mark: #4f8fe8;
+  --viz-quiet: #46505a;
 
   --elev-1: 0 1px 2px rgb(0 0 0 / 0.4);
   --elev-2: 0 6px 16px rgb(0 0 0 / 0.45), 0 2px 4px rgb(0 0 0 / 0.3);

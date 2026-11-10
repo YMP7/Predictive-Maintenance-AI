@@ -63,3 +63,25 @@ select.ax-input { padding-right: var(--space-5); }
 .ax-login__main { display: grid; place-items: center; padding: var(--space-5) var(--space-4); }
 .ax-login__card { display: grid; gap: var(--space-4); width: min(24rem, 100%); padding: var(--space-6) var(--space-5); }
 .ax-login__card h1 { font-size: var(--text-2xl); }
+
+/* Charts (charts.tsx) */
+.ax-viz { margin: 0; display: grid; gap: var(--space-1); min-width: 0; }
+.ax-viz__svg { width: 100%; height: auto; display: block; overflow: visible; }
+.ax-viz__axis { stroke: var(--line-strong); stroke-width: 1; }
+.ax-viz__tick { fill: var(--ink-3); font-size: 11px; font-family: var(--type-num); }
+.ax-viz__readout { min-height: 1.2em; color: var(--ink-2); font-size: var(--text-xs); }
+.ax-viz__legend { display: flex; flex-wrap: wrap; gap: var(--space-3); color: var(--ink-3); font-size: var(--text-xs); }
+.ax-viz__legend span { display: inline-flex; align-items: center; gap: var(--space-1); }
+.ax-viz__legend i { width: 0.75rem; height: 0.75rem; border-radius: 2px; display: inline-block; border: 1px solid var(--line); }
+.ax-viz__table summary { cursor: pointer; color: var(--ink-3); font-size: var(--text-xs); }
+.ax-viz__table table { margin-top: var(--space-2); max-height: 14rem; overflow: auto; display: block; }
+.ax-barlist { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); font-size: var(--text-sm); }
+.ax-barlist li { display: grid; grid-template-columns: 9rem 1fr 6.5rem; align-items: center; gap: var(--space-3); }
+.ax-barlist .num { text-align: right; }
+
+/* Cognition dashboard */
+.ax-stages { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr)); align-items: start; }
+.ax-stage-panel h2 { display: flex; align-items: baseline; gap: var(--space-2); }
+.ax-stage-panel h2 .num { margin-left: auto; color: var(--ink-3); font-size: var(--text-xs); font-weight: 400; }
+.ax-scrub { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-3); }
+.ax-scrub input[type="range"] { width: 100%; accent-color: var(--accent); }

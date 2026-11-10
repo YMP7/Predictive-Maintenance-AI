@@ -1,6 +1,6 @@
 // Playwright flows from the redesign brief §4: 1 login per role, 2 onboarding wizard, 3 push data and
-// see it live within 2 s, 4 alarm -> acknowledge -> work order -> approve, 6 operator cannot see Cognition.
-// Flows 5 (Cognition replay) and 7 (2-minute kiosk tour) arrive with P5 and P7.
+// see it live within 2 s, 4 alarm -> acknowledge -> work order -> approve, 5 Cognition replay, 6 operator cannot see Cognition.
+// Flow 5 (Cognition replay) arrived in P5; flow 7 (2-minute kiosk tour) arrives with P7.
 import { execFileSync } from 'node:child_process';
 
 import { expect, test, type Page } from '@playwright/test';
@@ -165,6 +165,33 @@ test('4. alarm, acknowledge, work order, approve', async ({ browser }) => {
   const orders = (await (await api(page).get('/api/work-orders?machine_id=M001&limit=50', { headers: H })).json()).work_orders;
   const wo = orders.find((o: { action: string }) => o.action === action);
   expect(wo).toMatchObject({ status: 'Open', alarm_id: alarmId, created_by: 'test_operator' });
+});
+
+test('5. admin opens Cognition, traces a machine and replays a stored window', async ({ browser }) => {
+  const page = await pageAs(browser, 'admin');
+  await page.goto('/admin/cognition?domain=cmapss&machine=unit_3');
+  await expect(page.getByRole('heading', { level: 1, name: 'Cognition' })).toBeVisible();
+  // all ten stages, each with its latency
+  for (const stage of ['Adapter', 'World Model', 'Memory (AMKB)', 'Machine DNA', 'Adaptive Context', 'RUL prediction', 'Simulation', 'Decision Graph', 'Explainability', 'Learning Engine']) {
+    await expect(page.getByRole('heading', { level: 2, name: new RegExp(`^\\d+\\. ${stage.replace(/[()]/g, '\\$&')}`) })).toBeVisible({ timeout: 20_000 });
+  }
+  await expect(page.getByText('Live trace', { exact: true })).toBeVisible();
+  // a second live trace, so there are at least two stored windows to scrub between
+  await page.getByRole('button', { name: 'Run live trace' }).click();
+  const scrub = page.getByRole('slider', { name: 'Replay a stored trace' });
+  await expect(scrub).toBeVisible({ timeout: 20_000 });
+  await scrub.focus();
+  await page.keyboard.press('Home'); // the oldest stored trace
+  await expect(page).toHaveURL(/ts=/);
+  await expect(page.getByText('Replay', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Replaying the trace stored at/)).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: /^8\. Decision Graph/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Back to live' }).click();
+  await expect(page.getByText('Live trace', { exact: true })).toBeVisible({ timeout: 20_000 });
+  // the model registry lists the active version for every trained domain
+  await page.goto('/admin/models');
+  await expect(page.getByRole('heading', { level: 2, name: 'Turbofan (C-MAPSS)' })).toBeVisible();
+  await expect(page.getByText('Active', { exact: true }).first()).toBeVisible();
 });
 
 test('6. an operator cannot see the Cognition dashboard', async ({ browser }) => {

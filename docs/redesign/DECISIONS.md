@@ -111,6 +111,24 @@ One entry per non-trivial decision. Format: context, options, choice, consequenc
 - **Choice:** At start-up `AuditLog` reads the sequence numbers already in `audit_events` and queues every mirror event the database lacks, in order, before new events. Tests cover the exit-with-pending case and the no-duplicate case.
 - **Consequences:** The database and the mirror converge after any restart; `audit_verify` reported both intact (3,539 events) after the final e2e run. Start-up reads all sequence numbers once (a range query is the upgrade when the table grows large).
 
+## ADR-025: A model registry that archives checkpoints, outside the Learning Engine (P5)
+- **Context:** D5 asks for a model registry with promote and rollback. The Learning Engine (frozen core) overwrites its checkpoint when a candidate passes the 3% gate and keeps no earlier versions, so nothing could be rolled back to.
+- **Choice:** `server/cognition_admin.py` archives each domain's active checkpoint into `data/models/registry/<domain>/<content hash>.pt` with its metrics the first time it sees that content (gitignored). Activating a version archives the current weights first, swaps the file atomically and hot-reloads the streaming engine and the cognition pipeline's model; it needs admin, a reason, and is audited with before and after. New versions still come only from retraining through the existing gate (`POST /api/learn/retrain`, offered on the page for C-MAPSS).
+- **Consequences:** No model code or maths changed. Weights overwritten before P5 cannot be recovered, and the page says so. For C-MAPSS the registry manages `best_model.pt` (the cognition pipeline's model); the streaming RUL engine loads `cmapss_world_model.pt`, an existing split this phase does not change. Tests exercise activation only on temporary copies, never the tracked checkpoints.
+
+## ADR-026: How the dashboard measures drift and error (P5)
+- **Context:** The first render showed an RMSE of 80 and data drift of 198,808 standard deviations. The C-MAPSS labels run to 270+ cycles while the model is trained on RUL capped at 125 (piecewise-linear target), and three stored traces left one sample per comparison window.
+- **Choice:**
+  - Error and model drift use the ground truth capped at the domain's training cap (`truth_cap`, 125 for C-MAPSS); the raw label stays in the trace as `ground_truth`. Error now reads about 10 cycles.
+  - Data drift compares the first and last third of the stored traces, needs at least 3 traces on each side, and floors the pooled standard deviation at 1% of the normalised range.
+  - Machine DNA drift is measured against the machine's first stored trace, because `machine_dna` keeps only the current fingerprint.
+  - The PCA view draws both components on one scale.
+- **Consequences:** Stored-trace RMSE is labelled as training-set replay, not a benchmark; the FD001 test benchmark (RMSE 15.42, PHM 394.7) is shown on the registry page. DNA drift reads 0 until the fingerprint is recomputed.
+
+## ADR-027: Chart colours avoid the alarm palette (P5)
+- **Context:** The dataviz default diverging pair is blue against red. In this product red means an ISA-18.2 critical alarm.
+- **Choice:** Diverging blue against brown with a grey midpoint (`--viz-neg`, `--viz-pos`, `--viz-mid`), single-series marks in the accent blue. Light and dark steps were each run through the dataviz validator against their panel surface and pass every check (lightness, chroma, CVD separation, normal-vision floor, contrast). Each chart has a hover readout and a table of its values.
+
 ## ADR-004: PCA, not UMAP (P0)
 - **Context:** D5 asks for a "PCA/UMAP" 2-D projection of 32-dim states.
 - **Choice:** PCA via numpy SVD. It avoids a new heavy dependency (umap-learn pulls in numba) and is deterministic.

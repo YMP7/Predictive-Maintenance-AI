@@ -205,7 +205,7 @@ Legend: **BUILD** = in scope and committed · **FUTURE** = named future work, ne
 - [ ] Switch the API to `atlas_app`: set `ATLAS_APP_DB_PASSWORD`, re-run `scripts/migrate_platform.py`, set `API_DATABASE_URL` *(needs your password choice)*
 - [x] P3: 3D Asset View (teardown), 5 machines, films *(60 fps on Intel UHD; 20-navigation leak check clean; WebGL-off fallback)*
 - [x] P4: product pages wired to real endpoints *(Playwright flows 1-4 and 6 pass; MQTT leg not run; audit chain intact after e2e)*
-- [ ] P5: Cognition Dashboard
+- [x] P5: Cognition Dashboard *(10 stage panels, replay, drift, fleet health, model registry; Playwright flow 5 and trace snapshot test pass)*
 - [ ] P6: evidence page, title justification, docs
 - [ ] P7: hardening and full verification
 - [ ] Open decision: Modbus RUL model (FUTURE-WORK until approved)

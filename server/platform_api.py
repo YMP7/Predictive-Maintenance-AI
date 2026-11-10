@@ -392,6 +392,7 @@ def _route_template(app, scope) -> str:
 def install(app) -> None:
     """Mount the routers, the request-audit middleware and the log redaction filter."""
     from server.asset_view import router as asset_router
+    from server.cognition_admin import router as cognition_admin_router
     from server.cognition_trace import router as trace_router
     from server.operations_api import router as operations_router
 
@@ -399,6 +400,7 @@ def install(app) -> None:
     app.include_router(asset_router)
     app.include_router(operations_router)
     app.include_router(trace_router, tags=["cognition"])
+    app.include_router(cognition_admin_router)
     logging.getLogger().addFilter(A.RedactingFilter())
     for h in logging.getLogger().handlers:
         h.addFilter(A.RedactingFilter())
