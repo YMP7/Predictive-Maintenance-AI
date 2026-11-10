@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" width="1200" height="620" role="img" aria-labelledby="t d">
+<title id="t">Explainability: grounding and sensor attribution</title>
+<desc id="d">Two branches. Grounding retrieves AMKB neighbours by cosine distance, keeps those with a known true RUL, and computes confidence as mean similarity times one over one plus the variance of their true RUL. Attribution runs 14 occlusion passes, one per sensor, and ranks sensors by the change in predicted RUL. Both feed the ExplanationReport.</desc>
+<style>
+text{font-family:"Helvetica Neue",Arial,sans-serif;fill:#1b1f27;font-size:14px}
+.t{font-size:22px;font-weight:700}.h{font-weight:700;font-size:15px}.m{fill:#5b6472;font-size:12.5px}
+.lane{font-weight:700;font-size:13px;fill:#5b6472}
+.mono{font-family:Consolas,"DejaVu Sans Mono",monospace;font-size:12.5px}
+.box{fill:#f5f6f8;stroke:#c3c9d2;stroke-width:1.2}.key{fill:#fff;stroke:#1f5f8b;stroke-width:2}
+.ln{stroke:#8a93a0;stroke-width:1.5;fill:none}.ac{stroke:#1f5f8b;stroke-width:2;fill:none}
+.v{fill:#1f5f8b;font-weight:700}
+</style>
+<defs>
+<marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8a93a0"/></marker>
+<marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#1f5f8b"/></marker>
+</defs>
+<rect width="1200" height="620" fill="#fff"/>
+<text x="40" y="44" class="t">Explainability: grounding and sensor attribution</text>
+<text x="40" y="68" class="m">server/atlas/explain.py · called by /api/explain and /api/decide</text>
+
+<text x="40" y="108" class="lane">Grounding: why the prediction can be trusted</text>
+<rect x="40" y="120" width="210" height="140" rx="6" class="box"/>
+<text x="55" y="146" class="h">1. Retrieve neighbours</text>
+<text x="55" y="170">AMKB, pgvector</text>
+<text x="55" y="190">dᵢ = cosine distance(z, zᵢ)</text>
+<text x="55" y="214" class="m">fetches k+1, drops the query's</text>
+<text x="55" y="231" class="m">own unit and cycle</text>
+<text x="55" y="248" class="m">k = 10 by default</text>
+
+<rect x="290" y="120" width="220" height="140" rx="6" class="box"/>
+<text x="305" y="146" class="h">2. Keep real failures</text>
+<text x="305" y="170">only neighbours with a</text>
+<text x="305" y="190">known true RUL</text>
+<text x="305" y="220">sᵢ = 1 / (1 + dᵢ)</text>
+<text x="305" y="246" class="m">never the model's own ŷ</text>
+
+<rect x="550" y="120" width="230" height="140" rx="6" class="box"/>
+<text x="565" y="146" class="h">3. Confidence</text>
+<text x="565" y="176" class="v">C = s̄ · 1 / (1 + σ²)</text>
+<text x="565" y="198" class="m">σ² = variance of their true RUL</text>
+<text x="565" y="226">High &gt; 0.5</text>
+<text x="565" y="246">Moderate &gt; 0.1, else Low</text>
+
+<path d="M250 190H288" class="ac" marker-end="url(#aa)"/>
+<path d="M510 190H548" class="ac" marker-end="url(#aa)"/>
+
+<text x="40" y="308" class="lane">Attribution: which sensors drive it (30 × 14 windows only)</text>
+<rect x="40" y="320" width="210" height="140" rx="6" class="box"/>
+<text x="55" y="346" class="h">Input window</text>
+<text x="55" y="370">X ∈ ℝ<tspan dy="-6" font-size="10">30×14</tspan><tspan dy="6">, z-scored</tspan></text>
+<text x="55" y="394">baseline ŷ from the</text>
+<text x="55" y="414">World Model</text>
+
+<rect x="290" y="320" width="220" height="140" rx="6" class="box"/>
+<text x="305" y="346" class="h">4. 14 occlusion passes</text>
+<text x="305" y="370">for each sensor j:</text>
+<text x="305" y="390">set column j to 0,</text>
+<text x="305" y="410">predict again</text>
+<text x="305" y="432" class="v">Δⱼ = ŷ<tspan dy="4" font-size="10">occ, j</tspan><tspan dy="-4"> − ŷ</tspan></text>
+<text x="305" y="452" class="m">0 is the population mean</text>
+
+<rect x="550" y="320" width="230" height="140" rx="6" class="box"/>
+<text x="565" y="346" class="h">5. Rank sensors</text>
+<text x="565" y="370">sort by |Δⱼ|, largest first</text>
+<text x="565" y="390">top 3 named in the text</text>
+<text x="565" y="418" class="m">Δⱼ &gt; 0: removing the sensor</text>
+<text x="565" y="435" class="m">raises ŷ, so its readings pull</text>
+<text x="565" y="452" class="m">the RUL estimate down</text>
+
+<path d="M250 390H288" class="ln" marker-end="url(#ag)"/>
+<path d="M510 390H548" class="ln" marker-end="url(#ag)"/>
+
+<rect x="830" y="120" width="330" height="340" rx="6" class="key"/>
+<text x="848" y="148" class="h">ExplanationReport</text>
+<text x="848" y="178" class="mono">confidence_score, confidence_level</text>
+<text x="848" y="206" class="mono">primary_justification</text>
+<text x="862" y="226" class="m">"grounded in k similar trajectories,</text>
+<text x="862" y="243" class="m">average true RUL …, variance …"</text>
+<text x="848" y="272" class="mono">citations</text>
+<text x="862" y="292" class="m">"Unit u at cycle c</text>
+<text x="862" y="309" class="m">(True RUL: …, similarity: …)"</text>
+<text x="848" y="338" class="mono">sensor_attributions</text>
+<text x="848" y="360" class="mono">top_contributors</text>
+<text x="848" y="382" class="mono">attribution_unavailable_reason</text>
+<text x="848" y="412" class="m">C is reused unchanged by the</text>
+<text x="848" y="429" class="m">Decision Graph.</text>
+
+<path d="M780 190H828" class="ac" marker-end="url(#aa)"/>
+<path d="M780 390H828" class="ln" marker-end="url(#ag)"/>
+
+<line x1="40" y1="500" x2="1160" y2="500" stroke="#e1e5ea"/>
+<text x="40" y="526" class="h">Edge cases</text>
+<text x="40" y="550" class="m">No neighbours: confidence 0.0, Low, no citations.</text>
+<text x="40" y="570" class="m">Neighbours found but none with a true RUL: confidence 0.5, Low.</text>
+<text x="600" y="550" class="m">Window not 30 × 14 (laptop, mobile, server): attribution is skipped</text>
+<text x="600" y="570" class="m">and the reason is returned in attribution_unavailable_reason.</text>
+<text x="40" y="590" class="m">Fewer than 10 neighbours: the report adds a note that confidence is indicative, not precise.</text>
+</svg>

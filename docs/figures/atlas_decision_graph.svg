@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 640" width="1200" height="640" role="img" aria-labelledby="t d">
+<title id="t">Decision Graph: Monte Carlo cost ranking</title>
+<desc id="d">The predicted RUL and the variance of neighbour true RUL define a normal distribution sampled 1,000 times. Each of four actions is costed per draw: 1,000 dollars if the unit fails within the action's lead time, otherwise its planned cost. Actions are ranked by expected cost, failure probability, cost spread and name.</desc>
+<style>
+text{font-family:"Helvetica Neue",Arial,sans-serif;fill:#1b1f27;font-size:14px}
+.t{font-size:22px;font-weight:700}.h{font-weight:700;font-size:15px}.m{fill:#5b6472;font-size:12.5px}
+.mono{font-family:Consolas,"DejaVu Sans Mono",monospace;font-size:12.5px}
+.box{fill:#f5f6f8;stroke:#c3c9d2;stroke-width:1.2}.key{fill:#fff;stroke:#1f5f8b;stroke-width:2}
+.note{fill:#fff;stroke:#8a93a0;stroke-width:1.2;stroke-dasharray:5 4}
+.ln{stroke:#8a93a0;stroke-width:1.5;fill:none}.ac{stroke:#1f5f8b;stroke-width:2;fill:none}
+.v{fill:#1f5f8b;font-weight:700}.bad{fill:#a3271f}
+.th{font-size:12.5px;font-weight:700;fill:#5b6472}
+</style>
+<defs>
+<marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8a93a0"/></marker>
+<marker id="aa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#1f5f8b"/></marker>
+</defs>
+<rect width="1200" height="640" fill="#fff"/>
+<text x="40" y="44" class="t">Decision Graph: Monte Carlo cost ranking</text>
+<text x="40" y="68" class="m">server/atlas/simulation.py and decision.py · lead times and costs are stated assumptions in COST_PARAMS</text>
+
+<!-- Inputs -->
+<rect x="40" y="120" width="190" height="180" rx="6" class="box"/>
+<text x="55" y="146" class="h">Inputs</text>
+<text x="55" y="174"><tspan class="v">ŷ</tspan>  predicted RUL</text>
+<text x="55" y="200"><tspan class="v">σ²</tspan>  variance of the</text>
+<text x="55" y="218">neighbours' true RUL</text>
+<text x="55" y="246"><tspan class="v">C</tspan>  confidence from</text>
+<text x="55" y="264">the explainability step</text>
+
+<!-- Sampling -->
+<rect x="270" y="120" width="210" height="180" rx="6" class="box"/>
+<text x="285" y="146" class="h">1,000 draws</text>
+<text x="285" y="178">y<tspan dy="-6" font-size="10">(m)</tspan><tspan dy="6"> ~ N(ŷ, σ)</tspan></text>
+<text x="285" y="206" class="m">σ floored at 0.001</text>
+<text x="285" y="226" class="m">draws clipped to [0, 125]</text>
+<text x="285" y="254" class="m">optional fixed seed for</text>
+<text x="285" y="271" class="m">reproducible runs</text>
+<path d="M230 210H268" class="ac" marker-end="url(#aa)"/>
+
+<!-- Cost table -->
+<rect x="520" y="120" width="430" height="210" rx="6" class="box"/>
+<text x="535" y="146" class="h">Cost of each draw, per action</text>
+<text x="535" y="178" class="th">Action</text>
+<text x="770" y="178" class="th" text-anchor="end">lead τ</text>
+<text x="855" y="178" class="th" text-anchor="end">y ≤ τ</text>
+<text x="935" y="178" class="th" text-anchor="end">otherwise</text>
+<line x1="535" y1="186" x2="935" y2="186" stroke="#c3c9d2"/>
+<text x="535" y="208" class="mono">CONTINUE_OPERATION</text><text x="770" y="208" text-anchor="end">30</text><text x="855" y="208" text-anchor="end" class="bad">$1,000</text><text x="935" y="208" text-anchor="end">$0</text>
+<text x="535" y="232" class="mono">SCHEDULE_MAINTENANCE_SOON</text><text x="770" y="232" text-anchor="end">10</text><text x="855" y="232" text-anchor="end" class="bad">$1,000</text><text x="935" y="232" text-anchor="end">$55.00</text>
+<text x="535" y="256" class="mono">SCHEDULE_MAINTENANCE_NOW</text><text x="770" y="256" text-anchor="end">3</text><text x="855" y="256" text-anchor="end" class="bad">$1,000</text><text x="935" y="256" text-anchor="end">$57.50</text>
+<text x="535" y="280" class="mono">REPLACE_IMMEDIATELY</text><text x="770" y="280" text-anchor="end">0</text><text x="855" y="280" text-anchor="end" class="bad">$1,000</text><text x="935" y="280" text-anchor="end">$60.00</text>
+<text x="535" y="312" class="m">planned = $50 + $5 × urgency (1, 1.5, 2) · τ in cycles</text>
+<path d="M480 210H518" class="ac" marker-end="url(#aa)"/>
+
+<!-- Rank -->
+<rect x="990" y="120" width="170" height="210" rx="6" class="box"/>
+<text x="1005" y="146" class="h">Rank actions</text>
+<text x="1005" y="170" class="m">per action: mean, std,</text>
+<text x="1005" y="187" class="m">share of draws ≤ τ</text>
+<text x="1005" y="214">sort ascending by</text>
+<text x="1005" y="238">1. E[cost]</text>
+<text x="1005" y="260">2. P(fail)</text>
+<text x="1005" y="282">3. cost std</text>
+<text x="1005" y="304">4. action name</text>
+<path d="M950 225H988" class="ac" marker-end="url(#aa)"/>
+
+<!-- Output -->
+<rect x="530" y="390" width="630" height="190" rx="6" class="key"/>
+<text x="548" y="418" class="h">DecisionRecommendation</text>
+<text x="548" y="448"><tspan class="mono">recommended_action</tspan>  rank 1</text>
+<text x="548" y="474"><tspan class="mono">risk</tspan> = P(fail) + std / 1000</text>
+<text x="548" y="500"><tspan class="mono">impact</tspan> = E[cost] of worst − best</text>
+<text x="860" y="448"><tspan class="mono">urgency</tspan> = 100 / (ŷ + σ² + 1)</text>
+<text x="860" y="474"><tspan class="mono">confidence</tspan> = C, reused</text>
+<text x="860" y="500"><tspan class="mono">ranked_actions</tspan>  all four</text>
+<text x="548" y="540" class="m">A planned action's expected cost equals its planned cost only when no draw falls at or</text>
+<text x="548" y="557" class="m">below its τ; every draw that does adds the $1,000 penalty instead.</text>
+<path d="M1075 330V388" class="ac" marker-end="url(#aa)"/>
+<path d="M135 300V350H700V388" class="ln" marker-end="url(#ag)"/>
+<text x="148" y="342" class="m">C passes straight through</text>
+
+<!-- UI note -->
+<rect x="40" y="390" width="440" height="190" rx="6" class="note"/>
+<text x="58" y="418" class="h">In the dashboard only</text>
+<text x="58" y="446">DecisionSupportView shows a safety banner</text>
+<text x="58" y="468">when the recommended action is not</text>
+<text x="58" y="490">CONTINUE and P(fail | CONTINUE) &gt; 0.005.</text>
+<text x="58" y="524" class="m">This is a display rule in the client. The engine</text>
+<text x="58" y="541" class="m">has no override step: the cost ranking alone</text>
+<text x="58" y="558" class="m">picks the action.</text>
+<path d="M530 485H482" class="ln" marker-end="url(#ag)"/>
+</svg>
