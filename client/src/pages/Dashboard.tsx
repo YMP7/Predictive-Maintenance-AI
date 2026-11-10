@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useDashboardData, useMachineDetails } from '../hooks/useDashboardData';
+import { useDashboardData, useMachineDetails, type TelemetryReading } from '../hooks/useDashboardData';
 import { MachineCard } from '../components/MachineCard';
 import AgentChat from '../components/AgentChat';
 import { apiFetch, errorMessage } from '../lib/api';
@@ -553,7 +553,7 @@ export const Dashboard: React.FC = () => {
                             <XAxis dataKey="timestamp" stroke="var(--text-muted)" fontSize={10} fontFamily="var(--font-mono)" tickFormatter={(val) => new Date(val).toLocaleTimeString()} />
                             <YAxis stroke="var(--text-muted)" fontSize={10} fontFamily="var(--font-mono)" domain={['auto', 'auto']} />
                             <Tooltip contentStyle={{ background: 'var(--bg-elevated)', borderColor: 'var(--border-hover)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-mono)', fontSize: '11px' }} />
-                            <Line type="monotone" dataKey="vibration_rms" stroke="var(--accent-cyan)" strokeWidth={2} dot={false} isAnimationActive={false} />
+                            <Line type="monotone" name="vibration_rms" dataKey={(r: TelemetryReading) => r.vibration_rms ?? r.vibration?.rms} stroke="var(--accent-cyan)" strokeWidth={2} dot={false} isAnimationActive={false} />
                           </LineChart>
                         </ResponsiveContainer>
                       </div>
