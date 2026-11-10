@@ -26,7 +26,7 @@
     - Charts drawn at half size and scaled up.
     - Tables overflowing their panels.
   - Screens: `docs/media/screens/p5-*.png`.
-- **Audit incident (not product behaviour):** a scratch script that regenerated the trace snapshot ran with the default audit folder while the API restarted. Both resumed the JSONL mirror from the same tail, so seq 3765-3767 appear twice in `logs/audit/2026-11-10.jsonl`. The database chain, written only by the API, is intact (4,243 events). The mirror lines were left untouched pending the owner's decision. Two processes sharing one mirror folder should be refused outright: a single-writer lock is added to the P7 hardening list.
+- **Audit incident (not product behaviour):** a scratch script that regenerated the trace snapshot ran with the default audit folder while the API restarted. Both resumed the JSONL mirror from the same tail, so seq 3765-3767 appear twice in `logs/audit/2026-11-10.jsonl`. The database chain, written only by the API, is intact (4,243 events). On the owner's instruction the three stray lines (identified by hash as absent from the database) were moved to `logs/audit/quarantine/` with the untouched original file and a note; `audit_verify.py` then reported JSONL and database intact (4,464 events, same tip). Two processes sharing one mirror folder should be refused outright: a single-writer lock is added to the P7 hardening list.
 - **Not verified:**
   - Activating a version against the real checkpoints (tested on temporary copies only).
   - A full retraining run from the page.
