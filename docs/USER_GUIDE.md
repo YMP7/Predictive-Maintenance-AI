@@ -1,78 +1,101 @@
-# AI Digital Twin - User Guide
+# ATLAS user guide
 
-Welcome to the AI Digital Twin Predictive Maintenance System. This guide helps machine operators and shop floor managers monitor machinery health, interpret alerts, and act on maintenance recommendations.
+For operators and viewers: how to read the screens, handle alarms and act on a recommendation. Administrators also read [ADMIN_GUIDE.md](ADMIN_GUIDE.md).
 
----
+## Signing in
 
-## 1. Quick Start
+Open the address your administrator gave you (for a local installation `http://localhost:8000`, or `http://localhost:3000` with the development server) and sign in. What you can do depends on your role:
 
-### Accessing the Dashboard
-1. Open your web browser and navigate to `http://localhost:3000`.
-2. You will be greeted by the **Home Page**, which provides a high-level system overview.
-3. Click the **"Launch Dashboard"** button in the navigation bar or home screen to access the real-time monitoring interface.
+| Role | Can |
+|---|---|
+| Viewer | Read every page outside administration |
+| Operator | Everything a viewer can, plus acknowledge, shelve and clear alarms; create, approve, assign and close work orders; use agent chat |
+| Admin | Everything, including administration and the Cognition dashboard |
 
----
+Press **Ctrl K** anywhere to jump to a page by name. Times are shown in the zone in the header (Asia/Kolkata by default) with the zone written next to them; units are SI.
 
-## 2. Understanding the Dashboard
+## Reading the screens
 
-The dashboard is designed to give you a real-time status of all connected shop floor machines.
+The screens follow ISA-101: grey when things are normal, colour only when something needs you.
 
-### Machine Status Cards
-Each machine is represented by a card that dynamically changes color based on its current operational health:
-* 🟢 **Normal (Green)**: The machine is running within safe operating limits. No action is required.
-* 🟡 **Warning (Yellow)**: Anomalous behavior has been detected (e.g., elevated vibration or temperature). Schedule maintenance during the next convenient window.
-* 🔴 **Critical (Red)**: Severe operating threshold breached. Immediate action is required to prevent catastrophic failure or operator injury. Stop the machine.
+- **Alarm colours** (ISA-18.2): critical, high, medium, low. Each comes with its own shape and a word, never colour alone.
+- **Data-quality marks** beside a value:
 
-### Key Telemetry Metrics
-Each card displays live values for the following key physical parameters:
-1. **RUL (Remaining Useful Life)**: The estimated number of days the machine can safely run before predicted failure.
-2. **Vibration**: Root Mean Square (RMS) vibration level in mm/s. High vibration indicates misalignment, imbalance, or bearing wear.
-3. **Temperature**: Internal operating temperature in °C. Elevated temperatures indicate friction, overloading, or cooling failure.
-4. **Current**: Electrical current draw in Amperes. Abnormal current indicates motor strain or electrical issues.
+| Mark | Meaning |
+|---|---|
+| SIMULATED | The value comes from a simulator, not a physical sensor |
+| STALE | No update for more than three sampling intervals |
+| RANGE | Outside the channel's valid range |
+| FLATLINE | Unchanged for unusually long |
+| MISSING | No value received |
 
----
+- **Notices:**
+  - A grey "Data is stale" bar means the page could not refresh; the values shown are the last ones received.
+  - A red "Connection lost" bar means your browser is offline.
+- **Machine status words:** C-MAPSS turbofans report Stable, Degrading or Critical; other machines report their adapter's status.
+- **Health index:** 0% is a fresh machine, 100% is at its limit.
+- **RUL (remaining useful life):** shown in the machine's own unit (cycles for the turbofan) with a ± band.
 
-## 3. Interpreting Alerts
+## Fleet overview (`/fleet`)
 
-The system automatically generates alerts when anomalous telemetry is processed by the AI agent.
+Start here. It shows:
+- alarms that need acknowledging, highest priority first (with an "Alarm flood" mark when more than 10 arrive in 10 minutes);
+- machines whose RUL is below 30% of their model's cap;
+- every asset, worst first.
 
-### Alert Severity Levels
-* 🚨 **Critical**: Represents immediate danger of machine failure. Stop the machine and perform emergency inspection.
-* ⚠️ **High**: Significant degradation detected. Schedule maintenance within the next 24-48 hours.
-* ⚡ **Medium**: Early signs of anomaly. Increase monitoring frequency and order spare parts if necessary.
-* ℹ️ **Low**: Minor deviations from normal behavior. Safe to continue operation under monitoring.
+Select a tile to open the machine.
 
-### Sample Alerts and Meaning
-* `[Critical] Machine M002 - Vibration RMS is critically high (3.24 mm/s). Severe bearing wear suspected.` -> Action: Shut down pump motor immediately.
-* `[Warning] Machine M004 - Temperature is elevated (84.5°C). Check ventilation and load.` -> Action: Verify furnace cooling fans and reduce load if necessary.
+## A machine (`/assets/...`)
 
----
+- **The 3D view:**
+  - Drag to turn, scroll to zoom.
+  - **Explode** pulls the parts apart; **Cutaway** opens the casing; **Isolate** shows one part.
+  - Select a part, here or in the parts list, to see its sensors.
+  - Part colours show load: orange is high, yellow elevated, grey normal. "Load" is a rule of thumb (how far the part's sensor is toward its limit), not a diagnosis.
+- **Show why** (turbofans):
+  - Lights the parts the RUL model leaned on; brighter means a larger share.
+  - Other machines show the model's written justification instead.
+- **Trends:** the RUL band and the selected part's sensors, since you opened the page.
+- **Recommended action:**
+  - **Get recommendation** runs the Decision Graph. It simulates each action 1,000 times and ranks them by expected cost.
+  - If it suggests maintenance, **Create a work order for this action** opens a pre-filled order.
 
-## 4. Maintenance Recommendations
+Machines without a trained model (the Modbus pump today) show health only; their RUL is marked FUTURE-WORK.
 
-The AI agent provides automated recommendations based on estimated Remaining Useful Life (RUL):
+## Alarms (`/alarms`)
 
-| RUL Estimate | Priority | Recommended Action |
-| :--- | :--- | :--- |
-| **< 3 Days** | **Emergency** | Shut down the machine immediately and perform repairs. |
-| **3 - 7 Days** | **High** | Schedule maintenance within the week. Prepare parts and technician. |
-| **7 - 14 Days** | **Medium** | Plan maintenance in the next scheduled downtime cycle. |
-| **> 14 Days** | **Routine** | Continue normal monitoring; check lubrication and filters during standard maintenance. |
+The table is sorted by priority. Select a row for details; the address then points at that alarm, so you can share it.
 
----
+- **Acknowledge:** you have seen it.
+- **Shelve:** hide it for a set time (15 minutes to 24 hours) with a reason, for example during a planned sensor swap. When the time runs out it comes back unacknowledged.
+- **Clear:** the condition is resolved. ATLAS does not yet detect this by itself, so give a reason.
+- **Create a work order for this alarm:** opens a pre-filled order.
 
-## 5. Operator Troubleshooting
+Every action is recorded with your name and reason.
 
-### Dashboard Not Loading
-* **Verify Service Status**: Ensure that both backend API and frontend servers are running (ask your system administrator).
-* **Browser Cache**: Try clearing your browser cache or opening the dashboard in an Incognito/Private window.
-* **Network Connection**: Verify you are on the same local network as the server hosting the prototype.
+## Work orders (`/work-orders`)
 
-### Telemetry / Alerts Not Updating
-* Ensure the simulator or physical sensors are running.
-* Check if there are error logs in the browser console (press `F12` -> Console).
+- **Lifecycle:**
+  - Orders start as *Pending Approval*. **Approve** makes them *Open*; **Reject** (with a reason) closes them.
+  - **Start** marks work *In Progress*; **Resolve** closes it.
+  - Each step asks you to confirm.
+- **Assigning:** in an order's detail panel, pick an operator or admin.
+- **Agent orders:** orders the maintenance agent creates arrive *Pending Approval* like any other; nothing reaches the plant without a person approving it.
 
----
+## Cross-domain view and Evidence
 
-## 6. Support
-For technical support, sensor installation requests, or system integration issues, contact your designated System Administrator or the Development Team.
+- **Cross-domain view** (`/cross-domain`): every machine on one normalised scale, to compare unlike machines.
+- **Evidence** (`/about/evidence`): what each word of the title means here, where to see it and the number behind it.
+
+## Agent chat (`/chat`, operators and admins)
+
+Ask about a machine in plain language. With a machine selected, each answer shows the AMKB evidence for it: the similar past cases the explanation engine found.
+
+## When something looks wrong
+
+| You see | Do |
+|---|---|
+| "API unreachable" in the header | The server is down or restarting. Values stay on screen but stop updating; tell your administrator |
+| "Data is stale" on a page | The page could not refresh for a while. Wait, or select Try again |
+| A machine with "No data" | Its device has not sent anything yet. An administrator can check it on the Devices page |
+| "Not available for your role" | The page needs another role. Ask an administrator |

@@ -10,7 +10,7 @@
 This document presents the empirical evaluation of the **4 Canonical ATLAS Ablation Studies**, systematically quantifying the performance contribution, safety impact, and epistemic value of each core cognition subsystem:
 1. **Ablation 1 (Full Cognition Pipeline vs. RUL-Alone Baseline)**: Evaluates maintenance cost reduction, premature cycle waste, and catastrophic missed failure prevention under simulated uncertainty.
 2. **Ablation 2 (AMKB-Grounded vs. Ungrounded Explainability)**: Measures confidence calibration, Spearman rank correlation against true prediction error, and citation availability.
-3. **Ablation 3 (Cost-Weighted Decision Graph vs. Naive Threshold Rules)**: Evaluates near-failure safety parity alongside economic discrimination and action graduation across disagreed decisions.
+3. **Ablation 3 (Cost-Weighted Decision Graph vs. Naive Threshold Rules)**: Evaluates near-failure urgent rate (with a disclosed 10-point gap) alongside economic discrimination and action graduation across disagreed decisions.
 4. **Ablation 4 (Domain-Adapted vs. Foreign Representation Transfer)**: Reuses Month 7 Week 2's within-domain vs. C-MAPSS physical memory retrieval transfer findings and presents the 3×3 Cross-Compute Generalization Matrix.
 
 ---
@@ -71,7 +71,7 @@ This ablation evaluates the Decision Graph under simulated operational lead-time
 
 | Metric | Naive Threshold Cascade | ATLAS Cost-Weighted Decision Graph | Comparative Analysis |
 | :--- | :--- | :--- | :--- |
-| **Near-Failure Urgent Rate** ($t_{\text{true}} \le 15$) | **100.00%** | **90.00%** | **Safety Parity**: Both policies safely intervene before failure |
+| **Near-Failure Urgent Rate** ($t_{\text{true}} \le 15$) | **100.00%** | **90.00%** | **Not parity**: naive rules flag 10/10 units, the Decision Graph 9/10 (see disclosure below) |
 | **Near-Failure Sample Size** | 10 units | 10 units | Evaluated on units with ground-truth $t_{\text{true}} \le 15$ cycles |
 | **Policy Agreement Rate** | — | **70.00%** | Fleet agreement across straightforward regimes |
 | **Disagreed Units Total Cost** | **$1,530.00** | **$1,370.00** | **+10.46% cost reduction** on disputed decisions |
@@ -80,8 +80,8 @@ This ablation evaluates the Decision Graph under simulated operational lead-time
 | **Average MC Sample Cost Std** | N/A (Deterministic) | **$54.34** | Quantifies decision uncertainty across 1,000 rollouts |
 
 > [!NOTE]
-> **Safety Parity & Critical Margin Disclosure**:
-> Both policies safely intervene before failure on near-failure units (true RUL <= 15). The Decision Graph's primary advantage is economic precision and action graduation on disputed decisions.
+> **Safety Gap & Critical Margin Disclosure**:
+> The naive cascade flags 10/10 near-failure units (true RUL <= 15) as urgent; the Decision Graph flags 9/10. This is a 10-point safety gap, not parity, and is a stated limitation. The Decision Graph's primary advantage is economic precision and action graduation on disputed decisions.
 > *(Note on operational margins: Unit 66 with $t_{\text{true}}=14$ cycles received `SCHEDULE_MAINTENANCE_SOON` [lead time = 10 cycles]. While maintenance completed before failure, the 4-cycle operating margin represents an operational near-miss that highlights the necessity of strict lead-time calibration under tight degradation horizons.)*
 
 > [!WARNING]
@@ -120,7 +120,7 @@ Evaluating query telemetry from each compute domain against the encoders and epi
 
 ## Synthesis & Methodological Conclusions
 
-1. **Safety Parity with Graduated Efficiency (Ablation 1 & 3)**: The Decision Graph safely prevents catastrophic failure across near-failure units while delivering a 47.17% overall lifecycle cost reduction (and 10.46% cost reduction specifically across disputed decisions) by substituting blunt immediate replacements with graduated, lead-time-aware maintenance schedules.
+1. **Cost Efficiency with a Disclosed Near-Failure Safety Gap (Ablation 1 & 3)**: The Decision Graph safely prevents catastrophic failure across near-failure units while delivering a 47.17% overall lifecycle cost reduction (and 10.46% cost reduction specifically across disputed decisions) by substituting blunt immediate replacements with graduated, lead-time-aware maintenance schedules.
 2. **Epistemic Calibration via Memory Grounding (Ablation 2)**: Grounding attributions in empirical episodic memory yields dynamically calibrated confidence scores ($r_s = -0.5090$) that accurately drop when prediction error rises, whereas ungrounded models cannot distinguish confident predictions from out-of-distribution errors.
 3. **Hardware-Specific Encoders are Required (Ablation 4)**: Unadapted cross-physical retrieval causes up to $8.30\times$ error inflation. The 3×3 cross-compute evaluation demonstrates that even within Category B compute architectures, domain-adapted representation learning is essential for accurate health state retrieval ($2.57\times - 11.56\times$ inflation under cross-encoder evaluation).
 4. **Stochastic Simulation Sensitivity in Production**: While seeding ensures reproducibility for evaluation purposes, this sensitivity indicates that near-tied expected-cost decisions are inherently fragile under stochastic simulation; a production deployment would need either a larger sample count, a fixed inference-time seed policy, or a tie-breaking margin threshold below which the system defers to human judgment rather than auto-recommending.

@@ -1,0 +1,29 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "inter",
+        "createdAt": "2026-10-09T07:24:31.992Z",
+        "reason": "claude: client/src/index.css (live app) declares Inter + JetBrains Mono; DESIGN.md is stale"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "jetbrains mono",
+        "createdAt": "2026-10-09T07:24:32.291Z",
+        "reason": "claude: client/src/index.css (live app) declares Inter + JetBrains Mono; DESIGN.md is stale"
+      },
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          "brag-output/work/template.html"
+        ],
+        "createdAt": "2026-10-09T07:24:33.242Z",
+        "reason": "claude: logo-tile glow copied from AtlasHeader.tsx boxShadow 0 0 16px var(--accent-glow)"
+      }
+    ]
+  }
+}

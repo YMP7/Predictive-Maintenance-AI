@@ -413,7 +413,7 @@ class AlertHandler:
         for to_email in email_recipients:
             try:
                 msg = EmailMessage()
-                msg["Subject"] = f"AI Digital Twin Alert: {alert.get('severity', 'Alert')}"
+                msg["Subject"] = f"ATLAS alert: {alert.get('severity', 'Alert')}"
                 msg["From"] = smtp_from
                 msg["To"] = to_email
                 msg.set_content(alert["message"])

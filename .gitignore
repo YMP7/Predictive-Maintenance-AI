@@ -117,3 +117,6 @@ data/processed/*.npz
 # Third-party research PDFs are not redistributed (see docs/REFERENCES.md).
 # Keep local copies here; they are ignored.
 docs/research_papers/
+
+# Model registry archive (P5): copies of checkpoints, kept locally
+data/models/registry/

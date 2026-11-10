@@ -24,10 +24,8 @@ def initialize_atlas():
 
 
 @pytest.fixture
-def client():
-    app.dependency_overrides[get_current_user] = lambda: User(username="test_operator", role="operator")
-    yield TestClient(app)
-    app.dependency_overrides = {}
+def client(signed_in):
+    return TestClient(app)
 
 
 @pytest.mark.parametrize("method,path", [
@@ -43,8 +41,10 @@ def test_cognition_routes_reject_anonymous(method, path):
     assert res.status_code == 401
 
 
-def test_mobile_push_rejects_unknown_machine():
-    res = TestClient(app).post("/api/atlas/mobile/telemetry", json={"machine_id": "attacker_1"})
+def test_mobile_push_rejects_unknown_machine(monkeypatch):
+    monkeypatch.setenv("MOBILE_BRIDGE_TOKEN", "test-bridge-token")
+    res = TestClient(app).post("/api/atlas/mobile/telemetry", json={"machine_id": "attacker_1"},
+                               headers={"X-Mobile-Bridge-Token": "test-bridge-token"})
     assert res.status_code == 400
 
 
@@ -123,11 +123,16 @@ def test_def_008_encoder_routing_regression_guard(client):
 
 
 def test_machine_window_endpoint(client):
-    """Window endpoint refuses to pad, then returns the 30 real readings."""
-    res = client.get("/api/atlas/domain/cmapss/machine/window_test_unit/window")
-    assert res.status_code == 409
+    """Window endpoint: unknown unit is 404, a partial window is 409 (never padded), 30 readings is 200."""
+    url = "/api/atlas/domain/cmapss/machine/window_test_unit/window"
+    assert client.get(url).status_code == 404
 
     engine = _get_atlas().get_engine("cmapss")
+    with engine._lock:
+        engine._windows["window_test_unit"] = [[float(i)] * 14 for i in range(10)]
+    res = client.get(url)
+    assert res.status_code == 409, res.text
+
     with engine._lock:
         engine._windows["window_test_unit"] = [[float(i)] * 14 for i in range(30)]
     try:

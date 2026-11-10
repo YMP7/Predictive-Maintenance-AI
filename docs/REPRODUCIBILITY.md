@@ -123,3 +123,13 @@ When citing the ATLAS system, please reference the corresponding chapter deliver
 - **Cognition Pipeline Ablations**: `docs/ABLATION_STUDY_RESULTS.md`
 - **System Latency & Throughput Benchmark**: `docs/ATLAS_BENCHMARK.md`
 - **Resource Footprint & Concurrency Profile**: `docs/ATLAS_RESOURCE_PROFILE.md`
+
+## Headline RUL numbers: which protocol is which
+
+| Numbers | Protocol |
+| --- | --- |
+| RMSE 15.02 / PHM 383.19 | Month 1 W4 validation split (80/20), best checkpoint at training time |
+| RMSE 15.4242 / PHM 394.70 | Deterministic checkpoint, FD001 test set, last window per unit (`cmapss_metrics.json`) |
+| RMSE 15.22 ± 0.30 / PHM 375.00 ± 21.93 | 5-seed mean ± std, FD001 test set, last window per unit (`atlas_evaluation_summary.json`) |
+
+Cite the multi-seed row as the headline; the single-checkpoint row is the deployed model.

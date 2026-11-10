@@ -1,4 +1,5 @@
 import os
+import server  # triggers SSL fallback patch for Windows cert store
 from dotenv import load_dotenv
 load_dotenv()
 os.environ["KMP_DUPLICATE_LIB_OK"] = os.environ.get("KMP_DUPLICATE_LIB_OK", "TRUE")
@@ -19,7 +20,7 @@ import uvicorn
 
 from server.data_service import get_data_service
 from server.backend_api import app
-from server.atlas.domain_service import get_domain_service
+from server.atlas.domain_service import KNOWN_DOMAINS, get_domain_service
 
 logger = logging.getLogger("DigitalTwin")
 service = get_data_service()
@@ -53,10 +54,8 @@ async def lifespan(_app):
     atlas_api_startup()
 
     # ATLAS: register all 4 domain adapters and start multi-domain streaming
-    atlas_service.register_cmapss(subset="FD001", max_units=20)
-    atlas_service.register_laptop()
-    atlas_service.register_mobile()
-    atlas_service.register_server()
+    for domain in KNOWN_DOMAINS:
+        atlas_service.ensure_registered(domain)
     atlas_service.start()
 
     try:

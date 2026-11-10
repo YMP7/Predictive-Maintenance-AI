@@ -170,33 +170,16 @@ FAULT_TYPE_ALLOWED_ACTIONS: Dict[str, Set[str]] = {
     },
 }
 
-FAULT_TYPE_CORRELATION_MAP: Dict[str, Set[str]] = FAULT_TYPE_ALLOWED_ACTIONS
 
-
-def _alert_correlates_with_work_order(alert_fault_type: Optional[str], alert_msg: str, text: str) -> bool:
-    """
-    Deprecated for autonomous agent authorization (superseded by DEF-012a 3-tier validation).
-    Retained solely as an advisory diagnostics helper.
-    """
-    if not alert_fault_type and not alert_msg:
-        return True
-
-    text_lower = text.lower()
-
-    if alert_fault_type:
-        ft = alert_fault_type.lower()
-        if ft in text_lower:
-            return True
-        keywords = FAULT_TYPE_ALLOWED_ACTIONS.get(ft, set())
-        if any(kw in text_lower for kw in keywords):
-            return True
-
-    if alert_msg:
-        msg_words = [w for w in alert_msg.lower().replace(",", " ").replace(".", " ").split() if len(w) > 3]
-        if any(w in text_lower for w in msg_words):
-            return True
-
-    return False
+def _reject(conn, now, machine_id, action, urgency, justification, result, message, snapshot=None) -> Dict[str, Any]:
+    """Record a refused agent work order in the audit log and return the refusal for the LLM."""
+    conn.execute(
+        "INSERT INTO work_order_audit_log (id, timestamp, machine_id, action, urgency, justification, validation_result, real_data_snapshot) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+        (str(uuid.uuid4()), now, machine_id, action, urgency, justification, result,
+         json.dumps(snapshot) if snapshot is not None else None)
+    )
+    conn.commit()
+    return {"error": message}
 
 
 def create_work_order(
@@ -227,8 +210,10 @@ def create_work_order(
     try:
         now = datetime.now(timezone.utc)
         with pool.connection() as conn:
-            # Serialize concurrent work-order creation for this machine so the
-            # volume cap below cannot be bypassed by simultaneous tool calls.
+            def reject(result: str, message: str, snapshot: Optional[Dict] = None) -> Dict[str, Any]:
+                return _reject(conn, now, machine_id, action, urgency, justification, result, message, snapshot)
+
+            # Serialize agent orders per machine until commit, so two concurrent chats can't both pass the cap.
             conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (f"work_order:{machine_id}",))
 
             # 1. Volume Cap (<= 3 per day per machine)
@@ -237,43 +222,23 @@ def create_work_order(
                 (machine_id,)
             ).fetchone()[0]
             if count >= 3:
-                conn.execute(
-                    "INSERT INTO work_order_audit_log (id, timestamp, machine_id, action, urgency, justification, validation_result) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                    (str(uuid.uuid4()), now, machine_id, action, urgency, justification, "Rejected: Volume Cap Exceeded")
-                )
-                conn.commit()
-                return {"error": "Rejected: Maximum of 3 work orders per day per machine exceeded."}
+                return reject("Rejected: Volume Cap Exceeded",
+                              "Rejected: Maximum of 3 work orders per day per machine exceeded.")
 
             # 2. Strict Telemetry Grounding Validation (Mandatory for High/Critical)
             if urgency in ("High", "Critical"):
+                taxonomy = list(FAULT_TYPE_ALLOWED_ACTIONS.keys())
                 # A. Mandatory Grounding Alert ID & Fault Type
                 if not grounding_alert_id:
-                    rejection_msg = f"Rejected: High and Critical urgency work orders require an explicit grounding_alert_id referencing a verified ai_pipeline alert."
-                    conn.execute(
-                        "INSERT INTO work_order_audit_log (id, timestamp, machine_id, action, urgency, justification, validation_result) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                        (str(uuid.uuid4()), now, machine_id, action, urgency, justification, "Rejected: Missing Grounding Alert ID")
-                    )
-                    conn.commit()
-                    return {"error": rejection_msg}
-
+                    return reject("Rejected: Missing Grounding Alert ID",
+                                  "Rejected: High and Critical urgency work orders require an explicit grounding_alert_id referencing a verified ai_pipeline alert.")
                 if not fault_type:
-                    rejection_msg = f"Rejected: High and Critical urgency work orders require a structured fault_type declared from taxonomy: {list(FAULT_TYPE_ALLOWED_ACTIONS.keys())}."
-                    conn.execute(
-                        "INSERT INTO work_order_audit_log (id, timestamp, machine_id, action, urgency, justification, validation_result) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                        (str(uuid.uuid4()), now, machine_id, action, urgency, justification, "Rejected: Missing Fault Type")
-                    )
-                    conn.commit()
-                    return {"error": rejection_msg}
-
+                    return reject("Rejected: Missing Fault Type",
+                                  f"Rejected: High and Critical urgency work orders require a structured fault_type declared from taxonomy: {taxonomy}.")
                 norm_fault_type = fault_type.strip().lower()
                 if norm_fault_type not in FAULT_TYPE_ALLOWED_ACTIONS:
-                    rejection_msg = f"Rejected: Declared fault_type '{fault_type}' is not recognized in system taxonomy: {list(FAULT_TYPE_ALLOWED_ACTIONS.keys())}."
-                    conn.execute(
-                        "INSERT INTO work_order_audit_log (id, timestamp, machine_id, action, urgency, justification, validation_result) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                        (str(uuid.uuid4()), now, machine_id, action, urgency, justification, "Rejected: Unrecognized Fault Type")
-                    )
-                    conn.commit()
-                    return {"error": rejection_msg}
+                    return reject("Rejected: Unrecognized Fault Type",
+                                  f"Rejected: Declared fault_type '{fault_type}' is not recognized in system taxonomy: {taxonomy}.")
 
                 # B. Relational & Provenance Validation (Layer 1)
                 alert_rows = conn.execute(
@@ -294,74 +259,50 @@ def create_work_order(
                         break
 
                 if not matching_alert:
-                    rejection_msg = f"Rejected: Grounding alert {grounding_alert_id} not found in recent verified pipeline alerts for {machine_id}."
-                    conn.execute(
-                        "INSERT INTO work_order_audit_log (id, timestamp, machine_id, action, urgency, justification, validation_result) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                        (str(uuid.uuid4()), now, machine_id, action, urgency, justification, "Rejected: Invalid Grounding Alert ID")
-                    )
-                    conn.commit()
-                    return {"error": rejection_msg}
+                    return reject("Rejected: Invalid Grounding Alert ID",
+                                  f"Rejected: Grounding alert {grounding_alert_id} not found in recent verified pipeline alerts for {machine_id}.")
 
                 # C. Severity Floor Validation
                 alert_sev = matching_alert["severity"]
                 if urgency == "Critical" and alert_sev != "Critical":
-                    rejection_msg = f"Rejected: Grounding check failed. Urgency 'Critical' requires a 'Critical' alert, but alert {grounding_alert_id} has severity '{alert_sev}'."
-                    conn.execute(
-                        "INSERT INTO work_order_audit_log (id, timestamp, machine_id, action, urgency, justification, validation_result) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                        (str(uuid.uuid4()), now, machine_id, action, urgency, justification, "Rejected: Insufficient Severity")
-                    )
-                    conn.commit()
-                    return {"error": rejection_msg}
+                    return reject("Rejected: Insufficient Severity",
+                                  f"Rejected: Grounding check failed. Urgency 'Critical' requires a 'Critical' alert, but alert {grounding_alert_id} has severity '{alert_sev}'.")
                 elif urgency == "High" and alert_sev not in ("High", "Critical"):
-                    rejection_msg = f"Rejected: Grounding check failed. Urgency 'High' requires a 'High' or 'Critical' alert, but alert {grounding_alert_id} has severity '{alert_sev}'."
-                    conn.execute(
-                        "INSERT INTO work_order_audit_log (id, timestamp, machine_id, action, urgency, justification, validation_result) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                        (str(uuid.uuid4()), now, machine_id, action, urgency, justification, "Rejected: Insufficient Severity")
-                    )
-                    conn.commit()
-                    return {"error": rejection_msg}
+                    return reject("Rejected: Insufficient Severity",
+                                  f"Rejected: Grounding check failed. Urgency 'High' requires a 'High' or 'Critical' alert, but alert {grounding_alert_id} has severity '{alert_sev}'.")
 
                 # D. Structured Fault-Type Exact Match (Layer 2)
                 if norm_fault_type != matching_alert["fault_type"]:
-                    rejection_msg = (
+                    return reject(
+                        "Rejected: Fault Type Mismatch",
                         f"Rejected: Grounding check failed. Declared fault_type '{fault_type}' "
-                        f"does not match grounding alert fault_type '{matching_alert['fault_type']}'."
+                        f"does not match grounding alert fault_type '{matching_alert['fault_type']}'.",
+                        {
+                            "action": action,
+                            "declared_fault_type": fault_type,
+                            "alert_fault_type": matching_alert["fault_type"],
+                            "grounding_alert_id": grounding_alert_id,
+                        },
                     )
-                    snapshot = json.dumps({
-                        "action": action,
-                        "declared_fault_type": fault_type,
-                        "alert_fault_type": matching_alert["fault_type"],
-                        "grounding_alert_id": grounding_alert_id,
-                    })
-                    conn.execute(
-                        "INSERT INTO work_order_audit_log (id, timestamp, machine_id, action, urgency, justification, validation_result, real_data_snapshot) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                        (str(uuid.uuid4()), now, machine_id, action, urgency, justification, "Rejected: Fault Type Mismatch", snapshot)
-                    )
-                    conn.commit()
-                    return {"error": rejection_msg}
 
                 # E. Action Plausibility Allow-List Gate (Layer 3)
                 allowed_tokens = FAULT_TYPE_ALLOWED_ACTIONS.get(norm_fault_type, set())
                 action_lower = action.lower()
                 if not any(token in action_lower for token in allowed_tokens):
-                    rejection_msg = (
+                    return reject(
+                        "Rejected: Action Plausibility Mismatch",
                         f"Rejected: Plausibility check failed. Work order action '{action}' "
-                        f"does not contain recognized corrective action vocabulary for fault_type '{fault_type}'."
+                        f"does not contain recognized corrective action vocabulary for fault_type '{fault_type}'.",
+                        {
+                            "action": action,
+                            "fault_type": fault_type,
+                            "allowed_vocabulary_sample": list(allowed_tokens)[:6],
+                        },
                     )
-                    snapshot = json.dumps({
-                        "action": action,
-                        "fault_type": fault_type,
-                        "allowed_vocabulary_sample": list(allowed_tokens)[:6],
-                    })
-                    conn.execute(
-                        "INSERT INTO work_order_audit_log (id, timestamp, machine_id, action, urgency, justification, validation_result, real_data_snapshot) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                        (str(uuid.uuid4()), now, machine_id, action, urgency, justification, "Rejected: Action Plausibility Mismatch", snapshot)
-                    )
-                    conn.commit()
-                    return {"error": rejection_msg}
 
             # 3. Human Confirmation Gate
-            status = "Pending Approval" if urgency in ("High", "Critical") else "Open"
+            # Every agent order needs a human release: urgency is LLM-chosen, so it can't gate approval
+            status = "Pending Approval"
 
             # Insert work order with server-derived provenance (agent:atlas)
             order_id = str(uuid.uuid4())
@@ -379,6 +320,9 @@ def create_work_order(
                 (str(uuid.uuid4()), now, machine_id, action, urgency, justification, f"Success: {status}")
             )
             conn.commit()
+            from server.audit import audit
+            audit(category="work_order", action="create", actor="agent:atlas", actor_type="system", target=str(order_id),
+                  details={"machine_id": machine_id, "action": action, "urgency": urgency, "status": status})
 
         logger.info(f"[AgentTool] Work order created: {order_id} for {machine_id} — {action} [{urgency}] (Status: {status}, CreatedBy: agent:atlas)")
         return {

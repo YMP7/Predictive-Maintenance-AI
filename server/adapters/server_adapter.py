@@ -110,6 +110,8 @@ class ServerAdapter(MachineAdapter):
 
         try:
             client = paramiko.SSHClient()
+            # Only trust hosts already in known_hosts (add once with: ssh-keyscan HOST >> ~/.ssh/known_hosts),
+            # so a man-in-the-middle can't pose as the VM and capture the password.
             client.load_system_host_keys()
             known_hosts = os.environ.get("SSH_KNOWN_HOSTS_FILE")
             if known_hosts:

@@ -1,10 +1,12 @@
 import os
-from typing import List, Optional
-from fastapi import FastAPI, HTTPException
+import threading
+from typing import Annotated, List, Optional
+from fastapi import Depends, FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 import numpy as np
 from pathlib import Path
 
+from server.adapters.domain_profile import DOMAIN_PROFILES, PRIMARY_DOMAIN
 from server.atlas.amkb import AMKB
 from server.atlas.machine_dna import MachineDNAEngine
 from server.atlas.world_model import WorldModel
@@ -14,6 +16,28 @@ from server.atlas.simulation import SimulationEngine
 from server.atlas.decision import DecisionGraph
 from server.atlas.learning_engine import LearningEngine, LearningResult
 import dataclasses
+
+from server.auth import require_admin
+from server.audit import audit
+
+
+def _audit_inference(req, np_window, context) -> None:
+    """One audit event per RUL inference: model + version, input-window hash, RUL band."""
+    from server.cognition_trace import model_ref, rul_band, window_hash
+    variance = float(np.var([n.rul for n in context.neighbors])) if context.neighbors else 0.0
+    band = rul_band(context.predicted_rul, variance)
+    audit(category="inference", action="rul.predict", target=f"{req.domain}/{req.machine_id}",
+          details={**model_ref(req.domain), "window_hash": window_hash(np_window), "rul_mean": band["mean"],
+                   "rul_p10": band["p10"], "rul_p90": band["p90"], "neighbors": len(context.neighbors)})
+
+
+def _audit_explanation(req, report) -> None:
+    d = report.to_dict()
+    audit(category="explanation", action="explain", target=f"{req.domain}/{req.machine_id}",
+          details={"confidence": d.get("confidence_score"), "top_contributors": d.get("top_contributors"),
+                   "amkb_neighbors": [f"{c.get('machine_id')}@{c.get('cycle')}" for c in (d.get("citations") or [])
+                                      if isinstance(c, dict)][:10],
+                   "attribution_unavailable_reason": d.get("attribution_unavailable_reason")})
 
 app = FastAPI(title="ATLAS Adaptive Context API")
 
@@ -42,22 +66,15 @@ def startup_event():
     
     # 3. Load World Models for all available domains
     domain_models = {}
-    for domain, filename in [
-        ("cmapss", "best_model.pt"),
-        ("laptop", "laptop_world_model.pt"),
-        ("mobile", "mobile_world_model.pt"),
-        ("server", "server_world_model.pt"),
-    ]:
-        p = MODELS_DIR / filename
-        if not p.exists() and domain == "cmapss":
-            p = MODELS_DIR / "cmapss_world_model.pt"
-        if p.exists():
+    for domain, profile in DOMAIN_PROFILES.items():
+        p = next((MODELS_DIR / f for f in profile.checkpoints if (MODELS_DIR / f).exists()), None)
+        if p is not None:
             try:
                 domain_models[domain] = WorldModel.load(p)
             except Exception as e:
                 print(f"Warning: could not load {domain} model from {p}: {e}")
 
-    _world_model = domain_models.get("cmapss")
+    _world_model = domain_models.get(PRIMARY_DOMAIN)
     if _world_model is None:
         raise RuntimeError(f"Primary C-MAPSS WorldModel not found in {MODELS_DIR}")
         
@@ -94,13 +111,15 @@ class ContextQueryRequest(BaseModel):
     domain: str
     machine_id: str
     cycle: int
-    window: List[List[float]] = Field(
+    # Bounded so one request can't exhaust memory or force a huge vector scan.
+    window: List[Annotated[List[float], Field(max_length=256)]] = Field(
         ...,
+        max_length=512,
         description="A 2D array (seq_len x feature_dim) of float values representing the operational window."
     )
-    k: int = Field(10, description="Number of neighbors to retrieve")
+    k: int = Field(10, ge=1, le=100, description="Number of neighbors to retrieve")
 
-@app.post("/api/context", response_model=AdaptiveContext)
+@app.post("/api/context", response_model=AdaptiveContext, summary="Adaptive context for a window: predicted RUL and AMKB neighbours")
 def get_context(req: ContextQueryRequest):
     if _ace is None:
         raise HTTPException(status_code=503, detail="ACE not initialized")
@@ -115,6 +134,7 @@ def get_context(req: ContextQueryRequest):
             current_window=np_window,
             k=req.k
         )
+        _audit_inference(req, np_window, context)
         return context
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -123,7 +143,7 @@ def get_context(req: ContextQueryRequest):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@app.post("/api/explain")
+@app.post("/api/explain", summary="Explanation for a window: occlusion attribution, justification, AMKB citations")
 def post_explain(req: ContextQueryRequest):
     if _ace is None or _explain_engine is None:
         raise HTTPException(status_code=503, detail="Atlas engines not initialized")
@@ -138,6 +158,8 @@ def post_explain(req: ContextQueryRequest):
             k=req.k
         )
         report = _explain_engine.explain(context, window=np_window, ace=_ace)
+        _audit_inference(req, np_window, context)
+        _audit_explanation(req, report)
         return report.to_dict()
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -146,7 +168,7 @@ def post_explain(req: ContextQueryRequest):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@app.post("/api/decide")
+@app.post("/api/decide", summary="Decision Graph recommendation from Monte Carlo action outcomes")
 def post_decide(req: ContextQueryRequest):
     if _ace is None or _explain_engine is None or _simulation_engine is None or _decision_graph is None:
         raise HTTPException(status_code=503, detail="Atlas engines not initialized")
@@ -185,7 +207,19 @@ def post_decide(req: ContextQueryRequest):
             predicted_rul=context.predicted_rul,
             neighbor_variance=variance
         )
-        
+
+        target = f"{req.domain}/{req.machine_id}"
+        _audit_inference(req, np_window, context)
+        _audit_explanation(req, explanation)
+        audit(category="simulation", action="monte_carlo", target=target,
+              details={"seed": _simulation_engine.seed, "n": _simulation_engine.num_samples,
+                       "summary": [{"action": s.action, "expected_cost": s.expected_cost,
+                                    "p_failure_before_action": s.p_failure_before_action} for s in sim_results]})
+        audit(category="decision", action="recommend", target=target,
+              details={"chosen": decision.recommended_action, "confidence": decision.confidence, "risk": decision.risk,
+                       "impact": decision.impact, "urgency": decision.urgency,
+                       "candidates": [{"action": s.action, "expected_cost": s.expected_cost, "cost_std": s.cost_std}
+                                      for s in decision.ranked_actions]})
         return dataclasses.asdict(decision)
         
     except ValueError as e:
@@ -201,14 +235,21 @@ class RetrainRequest(BaseModel):
     trigger_reason: str = "manual"
     epochs: int = Field(5, ge=1, le=50)
     batch_size: int = Field(128, ge=1, le=1024)
-    lr: float = Field(1e-3, gt=0, le=1.0)
+    lr: float = Field(1e-3, gt=0, le=1)
 
 
-@app.post("/api/learn/retrain")
+_retrain_lock = threading.Lock()
+
+
+@app.post("/api/learn/retrain", dependencies=[Depends(require_admin)])
 def retrain_model(req: RetrainRequest):
     """Triggers a controlled batch retraining run with Candidate-vs-Active validation gating."""
+    global _world_model, _ace
     if _learning_engine is None:
         raise HTTPException(status_code=503, detail="Learning Engine not initialized")
+    # One run at a time: parallel runs waste CPU and the last to finish would overwrite the other.
+    if not _retrain_lock.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="A retraining run is already in progress")
 
     try:
         result = _learning_engine.retrain_domain(
@@ -218,15 +259,32 @@ def retrain_model(req: RetrainRequest):
             batch_size=req.batch_size,
             lr=req.lr,
         )
-        return result.to_dict()
-    except Exception as e:
+        # Serve the promoted checkpoint right away instead of after the next restart.
+        if result.success and result.domain == PRIMARY_DOMAIN and _ace is not None:
+            _world_model = WorldModel.load(Path(result.checkpoint_path))
+            _ace = AdaptiveContextEngine(
+                _amkb, _dna_engine, _world_model,
+                domain_models={**_ace.domain_models, PRIMARY_DOMAIN: _world_model},
+            )
+            from server.atlas.domain_service import get_domain_service
+            engine = get_domain_service().get_engine(PRIMARY_DOMAIN)
+            if engine is not None:
+                engine.reload_model()
+        summary = result.to_dict()
+        audit(category="learning", action="retrain", target=req.domain, outcome="success" if result.success else "rejected",
+              details={"trigger_reason": req.trigger_reason, "epochs": req.epochs, "batch_size": req.batch_size,
+                       "lr": req.lr, "result": {k: v for k, v in summary.items() if not isinstance(v, (list, dict))}})
+        return summary
+    except Exception:
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Retraining failed; see server logs")
+    finally:
+        _retrain_lock.release()
 
 
 @app.get("/api/learn/history")
-def get_learning_history(domain: str = "cmapss", limit: int = 20):
+def get_learning_history(domain: str = "cmapss", limit: int = Query(20, ge=1, le=200)):
     """Fetches learning event audit logs from the database."""
     if _learning_engine is None:
         raise HTTPException(status_code=503, detail="Learning Engine not initialized")
@@ -238,7 +296,7 @@ def get_learning_history(domain: str = "cmapss", limit: int = 20):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/api/dna/{domain}/{machine_id}")
+@app.get("/api/dna/{domain}/{machine_id}", summary="Stored 16-dim Machine DNA of one unit")
 def get_dna(domain: str, machine_id: str):
     if _dna_engine is None:
         raise HTTPException(status_code=503, detail="DNA Engine not initialized")

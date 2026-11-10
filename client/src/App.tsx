@@ -1,90 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import { RouterProvider } from 'react-router';
+
 import { ThemeProvider } from './contexts/ThemeContext';
-import Home from './pages/Home';
-import Dashboard from './pages/Dashboard';
-import NotFound from './pages/NotFound';
+import { router } from './app/routes';
 
-import Login from './pages/Login';
-
-/**
- * Simple hash-based router.
- * Routes:
- *   /           → Home
- *   /login      → Login
- *   /dashboard  → Dashboard (Protected)
- *   *           → NotFound
- */
-function useRoute() {
-  const [path, setPath] = useState(window.location.pathname);
-
-  useEffect(() => {
-    const onPopState = () => setPath(window.location.pathname);
-    window.addEventListener('popstate', onPopState);
-
-    // Intercept <a> clicks for SPA navigation
-    const onClick = (e: MouseEvent) => {
-      const anchor = (e.target as HTMLElement).closest('a');
-      if (
-        anchor &&
-        anchor.href &&
-        anchor.origin === window.location.origin &&
-        !anchor.hasAttribute('download') &&
-        anchor.target !== '_blank'
-      ) {
-        e.preventDefault();
-        const newPath = anchor.pathname;
-        if (newPath !== window.location.pathname) {
-          window.history.pushState(null, '', newPath);
-          setPath(newPath);
-        }
-      }
-    };
-
-    document.addEventListener('click', onClick);
-    return () => {
-      window.removeEventListener('popstate', onPopState);
-      document.removeEventListener('click', onClick);
-    };
-  }, []);
-
-  return path;
-}
-
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  // Use the non-HttpOnly flag cookie set by the backend to determine UI state synchronously
-  const isAuthenticated = document.cookie.includes('auth_status=true');
-  if (!isAuthenticated) {
-    window.location.replace('/login');
-    return null;
-  }
-  return <>{children}</>;
-}
-
-function Router() {
-  const path = useRoute();
-
-  switch (path) {
-    case '/':
-      return <Home />;
-    case '/login':
-      return <Login />;
-    case '/dashboard':
-      return (
-        <ProtectedRoute>
-          <Dashboard />
-        </ProtectedRoute>
-      );
-    default:
-      return <NotFound />;
-  }
-}
-
-const App: React.FC = () => {
+// Light by default: the viva room and the showcase projector are lit spaces. The user's choice is remembered.
+export default function App() {
   return (
-    <ThemeProvider defaultTheme="dark">
-      <Router />
+    <ThemeProvider defaultTheme="light">
+      <RouterProvider router={router} />
     </ThemeProvider>
   );
-};
-
-export default App;
+}

@@ -1,0 +1,86 @@
+{
+  "adapter": [
+    "adapter",
+    "adapter_status",
+    "adapter_version",
+    "normalized",
+    "quality",
+    "raw",
+    "window",
+    "window_hash"
+  ],
+  "world_model": [
+    "attention",
+    "model",
+    "rul_raw",
+    "state_vector",
+    "version"
+  ],
+  "amkb": [
+    "k",
+    "neighbors"
+  ],
+  "machine_dna": [
+    "dna",
+    "drift",
+    "reason",
+    "siblings"
+  ],
+  "adaptive_context": [
+    "average_neighbor_rul",
+    "neighbor_count",
+    "operational_context",
+    "predicted_rul",
+    "synthetic_fields"
+  ],
+  "rul": [
+    "error",
+    "ground_truth",
+    "ground_truth_capped",
+    "mean",
+    "neighbor_variance",
+    "p10",
+    "p90",
+    "std",
+    "truth_cap"
+  ],
+  "simulation": [
+    "histogram",
+    "n",
+    "p_failure_now",
+    "results",
+    "seed"
+  ],
+  "decision": [
+    "confidence",
+    "impact",
+    "ranked_actions",
+    "recommended_action",
+    "risk",
+    "urgency"
+  ],
+  "explainability": [
+    "attribution_unavailable_reason",
+    "citations",
+    "confidence_level",
+    "confidence_score",
+    "note",
+    "primary_justification",
+    "sensor_attributions",
+    "top_contributors"
+  ],
+  "learning": [
+    "active_model",
+    "error",
+    "history",
+    "note"
+  ],
+  "_trace": [
+    "correlation_id",
+    "domain",
+    "machine_id",
+    "replayed",
+    "total_latency_ms",
+    "ts"
+  ]
+}

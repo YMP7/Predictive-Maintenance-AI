@@ -1,0 +1,200 @@
+/* ATLAS design tokens. ISA-101: neutral greys at rest; colour is spent only on
+   abnormal states (alarm priority, data quality) and on the one interaction accent.
+   (The legacy index.css was removed in P7.) */
+
+:root {
+  /* Ground and surfaces (light: lit viva room / projector) */
+  --surface-page: #eceef1;
+  --surface-panel: #f7f8fa;
+  --surface-raised: #ffffff;
+  --surface-sunken: #e2e5e9;
+  --surface-hover: #e6e9ed;
+  --surface-selected: #dde7f6;
+
+  --line: #d2d6dc;
+  --line-strong: #a9b0b9;
+
+  --ink: #14181d;
+  --ink-2: #3d4650;
+  --ink-3: #5a6470; /* 5.6:1 on panel */
+  --ink-inverse: #f7f8fa;
+
+  /* Shell rail: graphite in both themes */
+  --rail-bg: #1d2329;
+  --rail-line: #2c343c;
+  --rail-ink: #b9c2cc;
+  --rail-ink-active: #ffffff;
+  --rail-hover: #262e36;
+  --rail-active: #323c46;
+
+  /* Interaction accent: selection, focus, links. Never a status. */
+  --accent: #1f5fbf;
+  --accent-hover: #194f9f;
+  --accent-ink: #ffffff;
+  --accent-soft: #dde7f6;
+  --focus-ring: #1f5fbf;
+
+  /* ISA-18.2 alarm priorities: fill (glyphs, bars), ink (text on panel), soft (row tint) */
+  --p-critical: #c8102e;
+  --p-critical-ink: #a50d26;
+  --p-critical-soft: #f8dfe2;
+  --danger-ink: #ffffff; /* text on a filled critical button */
+  --p-high: #e35205;
+  --p-high-ink: #a83c00;
+  --p-high-soft: #fbe5d8;
+  --p-medium: #e8b400;
+  --p-medium-ink: #725400;
+  --p-medium-soft: #fbf0cc;
+  --p-low: #0e7c86;
+  --p-low-ink: #0b6870;
+  --p-low-soft: #d6eef0;
+  --p-info: #5a6470;
+  --p-info-ink: #3d4650;
+  --p-info-soft: #e6e9ed;
+
+  /* Data quality (always rendered with a code and icon, never colour alone) */
+  --q-good: var(--ink-3);
+  --q-stale: var(--p-medium-ink);
+  --q-stale-soft: var(--p-medium-soft);
+  --q-range: var(--p-high-ink);
+  --q-range-soft: var(--p-high-soft);
+  --q-flat: var(--p-low-ink);
+  --q-flat-soft: var(--p-low-soft);
+  --q-missing: var(--ink-3);
+  --q-sim: #4a5562;
+  --q-sim-soft: #e3e7ec;
+
+  /* Health ramp for 0..1 health (3D tint, bars): grey when healthy, priority hues as it falls */
+  --health-ok: #8a939d;
+
+  /* Charts (P5). Diverging pair is blue <-> brown, never red: red belongs to ISA-18.2 critical alarms.
+     Validated with the dataviz validator against --surface-panel (all checks pass). */
+  --viz-neg: #1f5fbf;
+  --viz-pos: #9c5a14;
+  --viz-mid: #e6e9ed;
+  --viz-mark: #1f5fbf;
+  --viz-quiet: #a9b0b9;
+
+  /* Type */
+  --type-ui: "Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --type-num: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --text-xs: 0.75rem;   /* 12 */
+  --text-sm: 0.8125rem; /* 13 */
+  --text-md: 0.875rem;  /* 14 base */
+  --text-lg: 1rem;      /* 16 */
+  --text-xl: 1.25rem;   /* 20 */
+  --text-2xl: 1.5rem;   /* 24 */
+  --text-3xl: 2rem;     /* 32 */
+  --leading-tight: 1.2;
+  --leading-body: 1.5;
+
+  /* Space (4 px grid) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  /* Corners: square instrument language, never pills */
+  --corner-1: 2px;
+  --corner-2: 3px;
+  --corner-3: 4px;
+
+  /* Elevation: offset + soft blur; only overlays float */
+  --elev-1: 0 1px 2px rgb(16 22 30 / 0.08), 0 1px 1px rgb(16 22 30 / 0.04);
+  --elev-2: 0 6px 16px rgb(16 22 30 / 0.12), 0 2px 4px rgb(16 22 30 / 0.06);
+  --elev-3: 0 16px 40px rgb(16 22 30 / 0.18), 0 4px 10px rgb(16 22 30 / 0.08);
+  --scrim: rgb(16 22 30 / 0.42);
+
+  /* Motion (from .impeccable/design.json) */
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-fast: 150ms;
+  --dur-normal: 250ms;
+  --dur-slow: 350ms;
+
+  /* Layout */
+  --rail-w: 13.5rem;
+  --rail-w-collapsed: 3.5rem;
+  --header-h: 3rem;
+
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --surface-page: #101316;
+  --surface-panel: #171b1f;
+  --surface-raised: #1e2328;
+  --surface-sunken: #0c0f12;
+  --surface-hover: #232930;
+  --surface-selected: #1d2d45;
+
+  --line: #2b3239;
+  --line-strong: #46505a;
+
+  --ink: #e9ecef;
+  --ink-2: #bcc4cc;
+  --ink-3: #8f99a4; /* 5.9:1 on panel */
+  --ink-inverse: #101316;
+
+  --rail-bg: #0b0e11;
+  --rail-line: #1c2228;
+  --rail-hover: #161b20;
+  --rail-active: #1f262d;
+
+  --accent: #6ea8fe;
+  --accent-hover: #8dbbff;
+  --accent-ink: #0b1220;
+  --accent-soft: #1d2d45;
+  --focus-ring: #6ea8fe;
+
+  --p-critical: #ff5a5f;
+  --p-critical-ink: #ff7a7e;
+  --p-critical-soft: #3a1a1d;
+  --danger-ink: #1a0507;
+  --p-high: #ff8a3d;
+  --p-high-ink: #ffa066;
+  --p-high-soft: #3a2416;
+  --p-medium: #f2c94c;
+  --p-medium-ink: #f2cf63;
+  --p-medium-soft: #352d14;
+  --p-low: #3ec6d0;
+  --p-low-ink: #5ed2da;
+  --p-low-soft: #12312f;
+  --p-info: #8f99a4;
+  --p-info-ink: #bcc4cc;
+  --p-info-soft: #232930;
+
+  --q-sim: #aab4be;
+  --q-sim-soft: #232930;
+  --health-ok: #6b7580;
+
+  --viz-neg: #4f8fe8;
+  --viz-pos: #b8732c;
+  --viz-mid: #2b3239;
+  --viz-mark: #4f8fe8;
+  --viz-quiet: #46505a;
+
+  --elev-1: 0 1px 2px rgb(0 0 0 / 0.4);
+  --elev-2: 0 6px 16px rgb(0 0 0 / 0.45), 0 2px 4px rgb(0 0 0 / 0.3);
+  --elev-3: 0 16px 40px rgb(0 0 0 / 0.55), 0 4px 10px rgb(0 0 0 / 0.35);
+  --scrim: rgb(0 0 0 / 0.6);
+
+  color-scheme: dark;
+}
+
+/* Kiosk: 1080p projector read from 2-4 m. Everything is rem, so scaling the root scales the UI. */
+:root[data-kiosk] {
+  font-size: 150%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-normal: 0ms;
+    --dur-slow: 0ms;
+  }
+}

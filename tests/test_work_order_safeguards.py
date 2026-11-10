@@ -19,7 +19,7 @@ def _mock_database(monkeypatch):
     
     # Force reload of dependent modules
     for mod_name in list(sys.modules.keys()):
-        if mod_name in ("server.agent_tools", "server.backend_api", "server.auth"):
+        if mod_name in ("server.agent_tools", "server.backend_api", "server.auth", "server.api"):
             del sys.modules[mod_name]
             
     return mock_conn
@@ -245,3 +245,116 @@ def test_all_fault_types_accept_legitimate_actions_and_alerts(_mock_database, fa
     assert res["grounding_alert_id"] == alert_id
     assert res["created_by"] == "agent:atlas"
 
+
+
+def test_medium_agent_order_still_requires_approval(_mock_database):
+    """Urgency is LLM-chosen, so an ungrounded Medium order must not land as Open."""
+    from server.agent_tools import create_work_order
+
+    res = create_work_order("M001", "Flush coolant loop", "Medium", justification="Routine")
+
+    assert "error" not in res
+    assert res["status"] == "Pending Approval"
+
+
+def test_resolve_pending_order_returns_404(_mock_database):
+    """A never-approved order cannot be resolved, and no audit row is written for it."""
+    from fastapi.testclient import TestClient
+    from server.backend_api import app, get_current_user
+    from server.auth import User
+
+    _mock_database.execute.return_value.fetchone.return_value = None  # UPDATE ... AND status='Open' matched nothing
+    app.dependency_overrides[get_current_user] = lambda: User(username="op", role="operator")
+    try:
+        res = TestClient(app).patch("/api/work-orders/pending-uuid/resolve")
+    finally:
+        app.dependency_overrides = {}
+
+    assert res.status_code == 404
+    queries = [c[0][0] for c in _mock_database.execute.call_args_list]
+    # only Open or In Progress orders resolve; Pending Approval is excluded
+    assert any("status IN ('Open', 'In Progress')" in q for q in queries)
+    assert not any("work_order_audit_log" in q for q in queries)
+
+
+def test_approve_writes_audit_row_with_user(_mock_database):
+    """Approval records who released the order."""
+    from fastapi.testclient import TestClient
+    from server.backend_api import app, get_current_user
+    from server.auth import User
+
+    _mock_database.execute.return_value.fetchone.return_value = ("wo-1", "M001", "Fix bearing", "Medium")
+    app.dependency_overrides[get_current_user] = lambda: User(username="op", role="operator")
+    try:
+        res = TestClient(app).post("/api/work-orders/wo-1/approve")
+    finally:
+        app.dependency_overrides = {}
+
+    assert res.status_code == 200
+    audit = [c[0] for c in _mock_database.execute.call_args_list if "work_order_audit_log" in c[0][0]]
+    assert len(audit) == 1
+    assert "by op" in audit[0][1][4] and audit[0][1][5] == "HUMAN_APPROVED"
+
+
+def test_retrain_requires_admin_and_caps_epochs(_mock_database):
+    from fastapi.testclient import TestClient
+    from server.backend_api import app, get_current_user
+    from server.auth import User
+
+    client = TestClient(app)
+    assert client.post("/api/learn/retrain", json={}, headers={"X-API-Request": "true"}).status_code == 401
+
+    app.dependency_overrides[get_current_user] = lambda: User(username="op", role="operator")
+    try:
+        assert client.post("/api/learn/retrain", json={}).status_code == 403
+        app.dependency_overrides[get_current_user] = lambda: User(username="root", role="admin")
+        assert client.post("/api/learn/retrain", json={"epochs": 1000000}).status_code == 422
+    finally:
+        app.dependency_overrides = {}
+
+
+def test_mobile_telemetry_requires_token_and_known_unit(_mock_database, monkeypatch):
+    from fastapi.testclient import TestClient
+    from server.backend_api import app
+    import server.adapters.mobile_adapter as mobile_adapter
+
+    # Keep pushes out of the module-level registry other tests read
+    for name, value in (("_browser_pushes", {}), ("_browser_push_times", {}),
+                        ("_latest_browser_push", None), ("_latest_browser_push_time", 0.0)):
+        monkeypatch.setattr(mobile_adapter, name, value)
+
+    client = TestClient(app)
+    body = {"machine_id": "mobile_device_1", "battery_percent": 80}
+
+    monkeypatch.delenv("MOBILE_BRIDGE_TOKEN", raising=False)
+    assert client.post("/api/atlas/mobile/telemetry", json=body).status_code == 401  # unset -> closed
+
+    monkeypatch.setenv("MOBILE_BRIDGE_TOKEN", "s3cret")
+    assert client.post("/api/atlas/mobile/telemetry", json=body, headers={"X-Mobile-Bridge-Token": "wrong"}).status_code == 401
+    ok = {"X-Mobile-Bridge-Token": "s3cret"}
+    assert client.post("/api/atlas/mobile/telemetry", json=body, headers=ok).status_code == 200
+    assert client.post("/api/atlas/mobile/telemetry", json={"machine_id": "x-123"}, headers=ok).status_code == 400
+
+
+def test_simulated_alerts_are_tagged_and_not_notified(_mock_database, monkeypatch):
+    """Simulator alerts must not carry the ai_pipeline label the grounding gate trusts, nor page anyone."""
+    import threading
+    from server.data_service import DataService
+    import server.alert_handler as alert_handler
+
+    handler = MagicMock()
+    monkeypatch.setattr(alert_handler, "get_alert_handler", lambda: handler)
+
+    svc = MagicMock(_lock=threading.Lock(), telemetry_cache={}, status_cache={}, alerts_log=[], machine_info={})
+    svc.agent.process_reading.return_value = {
+        "status": "Critical", "fault_type": "bearing_wear", "rule_fault_type": "bearing_wear",
+        "fault_probabilities": {}, "diagnosis_source": "rules", "detected_issues": [], "rul_days": 1,
+        "rul_confidence": 0.9, "recommendation": "", "alerts": [{"machine_id": "M001"}],
+    }
+
+    DataService.ingest_telemetry(svc, "M001", {}, source="simulation")
+    svc._save_alert_to_db.assert_called_once_with({"machine_id": "M001"}, "simulation")
+    handler.queue_alert.assert_not_called()
+
+    DataService.ingest_telemetry(svc, "M001", {})
+    handler.queue_alert.assert_called_once()

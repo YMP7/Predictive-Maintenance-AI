@@ -144,8 +144,10 @@ class MinimalVibrationAdapter(MachineAdapter):
         "server",
         "hello_world",
         "modbus",
+        "configurable",
     ],
-    ids=["CMAPSSAdapter", "LaptopAdapter", "MobileAdapter", "ServerAdapter", "HelloWorldAdapter", "ModbusAdapter"],
+    ids=["CMAPSSAdapter", "LaptopAdapter", "MobileAdapter", "ServerAdapter", "HelloWorldAdapter", "ModbusAdapter",
+         "ConfigurableAdapter"],
 )
 def adapter_instance(request) -> Generator[Tuple[str, MachineAdapter], None, None]:
     """
@@ -178,6 +180,15 @@ def adapter_instance(request) -> Generator[Tuple[str, MachineAdapter], None, Non
             machine_ids=[sim.machine_id],
             domain_id="modbus_machine",
         )
+    elif domain == "configurable":
+        from server.adapters.configurable_adapter import ConfigurableAdapter, SensorProfile
+        adapter = ConfigurableAdapter(SensorProfile(
+            machine_id="conformance_pump", domain="rotating_asset", display_name="Conformance pump",
+            channels=[{"channel": "temp_raw", "feature": "bearing_temp", "unit": "K", "scale": 0.1, "offset": 273.15,
+                       "valid_min": 273.15, "valid_max": 393.15, "health_weight": 1.0},
+                      {"channel": "amps", "feature": "motor_current", "unit": "A", "valid_min": 0, "valid_max": 40}]))
+        adapter.connect()
+        adapter.ingest([{"values": {"temp_raw": 600, "amps": 12}}])
     else:
         raise ValueError(f"Unknown fixture domain: {domain}")
 
@@ -354,6 +365,21 @@ class TestAdapterLifecycleContracts:
         assert adapter.status == AdapterStatus.LIVE
         adapter.disconnect()
         assert adapter.status == AdapterStatus.DISCONNECTED
+
+    def test_machine_state_online_stale_offline(self, monkeypatch) -> None:
+        adapter = MinimalVibrationAdapter()
+        mid = adapter.machine_ids[0]
+        assert adapter.machine_state(mid) == "offline"  # not connected / never read
+        adapter.connect()
+        adapter.get_reading(mid)
+        assert adapter.machine_state(mid) == "online"
+        assert adapter.describe()["machine_states"][mid] == "online"
+        import server.adapters.base_adapter as ba
+        real = ba.time.monotonic()
+        monkeypatch.setattr(ba.time, "monotonic", lambda: real + adapter.STALE_AFTER_S + 1)
+        assert adapter.machine_state(mid) == "stale"
+        adapter.disconnect()
+        assert adapter.machine_state(mid) == "offline"
 
 
 # ---------------------------------------------------------------------------

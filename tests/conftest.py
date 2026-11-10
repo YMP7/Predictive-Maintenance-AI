@@ -15,6 +15,13 @@ if str(PROJECT_ROOT) not in sys.path:
 
 load_dotenv(PROJECT_ROOT / ".env")
 
+# Test runs must not append to the real audit chain: events go to a throwaway folder, not the database.
+import os  # noqa: E402
+import tempfile  # noqa: E402
+
+os.environ.setdefault("AUDIT_DB", "0")
+os.environ.setdefault("AUDIT_DIR", tempfile.mkdtemp(prefix="atlas-audit-test-"))
+
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -40,3 +47,16 @@ def pytest_collection_modifyitems(config, items):
     if drop:
         config.hook.pytest_deselected(items=drop)
         items[:] = keep
+
+import pytest
+
+
+@pytest.fixture
+def signed_in():
+    """Every /api route requires a signed-in user; run the test as an admin."""
+    from server.backend_api import app
+    from server.auth import User, get_current_user
+
+    app.dependency_overrides[get_current_user] = lambda: User(username="test_admin", role="admin")
+    yield
+    app.dependency_overrides.pop(get_current_user, None)

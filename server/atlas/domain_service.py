@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from server.adapters.base_adapter import NormalizedReading
+from server.adapters.domain_profile import get_profile
 from server.adapters.cmapss_adapter import CMAPSSAdapter
 from server.atlas.rul_engine import RULEngine, RULPrediction
 from server.database import pool
@@ -251,13 +252,14 @@ class DomainService:
             "cycle": reading.cycle,
             "rul_label": reading.rul_label,
             "rul_cycles": prediction.rul_cycles,
-            "normalized_rul": round(prediction.rul_cycles if domain != "cmapss" else (prediction.rul_cycles / 125.0), 4),
+            "normalized_rul": round(prediction.rul_cycles / (get_profile(domain).rul_scale or 1.0), 4),
             "rul_days": prediction.rul_days,
             "confidence": prediction.confidence,
             "uncertainty": prediction.uncertainty,
             "status": prediction.status,
             "using_lstm": prediction.using_lstm,
             "features": reading.features,
+            "raw_features": reading.raw_features,
             "operational_ctx": reading.operational_ctx,
             "adapter_status": reading.adapter_status,
             "metadata": reading.metadata,
@@ -346,6 +348,26 @@ class DomainService:
     def get_engine(self, domain: str) -> Optional[RULEngine]:
         with self._lock:
             return self._engines.get(domain)
+
+    def get_adapter(self, domain: str):
+        with self._lock:
+            return self._adapters.get(domain)
+
+    def ensure_registered(self, domain: str) -> None:
+        """Register a known domain on first use; no-op if already registered or unknown."""
+        if self.get_engine(domain) is not None:
+            return
+        register = {
+            "cmapss": lambda: self.register_cmapss(subset="FD001", max_units=20),
+            "laptop": self.register_laptop,
+            "mobile": self.register_mobile,
+            "server": self.register_server,
+        }.get(domain)
+        if register:
+            register()
+
+
+KNOWN_DOMAINS = ("cmapss", "laptop", "mobile", "server")
 
 
 # ---------------------------------------------------------------------------

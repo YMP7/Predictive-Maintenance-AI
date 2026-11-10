@@ -10,6 +10,7 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
     API_HOST=0.0.0.0 \
     API_PORT=8000 \
     LOG_FILE=/app/logs/agent.log \
@@ -21,10 +22,13 @@ COPY requirements.txt requirements-ml.txt ./
 RUN pip install --no-cache-dir -r requirements-ml.txt --extra-index-url https://download.pytorch.org/whl/cpu
 
 COPY server ./server
+COPY ml ./ml
 COPY scripts ./scripts
 COPY config ./config
-# Startup refuses to run without the C-MAPSS checkpoint (server/api.py).
+# The API refuses to start without the C-MAPSS checkpoint; the dashboards read the dataset and result files.
 COPY data/models ./data/models
+COPY data/cmapss ./data/cmapss
+COPY data/*.json ./data/
 COPY --from=frontend /build/dist ./client/dist
 
 RUN mkdir -p /app/data /app/logs \

@@ -37,12 +37,16 @@ _browser_pushes: Dict[str, Dict[str, Any]] = {}
 _browser_push_times: Dict[str, float] = {}
 _latest_browser_push: Optional[Dict[str, Any]] = None
 _latest_browser_push_time: float = 0.0
+# Fixed set so untrusted pushes can't grow the registry without bound
+BROWSER_PUSH_UNITS = ("mobile_device_1", "mobile_device_2")
 
 
 def push_browser_telemetry(data: Dict[str, Any]) -> None:
     """Register incoming live telemetry pushed from a web browser bridge (e.g. Lumia)."""
     global _latest_browser_push, _latest_browser_push_time
     target_unit = data.get("machine_id", "mobile_device_1")
+    if target_unit not in BROWSER_PUSH_UNITS:
+        raise ValueError(f"Unknown mobile unit: {target_unit!r}")
     _browser_pushes[target_unit] = data
     _browser_push_times[target_unit] = time.time()
     _latest_browser_push = data

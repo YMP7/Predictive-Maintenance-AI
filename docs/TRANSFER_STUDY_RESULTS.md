@@ -16,8 +16,8 @@ This study evaluates latent representation geometry, distribution divergence, an
 
 The empirical findings demonstrate:
 - **Category A vs Category B Domain Discrepancy**: Physical degradation dynamics in turbofan engines are statistically separated from compute operational stress (MMD ≈ 1.23).
-- **Compute Domain Distributional Sub-Structure**: Compute domains exhibit moderate internal distributional proximity (MMD = 0.74 - 0.88) reflecting shared compute architecture (CPU/RAM/Disk), while maintaining distinct operational identities.
-- **Orthogonal Latent Geometry**: Domain centroid cosine similarities remain near-zero (-0.09 to 0.18), indicating that unconstrained domain encoders learn distinct, approximately orthogonal sub-spaces in 32-dimensional latent space.
+- **Compute Domain Distributional Sub-Structure**: Compute domains exhibit moderate internal distributional proximity (MMD = 0.90 - 0.93) reflecting shared compute architecture (CPU/RAM/Disk), while maintaining distinct operational identities.
+- **Orthogonal Latent Geometry**: Domain centroid cosine similarities remain weakly aligned (-0.22 to 0.15), indicating that unconstrained domain encoders learn distinct, approximately orthogonal sub-spaces in 32-dimensional latent space.
 - **AMKB Semantic Retrieval Negative Transfer**: Querying C-MAPSS physical memory using legitimate 32-dimensional latent states extracted from compute domains increases prediction error by up to 7.8x over within-domain retrieval, empirically confirming the necessity of domain-specific representation mapping.
 
 ---
@@ -45,7 +45,7 @@ Measures directional alignment of mean latent representations in 32-dimensional 
 | **server** | 0.0800 | -0.2169 | 0.0729 | 1.0000 |
 
 > [!NOTE]
-> **Geometric Interpretation**: Values near zero (-0.09 to 0.18) demonstrate that domain representations occupy approximately orthogonal subspaces in $\mathbb{R}^{32}$. The representations do not collapse into a single shared direction, nor do they reflect spurious alignment.
+> **Geometric Interpretation**: Values near zero (-0.22 to 0.15) demonstrate that domain representations occupy approximately orthogonal subspaces in $\mathbb{R}^{32}$. The representations do not collapse into a single shared direction, nor do they reflect spurious alignment.
 
 ---
 

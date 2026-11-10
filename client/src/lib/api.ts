@@ -1,18 +1,33 @@
 /**
- * API utility module for AI Digital Twin
+ * API utility module for ATLAS
  * Centralizes backend API configuration and fetch helpers.
  */
 
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
+/** Non-2xx reply. The message keeps the "API error <status>: <detail>" form older callers match on. */
+export class ApiError extends Error {
+  status: number;
+  detail: string;
+  constructor(status: number, detail: string) {
+    super(`API error ${status}: ${detail}`);
+    this.status = status;
+    this.detail = detail;
+  }
+}
+
+export const statusOf = (err: unknown) => (err instanceof ApiError ? err.status : null);
+
 /**
- * Typed fetch wrapper with error handling.
+ * Typed fetch wrapper with error handling. Every call carries a fresh correlation ID, which the
+ * server copies into the audit trail and its logs.
  */
 export async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-API-Request': 'true', // CSRF mitigation
+    'X-Correlation-ID': crypto.randomUUID(),
     ...options?.headers as Record<string, string>
   };
   
@@ -23,11 +38,10 @@ export async function apiFetch<T>(endpoint: string, options?: RequestInit): Prom
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
-      // Clear auth UI state and redirect to login
-      document.cookie = "auth_status=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-      document.cookie = "user_role=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-      window.location.href = '/login';
+    // Session missing or expired: back to sign-in, then return here. A failed login itself
+    // is also a 401, so it falls through and its message reaches the form.
+    if (response.status === 401 && endpoint !== '/api/auth/login' && window.location.pathname !== '/login') {
+      window.location.href = `/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
     }
     
     let errorMessage = response.statusText;
@@ -42,7 +56,7 @@ export async function apiFetch<T>(endpoint: string, options?: RequestInit): Prom
       // Ignore JSON parse errors for non-JSON responses
     }
     
-    throw new Error(`API error ${response.status}: ${errorMessage}`);
+    throw new ApiError(response.status, errorMessage);
   }
 
   return response.json() as Promise<T>;

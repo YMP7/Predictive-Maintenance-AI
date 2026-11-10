@@ -1,6 +1,8 @@
 import logging
 import os
+import re
 import secrets
+import uuid
 
 from dotenv import load_dotenv
 
@@ -17,7 +19,12 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
+from server import audit as _audit
+from server.adapters.domain_profile import DOMAIN_PROFILES
 from server.data_service import get_data_service
+from server.operations_api import audit_work_order
+from server import machine_registry
+from server.machine_registry import MachineConfig, NewMachine
 from server.database import pool
 from server.llm_agent import run_agent
 from server.agent_memory import AgentMemory
@@ -31,7 +38,11 @@ from server.auth import (
     create_access_token,
     ACCESS_TOKEN_EXPIRE_MINUTES,
     SECRET_KEY,
-    ALGORITHM
+    ALGORITHM,
+    get_user_from_db,
+    get_current_user,
+    require_admin,
+    require_operator_or_admin,
 )
 from jose import JWTError, jwt
 from datetime import timedelta
@@ -44,7 +55,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="AI Digital Twin API",
+    title="ATLAS API",
     description="Predictive Maintenance System API for MSMEs",
     version="1.0.0"
 )
@@ -71,6 +82,33 @@ if "*" in cors_origins:
         "could then issue credentialed requests. List the exact frontend origins, e.g. "
         "CORS_ORIGINS=https://app.example.com,http://localhost:3000"
     )
+
+# Every /api route needs a signed-in user, except these. The phone bridge checks its own
+# MOBILE_BRIDGE_TOKEN; health is a liveness probe. Registered before CORS so CORS wraps it.
+_PUBLIC_API_PATHS = {"/api/auth/login", "/api/auth/logout", "/api/health", "/api/ready", "/api/atlas/mobile/telemetry"}
+# Device push authenticates with its own per-device token (server/ingest.py), not a browser session.
+_DEVICE_PUSH = re.compile(r"^/api/ingest/[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$")
+
+
+@app.middleware("http")
+async def require_login_for_api(request: Request, call_next):
+    path = request.url.path
+    public = path in _PUBLIC_API_PATHS or (request.method == "POST" and _DEVICE_PUSH.match(path))
+    if path.startswith("/api/") and not public and request.method != "OPTIONS":
+        try:
+            # Honour dependency_overrides like a normal Depends(get_current_user) would.
+            override = request.app.dependency_overrides.get(get_current_user)
+            # Cached on request.state so endpoint dependencies don't look the user up again.
+            request.state.user = override() if override is not None else await get_current_user(request)
+        except HTTPException as e:
+            return JSONResponse({"detail": e.detail}, status_code=e.status_code)
+        user = request.state.user
+        _audit.current_actor.set({"actor": user.username, "actor_type": "user", "role": user.role})
+        # Every admin path is admin-only, whatever its own dependencies say.
+        if path.startswith("/api/admin/") and user.role != "admin":
+            return JSONResponse({"detail": "Not enough privileges"}, status_code=403)
+    return await call_next(request)
+
 
 # CORS configuration
 app.add_middleware(
@@ -105,59 +143,6 @@ def require_machine(machine_id: str) -> None:
 
 # Removed OAuth2PasswordBearer for HttpOnly cookies
 
-# User lookup via TimescaleDB (replaces the old fake_users_db in-memory dict)
-def get_user_from_db(username: str) -> dict | None:
-    """Query the users table for a single user by username."""
-    with pool.connection() as conn:
-        row = conn.execute(
-            "SELECT username, hashed_password, role FROM users WHERE username = %s",
-            (username,)
-        ).fetchone()
-        if row:
-            return {"username": row[0], "hashed_password": row[1], "role": row[2]}
-    return None
-
-def get_current_user(request: Request) -> User:
-    credentials_exception = HTTPException(
-        status_code=401,
-        detail="Could not validate credentials",
-    )
-    
-    # CSRF Protection: Require custom header
-    if request.headers.get("X-API-Request") != "true":
-        raise HTTPException(
-            status_code=403, 
-            detail="Missing CSRF protection header (X-API-Request)"
-        )
-
-    token = request.cookies.get("access_token")
-    if not token:
-        raise credentials_exception
-
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-        token_data = TokenData(username=username, role=payload.get("role"))
-    except JWTError:
-        raise credentials_exception
-        
-    user_dict = get_user_from_db(token_data.username)
-    if user_dict is None:
-        raise credentials_exception
-    return User(**user_dict)
-
-async def require_admin(current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Not enough privileges")
-    return current_user
-
-async def require_operator_or_admin(current_user: User = Depends(get_current_user)):
-    if current_user.role not in ["admin", "operator"]:
-        raise HTTPException(status_code=403, detail="Not enough privileges")
-    return current_user
-
 # Note: Replacing API Key with JWT Admin dependency for control endpoints
 
 
@@ -168,19 +153,36 @@ class LoginRequest(BaseModel):
 @app.post("/api/auth/login")
 @limiter.limit("5/minute")
 def login_for_access_token(request: Request, login_req: LoginRequest):
+    ip = request.client.host if request.client else None
     user_dict = get_user_from_db(login_req.username)
     if not user_dict or not verify_password(login_req.password, user_dict["hashed_password"]):
+        _audit.audit(category="auth", action="login", actor=login_req.username, actor_type="user", source_ip=ip,
+                     outcome="failure", details={"reason": "bad credentials"})
         raise HTTPException(
             status_code=401,
             detail="Incorrect username or password",
         )
+    _audit.audit(category="auth", action="login", actor=user_dict["username"], actor_type="user",
+                 role=user_dict["role"], source_ip=ip)
+    return _session_response(user_dict["username"], user_dict["role"])
+
+
+@app.post("/api/auth/refresh", summary="Issue a fresh session cookie for a signed-in user")
+def refresh_session(request: Request, current_user: User = Depends(get_current_user)):
+    _audit.audit(category="auth", action="token_refresh", actor=current_user.username, actor_type="user",
+                 role=current_user.role, source_ip=request.client.host if request.client else None)
+    return _session_response(current_user.username, current_user.role)
+
+
+def _session_response(username: str, role: str) -> JSONResponse:
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user_dict["username"], "role": user_dict["role"]}, expires_delta=access_token_expires
+        data={"sub": username, "role": role}, expires_delta=access_token_expires
     )
-    
+    user_dict = {"role": role}
+
     IS_LOCAL_DEV = os.getenv("ENVIRONMENT", "development") == "development"
-    
+
     response = JSONResponse(content={"role": user_dict["role"]})
     # Set HttpOnly cookie for the token
     response.set_cookie(
@@ -212,7 +214,14 @@ def login_for_access_token(request: Request, login_req: LoginRequest):
     return response
 
 @app.post("/api/auth/logout")
-async def logout():
+async def logout(request: Request):
+    try:  # logout is public, so identify the user from the cookie if it is still valid
+        who = await get_current_user(request)
+        actor, role = who.username, who.role
+    except HTTPException:
+        actor, role = "anonymous", None
+    _audit.audit(category="auth", action="logout", actor=actor, actor_type="user", role=role,
+                 source_ip=request.client.host if request.client else None)
     response = JSONResponse(content={"detail": "Logged out successfully"})
     response.delete_cookie("access_token", samesite="lax")
     response.delete_cookie("auth_status", samesite="lax")
@@ -239,24 +248,74 @@ async def system_status():
         "timestamp": utc_timestamp()
     }
 
-@app.get("/api/dashboard/summary")
+@app.get("/api/dashboard/summary", summary="Simulator machines: status counts, alert counts, average RUL")
 async def get_dashboard_summary():
     summary = service.get_dashboard_summary()
     return JSONResponse(content=summary)
 
-@app.get("/api/machines")
+@app.get("/api/machines", summary="Registered simulator machines with their configuration")
 async def get_all_machines():
     machines = service.get_all_machines_info()
     return JSONResponse(content=machines)
 
-@app.get("/api/machines/{machine_id}/status")
+
+# ---- Device management (admin only): edits config/machines.json and applies it live ----
+
+@app.post("/api/admin/machines", dependencies=[Depends(require_admin)], status_code=201)
+def add_machine(payload: NewMachine):
+    config = payload.model_dump(exclude={"machine_id"})
+
+    def change(machines: Dict[str, Any]):
+        if payload.machine_id in machines:
+            raise HTTPException(status_code=409, detail=f"Machine {payload.machine_id} already exists")
+        machines[payload.machine_id] = config
+
+    service.apply_registry(machine_registry.mutate(change))
+    logger.info("Machine %s added to registry", payload.machine_id)
+    _audit.audit(category="admin", action="machine.create", target=payload.machine_id,
+                 details={"before": None, "after": config})
+    return {"machine_id": payload.machine_id, **config}
+
+
+@app.put("/api/admin/machines/{machine_id}", dependencies=[Depends(require_admin)])
+def update_machine(machine_id: str, payload: MachineConfig):
+    before: Dict[str, Any] = {}
+
+    def change(machines: Dict[str, Any]):
+        if machine_id not in machines:
+            raise HTTPException(status_code=404, detail="Machine not found")
+        before.update(machines[machine_id])
+        machines[machine_id] = payload.model_dump()
+
+    service.apply_registry(machine_registry.mutate(change))
+    logger.info("Machine %s updated", machine_id)
+    _audit.audit(category="admin", action="machine.update", target=machine_id,
+                 details={"before": before, "after": payload.model_dump()})
+    return {"machine_id": machine_id, **payload.model_dump()}
+
+
+@app.delete("/api/admin/machines/{machine_id}", dependencies=[Depends(require_admin)], summary="Remove a machine from the registry (stored history is kept)")
+def delete_machine(machine_id: str):
+    before: Dict[str, Any] = {}
+
+    def change(machines: Dict[str, Any]):
+        if machine_id not in machines:
+            raise HTTPException(status_code=404, detail="Machine not found")
+        before.update(machines.pop(machine_id))
+
+    service.apply_registry(machine_registry.mutate(change))
+    logger.info("Machine %s removed from registry; stored telemetry history is kept", machine_id)
+    _audit.audit(category="admin", action="machine.delete", target=machine_id, details={"before": before, "after": None})
+    return {"deleted": machine_id}
+
+@app.get("/api/machines/{machine_id}/status", summary="Latest status, fault type and RUL of one simulator machine")
 async def get_machine_status(machine_id: str):
     status = service.get_machine_status(machine_id)
     if status is None:
         raise HTTPException(status_code=404, detail="Machine not found")
     return JSONResponse(content=status)
 
-@app.get("/api/machines/{machine_id}/telemetry")
+@app.get("/api/machines/{machine_id}/telemetry", summary="Recent telemetry readings of one simulator machine")
 async def get_machine_telemetry(
     machine_id: str,
     limit: int = Query(default=100, ge=1, le=1000),
@@ -265,18 +324,18 @@ async def get_machine_telemetry(
     telemetry = service.get_machine_telemetry(machine_id, limit=limit)
     return JSONResponse(content=telemetry)
 
-@app.get("/api/machines/{machine_id}/trends")
+@app.get("/api/machines/{machine_id}/trends", summary="Vibration, temperature and current trends with min, mean and max")
 async def get_machine_trends(machine_id: str):
     require_machine(machine_id)
     trends = service.get_machine_trends(machine_id)
     return JSONResponse(content=trends)
 
-@app.get("/api/alerts/recent")
+@app.get("/api/alerts/recent", summary="Recent alerts from memory (legacy; /api/alarms carries the ISA-18.2 state)")
 async def get_recent_alerts(limit: int = Query(default=50, ge=1, le=500)):
     alerts = service.get_recent_alerts(limit=limit)
     return JSONResponse(content=alerts)
 
-@app.get("/api/alerts/machine/{machine_id}")
+@app.get("/api/alerts/machine/{machine_id}", summary="Recent alerts of one machine (legacy)")
 async def get_machine_alerts(
     machine_id: str,
     limit: int = Query(default=20, ge=1, le=500),
@@ -290,11 +349,13 @@ async def start_simulation(
     interval: float = Query(default=1.0, gt=0, le=3600),
 ):
     service.start_simulation(interval=interval)
+    _audit.audit(category="simulation", action="start", target="sensor_simulator", details={"interval_s": interval})
     return {"status": "simulation started", "interval": interval}
 
 @app.post("/api/simulation/stop", dependencies=[Depends(require_operator_or_admin)])
 async def stop_simulation():
     service.stop_simulation()
+    _audit.audit(category="simulation", action="stop", target="sensor_simulator")
     return {"status": "simulation stopped"}
 
 @app.post("/api/machines/{machine_id}/fault", dependencies=[Depends(require_admin)])
@@ -309,6 +370,7 @@ async def inject_fault(machine_id: str, payload: FaultInjectionPayload):
     service.simulator.machines[machine_id].fault_mode = payload.fault_mode
     # Reset degradation steps to allow clean progression
     service.simulator.machines[machine_id].degradation_step = 0
+    _audit.audit(category="simulation", action="fault.inject", target=machine_id, details={"fault_mode": payload.fault_mode})
     return {"status": "fault injected", "machine_id": machine_id, "fault_mode": payload.fault_mode}
 
 
@@ -372,7 +434,8 @@ def get_work_orders(
             params.append(limit)
             rows = conn.execute(
                 f"""
-                SELECT order_id, machine_id, action, urgency, status, created_at, resolved_at, notes, created_by
+                SELECT order_id, machine_id, action, urgency, status, created_at, resolved_at, notes, created_by,
+                       assignee, domain, alarm_id, updated_at
                 FROM work_orders {where}
                 ORDER BY created_at DESC
                 LIMIT %s
@@ -391,6 +454,10 @@ def get_work_orders(
                 "resolved_at": row[6].isoformat() if row[6] and hasattr(row[6], "isoformat") else None,
                 "notes": row[7],
                 "created_by": row[8],
+                "assignee": row[9],
+                "domain": row[10],
+                "alarm_id": row[11],
+                "updated_at": row[12].isoformat() if row[12] else None,
             }
             for row in rows
         ]
@@ -400,20 +467,22 @@ def get_work_orders(
         raise HTTPException(status_code=500, detail="Failed to retrieve work orders")
 
 
-@app.post("/api/work-orders/{order_id}/approve", dependencies=[Depends(require_operator_or_admin)])
-def approve_work_order(order_id: str):
+@app.post("/api/work-orders/{order_id}/approve")
+def approve_work_order(order_id: str, current_user: User = Depends(require_operator_or_admin)):
     """Approve a pending work order (Human confirmation gate)."""
     try:
         with pool.connection() as conn:
             result = conn.execute(
                 """
                 UPDATE work_orders
-                SET status = 'Open'
+                SET status = 'Open', updated_at = NOW()
                 WHERE order_id = %s AND status = 'Pending Approval'
-                RETURNING order_id
+                RETURNING order_id, machine_id, action, urgency
                 """,
                 (order_id,)
             ).fetchone()
+            if result:
+                audit_work_order(conn, result, current_user.username, "HUMAN_APPROVED")
             conn.commit()
         if not result:
             raise HTTPException(status_code=404, detail="Pending work order not found or already processed")
@@ -425,23 +494,25 @@ def approve_work_order(order_id: str):
         raise HTTPException(status_code=500, detail="Failed to approve work order")
 
 
-@app.patch("/api/work-orders/{order_id}/resolve", dependencies=[Depends(require_operator_or_admin)])
-def resolve_work_order(order_id: str):
+@app.patch("/api/work-orders/{order_id}/resolve")
+def resolve_work_order(order_id: str, current_user: User = Depends(require_operator_or_admin)):
     """Mark a work order as resolved."""
     try:
         with pool.connection() as conn:
             result = conn.execute(
                 """
                 UPDATE work_orders
-                SET status = 'Resolved', resolved_at = NOW()
-                WHERE order_id = %s
-                RETURNING order_id
+                SET status = 'Resolved', resolved_at = NOW(), updated_at = NOW()
+                WHERE order_id = %s AND status IN ('Open', 'In Progress')
+                RETURNING order_id, machine_id, action, urgency
                 """,
                 (order_id,)
             ).fetchone()
+            if result:
+                audit_work_order(conn, result, current_user.username, "HUMAN_RESOLVED")
             conn.commit()
         if not result:
-            raise HTTPException(status_code=404, detail="Work order not found")
+            raise HTTPException(status_code=404, detail="Open work order not found")
         return {"status": "resolved", "order_id": order_id}
     except HTTPException:
         raise
@@ -454,7 +525,8 @@ def resolve_work_order(order_id: str):
 # ATLAS v5 — Domain Cognition Endpoints
 # ---------------------------------------------------------------------------
 
-from server.atlas.domain_service import get_domain_service as _get_atlas
+from server.atlas.domain_service import KNOWN_DOMAINS, get_domain_service as _get_atlas
+from server.api import MODELS_DIR
 
 
 @app.get("/api/atlas/domains")
@@ -465,20 +537,11 @@ async def atlas_list_domains():
 
 
 @app.get("/api/atlas/domain/{domain}/status")
-async def atlas_domain_status(domain: str):
+def atlas_domain_status(domain: str):
     """All machine snapshots for a single domain."""
     svc = _get_atlas()
+    svc.ensure_registered(domain)
     snapshots = svc.get_domain_snapshots(domain)
-    if not snapshots:
-        if domain == "cmapss":
-            svc.register_cmapss(subset="FD001", max_units=20)
-        elif domain == "laptop":
-            svc.register_laptop()
-        elif domain == "mobile":
-            svc.register_mobile()
-        elif domain == "server":
-            svc.register_server()
-        snapshots = svc.get_domain_snapshots(domain)
 
     if not snapshots:
         return JSONResponse(content={"domain": domain, "machines": [], "count": 0})
@@ -496,35 +559,30 @@ async def atlas_machine_snapshot(domain: str, machine_id: str):
 
 
 @app.get("/api/atlas/cross-domain/comparison")
-async def atlas_cross_domain_comparison():
+def atlas_cross_domain_comparison():
     """
     All domains' latest snapshots side-by-side.
     Primary data source for the Cross-Domain Comparison Dashboard.
     """
     svc = _get_atlas()
-    for dom in ["cmapss", "laptop", "mobile", "server"]:
-        if svc.get_engine(dom) is None:
-            if dom == "cmapss":
-                svc.register_cmapss(subset="FD001", max_units=20)
-            elif dom == "laptop":
-                svc.register_laptop()
-            elif dom == "mobile":
-                svc.register_mobile()
-            elif dom == "server":
-                svc.register_server()
+    for dom in KNOWN_DOMAINS:
+        svc.ensure_registered(dom)
     return JSONResponse(content={"comparison": svc.get_cross_domain_comparison()})
 
 
 @app.get("/api/atlas/models/status")
-async def atlas_model_status():
+def atlas_model_status():
     """
     Report which domains have trained WorldModel checkpoints and which
     are using the EMA fallback.
     """
-    from pathlib import Path
-    models_dir = Path("data/models")
+    models_dir = MODELS_DIR
     model_files = list(models_dir.glob("*_world_model.pt")) if models_dir.exists() else []
     trained_domains = [f.stem.replace("_world_model", "") for f in model_files]
+    # The primary C-MAPSS checkpoint is saved as best_model.pt (see server/api.py).
+    for name, profile in DOMAIN_PROFILES.items():
+        if name not in trained_domains and any((models_dir / f).exists() for f in profile.checkpoints):
+            trained_domains.append(name)
 
     metrics = {}
     for domain in trained_domains:
@@ -552,7 +610,7 @@ async def atlas_model_status():
 
 
 @app.post("/api/atlas/models/reload", dependencies=[Depends(require_admin)])
-async def atlas_reload_model(domain: str = Query(..., description="Domain to reload model for")):
+def atlas_reload_model(domain: str = Query(..., description="Domain to reload model for")):
     """
     Hot-reload a trained WorldModel after retraining (admin only).
     Returns whether the reload found a new checkpoint.
@@ -562,6 +620,9 @@ async def atlas_reload_model(domain: str = Query(..., description="Domain to rel
     if engine is None:
         raise HTTPException(status_code=404, detail=f"No active engine for domain '{domain}'")
     success = engine.reload_model()
+    from server.cognition_trace import model_ref
+    _audit.audit(category="model", action="reload", target=domain, outcome="success" if success else "failure",
+                 details={**model_ref(domain), "using_lstm": engine.using_lstm})
     return JSONResponse(content={"domain": domain, "reloaded": success, "using_lstm": engine.using_lstm})
 
 
@@ -570,7 +631,7 @@ async def atlas_reload_model(domain: str = Query(..., description="Domain to rel
 # ---------------------------------------------------------------------------
 
 @app.get("/api/atlas/research/transfer-study")
-async def atlas_transfer_study():
+def atlas_transfer_study():
     """Returns the empirical cross-domain transfer study results."""
     from pathlib import Path
     import json
@@ -578,14 +639,12 @@ async def atlas_transfer_study():
     if json_path.exists():
         with open(json_path, "r", encoding="utf-8") as f:
             return JSONResponse(content=json.load(f))
-    from server.atlas.transfer_study import TransferStudyEngine
-    engine = TransferStudyEngine()
-    res = engine.run_study()
-    return JSONResponse(content=res.to_dict())
+    # The study is minutes of compute; generate it offline with scripts/run_transfer_study.py.
+    raise HTTPException(status_code=404, detail="Transfer study results not found")
 
 
 @app.get("/api/atlas/research/ablations")
-async def atlas_ablations():
+def atlas_ablations():
     """Returns the 4 canonical ATLAS ablation suite results."""
     from pathlib import Path
     import json
@@ -596,8 +655,20 @@ async def atlas_ablations():
     raise HTTPException(status_code=404, detail="Ablation results not found")
 
 
+@app.get("/api/atlas/research/attribution-faithfulness",
+         summary="Deletion test of the occlusion attribution on the FD001 test set (scripts/attribution_faithfulness.py)")
+def atlas_attribution_faithfulness():
+    from pathlib import Path
+    import json
+    json_path = Path(__file__).resolve().parent.parent / "data" / "attribution_faithfulness.json"
+    if json_path.exists():
+        with open(json_path, "r", encoding="utf-8") as f:
+            return JSONResponse(content=json.load(f))
+    raise HTTPException(status_code=404, detail="Run scripts/attribution_faithfulness.py first")
+
+
 @app.get("/api/atlas/evaluation/summary")
-async def atlas_evaluation_summary():
+def atlas_evaluation_summary():
     """Returns the master evaluation summary scorecard from data/atlas_evaluation_summary.json."""
     from pathlib import Path
     import json
@@ -609,7 +680,7 @@ async def atlas_evaluation_summary():
 
 
 @app.get("/api/atlas/system/benchmark")
-async def atlas_system_benchmark():
+def atlas_system_benchmark():
     """Returns system benchmark latencies, resource profiles, live memory RSS, and DB pool stats."""
     from pathlib import Path
     import json
@@ -666,28 +737,25 @@ async def atlas_system_benchmark():
 
 
 @app.get("/api/atlas/domain/{domain}/machine/{machine_id}/window")
-async def atlas_machine_window(domain: str, machine_id: str):
+def atlas_machine_window(domain: str, machine_id: str):
     """Returns the current sliding feature window for machine_id in domain."""
     svc = _get_atlas()
+    svc.ensure_registered(domain)
     engine = svc.get_engine(domain)
-    if engine is None:
-        if domain == "cmapss":
-            svc.register_cmapss(subset="FD001", max_units=20)
-        elif domain == "laptop":
-            svc.register_laptop()
-        elif domain == "mobile":
-            svc.register_mobile()
-        elif domain == "server":
-            svc.register_server()
-        engine = svc.get_engine(domain)
-
-    if engine is None:
+    adapter = svc.get_adapter(domain)
+    if engine is None or adapter is None:
         raise HTTPException(status_code=404, detail=f"Domain engine for '{domain}' not found")
 
     with engine._lock:
         window = list(engine._windows.get(machine_id, []))
 
-    expected_dim = 14 if domain == "cmapss" else 5
+    if not window:
+        # Nothing streamed yet: take one reading so the adapter decides the feature layout.
+        try:
+            window = [adapter.get_reading(machine_id).feature_vector]
+        except Exception:
+            raise HTTPException(status_code=404, detail=f"Unknown machine {domain}/{machine_id}")
+
     snap = svc.get_snapshot(domain, machine_id)
     # Never pad: a padded window would feed made-up readings into /api/decide.
     if len(window) < 30:
@@ -701,7 +769,7 @@ async def atlas_machine_window(domain: str, machine_id: str):
         "machine_id": machine_id,
         "window": window[-30:],
         "seq_len": len(window[-30:]),
-        "feature_dim": expected_dim,
+        "feature_dim": len(window[0]),
         "cycle": snap.get("cycle", 30) if snap else 30
     })
 
@@ -713,18 +781,25 @@ from server.adapters.mobile_adapter import push_browser_telemetry
 
 
 @app.post("/api/atlas/mobile/telemetry")
-async def receive_mobile_telemetry(payload: Dict[str, Any]):
+async def receive_mobile_telemetry(
+    payload: Dict[str, Any],
+    x_mobile_bridge_token: str = Header(default=""),
+):
     """Ingest real-time telemetry pushed from Lumia / mobile browser bridge."""
-    # shortcut: unauthenticated so the phone bridge page works; IDs are pinned so the registry cannot grow.
-    if payload.get("machine_id", "mobile_device_1") not in ("mobile_device_1", "mobile_device_2"):
-        raise HTTPException(status_code=400, detail="Unknown mobile machine_id")
-    push_browser_telemetry(payload)
+    # Fails closed: bridge stays disabled until MOBILE_BRIDGE_TOKEN is set
+    expected = os.environ.get("MOBILE_BRIDGE_TOKEN", "")
+    if not expected or not secrets.compare_digest(x_mobile_bridge_token, expected):
+        raise HTTPException(status_code=401, detail="Invalid mobile bridge token")
+    try:
+        push_browser_telemetry(payload)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return JSONResponse(content={"status": "ok", "received_at": utc_timestamp()})
 
 
 @app.get("/lumia", response_class=HTMLResponse)
 @app.get("/mobile-bridge", response_class=HTMLResponse)
-async def lumia_bridge_page():
+def lumia_bridge_page():
     """Serve mobile telemetry bridge interface for Lumia / Windows Phone."""
     html_path = Path(__file__).resolve().parent / "static" / "lumia_bridge.html"
     if html_path.exists():
@@ -741,6 +816,12 @@ from server.api import app as _atlas_cognition_app, startup_event as atlas_api_s
 app.include_router(
     _atlas_cognition_app.router, dependencies=[Depends(require_operator_or_admin)]
 )
+
+# Redesign P2: ingestion, devices, live stream, cognition trace, client events, readiness, request audit.
+# Installed last so its audit middleware is outermost and records every /api request, including rejected ones.
+from server.platform_api import install as _install_platform  # noqa: E402
+
+_install_platform(app)
 
 @app.on_event("startup")
 def ensure_atlas_engines_initialized():

@@ -1,131 +1,93 @@
-# ATLAS: AI-Powered Digital Twin & Predictive Maintenance System
+# ATLAS
 
-> A digital-twin platform for predictive maintenance: machine adapters feed normalized telemetry into an LSTM world model for remaining-useful-life (RUL) estimation, with an operator dashboard and an LLM assistant whose work orders require human approval.
+**An Adaptive Machine Cognition Platform for Explainable Predictive Maintenance Across Heterogeneous Machine Systems**
+
+ATLAS connects unlike machines (a turbofan, a laptop, a phone, a server, a Modbus pump) through one adapter layer, predicts their remaining useful life with an attention LSTM, grounds every prediction in similar past cases, simulates the cost of each maintenance action, and puts the result in front of an operator who decides.
 
 [![CI](https://github.com/YMP7/Predictive-Maintenance-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/YMP7/Predictive-Maintenance-AI/actions/workflows/ci.yml)
-[![FastAPI](https://img.shields.io/badge/FastAPI-%E2%89%A50.115-009688.svg?style=flat&logo=FastAPI&logoColor=white)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-19-20232a.svg?style=flat&logo=React)](https://react.dev/)
-[![TimescaleDB](https://img.shields.io/badge/TimescaleDB-pg16-00b0f0.svg?style=flat&logo=PostgreSQL&logoColor=white)](https://www.timescale.com/)
-[![MQTT](https://img.shields.io/badge/MQTT-Mosquitto-3c5280.svg?style=flat&logo=EclipseMosquitto)](https://mosquitto.org/)
+
+![The 3D Asset View touring a turbofan, laptop, phone, server and pump](docs/media/films/p3-asset-tour.gif)
+
+![Fleet overview](docs/media/screens/p4-fleet-light.png)
 
 ---
 
-## Architecture Overview
+## What the title means, and the numbers behind it
 
-```
-+-----------------------------------------------------------------------------------+
-|                           ATLAS SYSTEM ARCHITECTURE                               |
-+-----------------------------------------------------------------------------------+
-|                                                                                   |
-|  [ TELEMETRY SOURCES — MachineAdapter SDK ]                                       |
-|  * NASA C-MAPSS turbofan dataset (replay)   * Laptop / workstation telemetry      |
-|  * Android phone sensors (ADB / Termux)     * Linux servers (SSH)                 |
-|  * Modbus TCP machines (read-only)                                                |
-|                                    │ (MQTT / TLS / ACLs)                          |
-|                                    ▼                                              |
-|  [ FASTAPI BACKEND ]                                                              |
-|  ┌─────────────────────────────────────────────────────────────────────────────┐  |
-|  │ FAST TIER                                                                   │  |
-|  │ - Schema-validated MQTT ingestion behind Mosquitto ACLs                     │  |
-|  │ - Per-machine threshold fault detection and degradation-trend RUL estimate  │  |
-|  │ - Debounced multi-channel alerting (SMS / voice / email)                    │  |
-|  ├─────────────────────────────────────────────────────────────────────────────┤  |
-|  │ MODEL TIER                                                                  │  |
-|  │ - World model: 2-layer LSTM + additive temporal attention → 32-d state      │  |
-|  │ - Per-domain checkpoints; untrained domains refuse inference                │  |
-|  │ - Gemini LLM assistant; agent work orders need human approval               │  |
-|  └─────────────────────────────────────────────────────────────────────────────┘  |
-|                                    │                                              |
-|                                    ▼                                              |
-|  [ PERSISTENCE ]                              [ OPERATOR DASHBOARD ]              |
-|  * PostgreSQL 16 + TimescaleDB hypertables    * React 19 + Vite + TypeScript      |
-|  * pgvector state-vector memory               * 3D view (three.js), Recharts, SSE |
-|                                                                                   |
-+-----------------------------------------------------------------------------------+
-```
+| Term | What you can see | The number |
+|---|---|---|
+| Adaptive | Adaptive Context and Learning Engine panels in Cognition; Model registry | Borrowing turbofan memory inflates phone error 8.3x and server 7.1x, so each domain adapts with its own |
+| Machine Cognition | Cognition: all ten pipeline stages with latency and replay | 21.8 ms end to end on C-MAPSS; 47% lower maintenance cost than a RUL-threshold rule (ablation) |
+| Platform | Seven-step sensor onboarding, devices, roles, audit | 41/41 adapter conformance tests; onboarded sensor's data on screen in 0.6 s |
+| Explainable | "Show why" in the 3D Asset View; attribution and AMKB citations | Masking the top-2 attributed sensors moves RUL 35.4 cycles vs 16.8 for random ones (90% of 100 test units) |
+| Predictive Maintenance | Asset Detail RUL band, recommended action, work orders | NASA C-MAPSS FD001: RMSE 15.42, PHM 394.7 (five seeds: 15.22 ± 0.30) |
+| Heterogeneous Machine Systems | Cross-domain view; five machines in 3D | Four trained domains plus a Modbus pump with health monitoring |
+
+Every cell, with file paths, endpoints and the command that reproduces it: [docs/TITLE_JUSTIFICATION.md](docs/TITLE_JUSTIFICATION.md). The same matrix is the product page `/about/evidence`. What is not done is marked FUTURE-WORK there, not hidden.
 
 ---
 
-## Capabilities
+## The product
 
-### RUL model
-- **World model** (`server/atlas/world_model.py`): a unidirectional 2-layer LSTM (hidden size 64, dropout 0.2) over 30-cycle windows, followed by additive (Bahdanau-style, Linear–tanh–Linear) temporal attention that pools the sequence into a 32-dimensional state vector. A small MLP head predicts RUL, capped at 125 cycles.
-- **Training** (`server/atlas/train_rul.py`): MSE loss. Evaluation reports RMSE and the asymmetric PHM'08 score, which penalizes late predictions more than early ones.
-- **Untrained-model guard**: a domain without a trained checkpoint reports `is_trained=False` and raises `UntrainedModelError` instead of answering with random weights.
+| Page | For | What it does |
+|---|---|---|
+| Fleet overview `/fleet` | everyone | Health of every asset, alarms needing action, RUL at risk, ingestion health |
+| Assets `/assets` | everyone | 3D Asset View per machine: explode, cutaway, part loads, Show why, live trends, RUL band, recommended action |
+| Alarms `/alarms` | everyone (operators act) | ISA-18.2 list: acknowledge, shelve with reason and time limit, clear; flood indicator |
+| Work orders `/work-orders` | everyone (operators act) | Create, approve, reject, assign, start, resolve |
+| Cross-domain `/cross-domain` | everyone | All machines on one normalised scale |
+| Agent chat `/chat` | operators, admins | Ask about a machine; AMKB evidence beside each answer |
+| Evidence `/about/evidence` | everyone | The title matrix with live numbers |
+| Cognition `/admin/cognition` | admins | The pipeline stage by stage, replay, drift, fleet cognition health |
+| Model registry `/admin/models` | admins | Versions, promote and roll back, retrain |
+| Onboarding, Devices, Users, Diagnostics `/admin/*` | admins | Connect a sensor, rotate tokens, change roles, platform health |
 
-### Multiple machine domains
-- Adapters for C-MAPSS (FD001–FD004), laptops, Android phones, Linux servers, and Modbus TCP devices, all producing the same `NormalizedReading` schema.
-- A cross-domain transfer study (`server/atlas/transfer_study.py`) *measures* how well representations transfer between domains, using MMD and a negative-transfer index. It reports negative transfer between compute and turbofan domains; it does not align domains.
-
-### Adapter SDK
-- `MachineAdapter` base class plus a conformance suite (`tests/test_adapter_conformance.py`) that any new adapter must pass. Spec: [docs/ADAPTER_SDK_SPEC.md](docs/ADAPTER_SDK_SPEC.md).
-
-### LLM assistant with human approval
-- Conversational diagnostics backed by Google Gemini.
-- Work orders created by the agent are validated server-side against recorded alerts and capped at 3 per machine per 24 hours.
-- High and Critical work orders land in `Pending Approval` and need an authenticated operator or admin to approve them.
-
-### Documentation
-Indexed in the [Documentation Hub](docs/README.md), including the [System Architecture Document](docs/System%20Architecture%20Document%20(SAD).md), [Ablation Study Results](docs/ABLATION_STUDY_RESULTS.md) and [References](docs/REFERENCES.md).
+Kiosk mode (`?kiosk=1`) runs a hands-free tour for a wall screen. Screens of every page, light and dark: `docs/media/screens/`.
 
 ---
 
-## Repository Structure
+## Architecture
 
 ```
-.
-├── client/                     # Frontend (React 19 + Vite + TypeScript)
-├── config/                     # Machine profiles and configuration
-├── data/                       # Datasets (C-MAPSS) and model checkpoints
-├── docs/                       # Architecture, QA, and operations documentation
-│   ├── figures/                # Architecture diagrams
-│   ├── screenshots/            # UI verification captures
-│   └── REFERENCES.md           # Bibliography with DOIs
-├── ml/                         # Preprocessing and training utilities
-├── mosquitto/                  # Mosquitto broker config and ACLs
-├── notebooks/                  # Exploration notebooks
-├── scripts/                    # Migration, evaluation, benchmark, and verification tools
-├── server/
-│   ├── adapters/               # MachineAdapter SDK and domain adapters
-│   ├── atlas/                  # World model, RUL engine, and analysis modules
-│   ├── backend_api.py          # FastAPI endpoints, CORS, auth middleware
-│   ├── data_service.py         # Telemetry ingestion and TimescaleDB pool
-│   ├── llm_agent.py            # Gemini assistant
-│   └── mqtt_client.py          # MQTT subscriber with schema validation
-├── tests/                      # pytest suite
-├── docker-compose.yml          # TimescaleDB and Mosquitto for local development
-└── requirements.txt            # Python dependencies (torch: requirements-ml.txt)
+ Turbofan (C-MAPSS replay)  Laptop  Phone  Server (SSH)  Modbus pump  Any device (HTTP, WebSocket, MQTT, CSV, manual)
+            │                  │      │         │             │                 │
+            └──────────────────┴──────┴─────────┴─────────────┴─────────────────┘
+                                   Adapter Layer (server/adapters/)
+                      normalised readings with units, valid ranges and quality flags
+                                              │
+       World Model (attention LSTM, 32-dim state) ─► AMKB memory ◄─► Machine DNA (16-dim)
+                                              │
+              Adaptive Context ─► RUL ─► Monte Carlo simulation ─► Decision Graph ─► Explanation
+                                              │
+     FastAPI (RBAC, rate limits, audit middleware) ─► TimescaleDB (readings, alarms, work orders, audit)
+                                              │
+                    React app: Fleet, Assets (3D), Alarms, Work orders, Cognition, Evidence
 ```
+
+The full diagram is [docs/figures/atlas-architecture.svg](docs/figures/atlas-architecture.svg). Design decisions are recorded in [docs/redesign/DECISIONS.md](docs/redesign/DECISIONS.md), changes in [docs/redesign/CHANGELOG.md](docs/redesign/CHANGELOG.md).
 
 ---
 
-## Quick Start
+## Quick start
 
-### 1. Configure environment
+### 1. Configure
 ```bash
 cp .env.example .env
-```
-Generate a 32-byte JWT secret and put it in `.env`:
-```bash
 openssl rand -hex 32
 ```
+Put the hex string in `.env` as `JWT_SECRET_KEY` (the server refuses to start without it). Also set `TSDB_PASSWORD`, `DATABASE_URL` (e.g. `postgresql://dtwin:<password>@localhost:5433/digital_twin`), `ADMIN_PASSWORD_HASH` and `OPERATOR_PASSWORD_HASH`. `ATLAS_APP_DB_PASSWORD` enables the non-owner database role the API should use (see [docs/AUDIT_TRAIL.md](docs/AUDIT_TRAIL.md)).
 
-Required variables:
-- `JWT_SECRET_KEY`: the server refuses to start without it.
-- `TSDB_PASSWORD` and `DATABASE_URL`: e.g. `postgresql://dtwin:<password>@localhost:5433/digital_twin`.
-- `ADMIN_PASSWORD_HASH` / `OPERATOR_PASSWORD_HASH`: required by the development seed script.
-- `GEMINI_API_KEY`: required when `GEMINI_AGENT_ENABLED=true`.
-
-### 2. Start infrastructure
+### 2. Start the database and broker
 ```bash
 python scripts/generate_mqtt_passwords.py
 docker compose up -d timescaledb mosquitto
 ```
 
-### 3. Run migrations and seed development data
+### 3. Create tables and development accounts
 ```bash
 python scripts/migrate.py
 python scripts/migrate_atlas.py
+python scripts/migrate_platform.py
 python scripts/seed_dev.py
 ```
 `seed_dev.py` creates development accounts with publicly known passwords. Never run it against a deployed database.
@@ -143,36 +105,35 @@ cd client
 npm ci
 npm run dev
 ```
-Open the URL Vite prints (default `http://localhost:5173`).
+Open `http://localhost:3000`. The dev server proxies `/api` to `http://localhost:8000`; set `ATLAS_API_TARGET` to point it elsewhere.
 
 ---
 
-## Testing
+## Tests
 
 ```bash
 python -m pytest tests/ -q
+python scripts/audit_verify.py
+cd client && npm run e2e
 ```
+The backend suite runs against a local TimescaleDB. The Playwright flows (`client/e2e/`) need the backend and the dev server running; they sign in with the seeded test accounts. The 3D view's performance and leak checks are described in [docs/redesign/03_3D_DECISION.md](docs/redesign/03_3D_DECISION.md).
 
-The suite has **269 tests** on the v1.1 branch (218 on `main`, plus 51 from the adapter SDK and Modbus suites). Measured locally on 2026-10-08 (Windows 11, Python 3.13.5, **no database running**): 234 passed, 20 skipped, 15 failed. All 15 failures are database tests that time out without TimescaleDB. The full database-backed run is the `test-backend` job in [CI](.github/workflows/ci.yml).
-
-Adapter conformance only, optionally for one adapter:
-```bash
-python -m pytest tests/test_adapter_conformance.py --adapter modbus
-```
+Guides: [user guide](docs/USER_GUIDE.md), [administrator guide](docs/ADMIN_GUIDE.md), [audit trail](docs/AUDIT_TRAIL.md), [adapter SDK](docs/ADAPTER_SDK_SPEC.md), [reproducibility](docs/REPRODUCIBILITY.md).
 
 ---
 
 ## Security
 
-- MQTT credentials are hashed in memory by `scripts/generate_mqtt_passwords.py`; no plaintext password file is written.
-- Session cookies are HttpOnly and SameSite=Lax, with an anti-CSRF header check and `slowapi` rate limiting. The `Secure` flag is set only when `ENVIRONMENT` is not `development` (the default), so set `ENVIRONMENT=production` for any HTTPS deployment.
-- `CORS_ORIGINS=*` is rejected at startup.
-- Mosquitto ACLs restrict edge devices to their own topics.
+- Session JWT in an HttpOnly, SameSite=Lax cookie, plus an anti-CSRF header on every API call; `Secure` is set when `ENVIRONMENT` is not `development`.
+- Roles: admin, operator, viewer, enforced on the server; every `/api/admin/*` path is admin-only.
+- Device tokens are shown once and stored only as SHA-256 hashes; rotate or revoke them on the Devices page.
+- Every request, sign-in, alarm action, work-order change, model change and UI command is written to a hash-chained, append-only audit trail ([docs/AUDIT_TRAIL.md](docs/AUDIT_TRAIL.md)).
+- `CORS_ORIGINS=*` is rejected at start-up. Mosquitto ACLs restrict each device to its own topic.
 
-See [SECURITY.md](SECURITY.md) for vulnerability reporting.
+See [SECURITY.md](SECURITY.md) for vulnerability reporting. HTTPS deployment needs a domain and is not set up yet.
 
 ---
 
 ## License
 
-Licensed under the [Apache License 2.0](LICENSE). Versions published before 2026-10-09 were released under MIT. See [docs/LICENSE_OPTIONS.md](docs/LICENSE_OPTIONS.md) for how this was chosen.
+Licensed under the [Apache License 2.0](LICENSE). Versions published before 2026-10-09 were released under MIT. See [docs/LICENSE_OPTIONS.md](docs/LICENSE_OPTIONS.md).
