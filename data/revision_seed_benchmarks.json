@@ -1,0 +1,27 @@
+{
+  "42": {
+    "rmse": 15.3194,
+    "phm_score": 385.95,
+    "n_test_units": 100
+  },
+  "43": {
+    "rmse": 14.6086,
+    "phm_score": 334.05,
+    "n_test_units": 100
+  },
+  "44": {
+    "rmse": 15.3029,
+    "phm_score": 389.3,
+    "n_test_units": 100
+  },
+  "45": {
+    "rmse": 15.4207,
+    "phm_score": 371.0,
+    "n_test_units": 100
+  },
+  "46": {
+    "rmse": 15.4242,
+    "phm_score": 394.7,
+    "n_test_units": 100
+  }
+}
