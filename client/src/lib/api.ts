@@ -1,5 +1,5 @@
 /**
- * API utility module for AI Digital Twin
+ * API utility module for ATLAS
  * Centralizes backend API configuration and fetch helpers.
  */
 

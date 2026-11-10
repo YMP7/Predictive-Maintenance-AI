@@ -257,7 +257,7 @@ function Stages({ trace, history }: { trace: Trace; history: History | null }) {
             {String(adapter.adapter ?? 'Adapter')} {String(adapter.adapter_version ?? '')} · status {String(adapter.adapter_status ?? 'n/a')} · window {String(adapter.window_hash ?? '')}
             {adapter.adapter_status === 'simulation' && <SimBadge />}
           </p>
-          <div className="ax-table-scroll" style={{ maxHeight: '16rem' }}>
+          <div tabIndex={0} role="region" aria-label="Adapter channels table" className="ax-table-scroll" style={{ maxHeight: '16rem' }}>
             <table className="ax-table">
               <caption className="visually-hidden">Raw and normalised value per channel</caption>
               <thead>
@@ -529,7 +529,7 @@ function DriftAndHealth({ history }: { history: History | null }) {
         </div>
         <Polled poll={health} rows={4}>
           {h => (
-            <div className="ax-table-scroll ax-panel__body">
+            <div tabIndex={0} role="region" aria-label="Fleet cognition health table" className="ax-table-scroll ax-panel__body">
             <table className="ax-table">
               <thead>
                 <tr>
@@ -619,7 +619,7 @@ function Research() {
         </div>
         <Polled poll={tr} rows={3} title="No transfer study recorded">
           {t => (
-            <div className="ax-table-scroll ax-panel__body">
+            <div tabIndex={0} role="region" aria-label="Transfer study table" className="ax-table-scroll ax-panel__body">
             <table className="ax-table">
               <thead>
                 <tr>

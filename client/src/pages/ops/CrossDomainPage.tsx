@@ -38,7 +38,7 @@ export default function CrossDomainPage() {
                   <h2 id="xd-metrics">Per-domain summary</h2>
                   <span className="ax-note">Health index: 0 % fresh, 100 % at limit. RUL: share of the model's cap, 100 % is a new machine.</span>
                 </div>
-                <div className="ax-table-scroll">
+                <div tabIndex={0} role="region" aria-label="Per-domain summary table" className="ax-table-scroll">
                   <table className="ax-table">
                     <caption className="visually-hidden">Assets, mean health and mean normalised RUL per domain</caption>
                     <thead>
@@ -83,7 +83,7 @@ export default function CrossDomainPage() {
                 {assets.length === 0 ? (
                   <EmptyState title="No assets yet" body="Machines appear once an adapter or device sends data." />
                 ) : (
-                  <div className="ax-table-scroll">
+                  <div tabIndex={0} role="region" aria-label="Every asset table" className="ax-table-scroll">
                     <table className="ax-table">
                       <caption className="visually-hidden">Normalised health and RUL for every asset</caption>
                       <thead>

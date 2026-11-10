@@ -55,7 +55,7 @@ limiter = Limiter(key_func=get_remote_address)
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="AI Digital Twin API",
+    title="ATLAS API",
     description="Predictive Maintenance System API for MSMEs",
     version="1.0.0"
 )

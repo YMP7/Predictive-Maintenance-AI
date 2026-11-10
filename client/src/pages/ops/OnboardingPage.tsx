@@ -301,7 +301,7 @@ function MapChannels({ p, setChannel, set }: { p: Profile; setChannel: (i: numbe
       <p className="ax-note">
         Value seen by the pipeline = raw × scale + offset, in the SI unit. Values outside the valid range are flagged OUT_OF_RANGE, never silently clipped. Health weight 0 means shown but not counted in the health index.
       </p>
-      <div className="ax-table-scroll">
+      <div tabIndex={0} role="region" aria-label="Channel mapping table" className="ax-table-scroll">
         <table className="ax-table">
           <caption className="visually-hidden">Channel mapping</caption>
           <thead>

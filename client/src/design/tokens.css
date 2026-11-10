@@ -1,6 +1,6 @@
 /* ATLAS design tokens. ISA-101: neutral greys at rest; colour is spent only on
    abnormal states (alarm priority, data quality) and on the one interaction accent.
-   Token names avoid the legacy index.css names so both can coexist until P4. */
+   (The legacy index.css was removed in P7.) */
 
 :root {
   /* Ground and surfaces (light: lit viva room / projector) */

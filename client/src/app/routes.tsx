@@ -16,8 +16,6 @@ import {
   EvidencePage,
   FleetPage,
   Gallery,
-  LegacyDashboard,
-  LegacyHome,
   LoginPage,
   ModelsPage,
   OnboardingPage,
@@ -87,15 +85,6 @@ const devRoutes = import.meta.env.DEV
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
-  { path: '/legacy/home', element: <LegacyHome /> },
-  {
-    path: '/legacy/dashboard',
-    element: (
-      <RequireSession>
-        <LegacyDashboard />
-      </RequireSession>
-    ),
-  },
   { path: '/dashboard', element: <RedirectDashboard /> },
   ...devRoutes,
   {

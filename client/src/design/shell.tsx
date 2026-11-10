@@ -87,7 +87,7 @@ export function Header({ onSearch }: { onSearch: () => void }) {
         <strong>ATLAS</strong>
         <span>{SITE}</span>
       </div>
-      <button type="button" className="ax-btn ax-header__search" onClick={onSearch} aria-keyshortcuts="Control+K">
+      <button type="button" className="ax-btn ax-header__search" onClick={onSearch} aria-keyshortcuts="Control+K" aria-label="Go to a page (Ctrl K)">
         <Search aria-hidden />
         <span>Go to</span>
         <kbd>Ctrl K</kbd>
@@ -118,7 +118,7 @@ export function SideNav({ collapsed, onToggle }: { collapsed: boolean; onToggle:
   const groups = [...new Set(items.map(i => i.group))];
   return (
     <aside className="ax-rail" aria-label="Main">
-      <NavLink to="/fleet" className="ax-rail__brand">
+      <NavLink to="/fleet" className="ax-rail__brand" aria-label="ATLAS home">
         <BrandMark />
         <span>ATLAS</span>
       </NavLink>
@@ -129,7 +129,7 @@ export function SideNav({ collapsed, onToggle }: { collapsed: boolean; onToggle:
             {items
               .filter((i: NavItem) => i.group === g)
               .map(i => (
-                <NavLink key={i.path} to={i.path} className="ax-rail__link" title={collapsed ? i.label : undefined}>
+                <NavLink key={i.path} to={i.path} className="ax-rail__link" title={collapsed ? i.label : undefined} aria-label={i.label}>
                   <i.icon aria-hidden />
                   <span className="ax-rail__label">{i.label}</span>
                 </NavLink>

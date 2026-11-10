@@ -360,3 +360,52 @@ def test_app_role_can_append_but_not_change_audit_history(migrated):
 def test_migration_is_rerunnable(migrated):
     from scripts.migrate_platform import migrate
     migrate()
+
+
+# ---------------------------------------------------------------- P7: one writer, verify while the API is writing
+
+
+def test_a_second_writer_on_the_same_folder_is_refused(tmp_path):
+    first = new_log(tmp_path)
+    try:
+        with pytest.raises(A.AuditFolderInUse):
+            new_log(tmp_path)
+    finally:
+        first.close()
+    second = new_log(tmp_path)  # the lock is released on close
+    record_n(second, 1)
+    second.close()
+
+
+def _chain(tmp_path, n, actor="tester"):
+    log = new_log(tmp_path)
+    for i in range(n):
+        log.record(category="test", action=f"step-{i}", actor=actor, actor_type="system")
+    log.close()
+    return A.read_jsonl(tmp_path)
+
+
+def test_verify_accepts_a_copy_that_is_ahead_by_in_flight_events(tmp_path, monkeypatch, capsys):
+    import scripts.audit_verify as V
+
+    events = _chain(tmp_path / "a", 3)
+    mirror = tmp_path / "mirror"
+    mirror.mkdir()
+    (mirror / "2026-11-10.jsonl").write_text("".join(A.canonical_json(e) + "\n" for e in events[:2]), encoding="utf-8")
+    monkeypatch.setattr(V, "load_db", lambda: [])
+    monkeypatch.setattr(V, "db_events", lambda rows: (events, []))  # the database already has the third event
+    assert V.main(["--dir", str(mirror)]) == 0
+    assert "agree up to seq 2" in capsys.readouterr().out
+
+
+def test_verify_fails_when_the_copies_disagree_at_the_shared_tip(tmp_path, monkeypatch):
+    import scripts.audit_verify as V
+
+    ours = _chain(tmp_path / "a", 2, actor="alice")
+    theirs = _chain(tmp_path / "b", 3, actor="mallory")  # intact on its own, but a different history
+    mirror = tmp_path / "mirror"
+    mirror.mkdir()
+    (mirror / "2026-11-10.jsonl").write_text("".join(A.canonical_json(e) + "\n" for e in ours), encoding="utf-8")
+    monkeypatch.setattr(V, "load_db", lambda: [])
+    monkeypatch.setattr(V, "db_events", lambda rows: (theirs, []))
+    assert V.main(["--dir", str(mirror)]) == 1

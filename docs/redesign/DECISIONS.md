@@ -143,6 +143,13 @@ One entry per non-trivial decision. Format: context, options, choice, consequenc
   - The ablation's 47% cost reduction is always shown with its 281 cycles of early replacement.
   - Unbacked cells (richer retrain history, attribution beyond C-MAPSS, Modbus RUL, HTTPS) are labelled FUTURE-WORK.
 
+## ADR-029: Hardening choices (P7)
+- **Legacy removal:** the old tabbed dashboard, home page, R3F twin, `twin/machineModels.ts` (frontend domain tables) and `_legacy/` are deleted (git history keeps them); `/dashboard` bookmarks redirect to `/fleet`. A backend test that inspected the old MonitoringView now checks the same guarantee where it lives: the laptop's estimated temperature is labelled "Estimated temperature (heuristic)" by the server-side asset profile.
+- **One audit writer:** `AuditLog` takes an exclusive OS lock on `<audit folder>/.writer.lock` (msvcrt on Windows, flock elsewhere) and raises `AuditFolderInUse` for a second writer; the OS releases it if the process dies. `audit_verify.py` compares the two copies at their newest shared sequence number, so an event in flight while the API writes is not reported as a break; a different hash there still is.
+- **Kiosk:** the tour keeps its stop index in state; deriving it from the URL broke because `/assets/kind/<kind>` redirects to a concrete machine, which left the tour stuck on the laptop.
+- **Accessibility:** asset-index links used `--accent-ink` (text-on-accent, white) and had no contrast; scrollable tables are focusable named regions; the header search button and rail links carry names that survive the narrow layout; headings focused by navigation show no ring.
+- **Lighthouse:** run on the production build served by the API, signed in, with Lighthouse 12.2.1 and Playwright's Chromium (the chrome-devtools connector was unavailable). Desktop meets the target (94/100/100). Mobile throttled performance is 68 (LCP 6.0 s): about 134 KB of the main bundle and 59 KB of CSS are unused on Fleet. Recorded as open; splitting the shell bundle is the next step if phones matter.
+
 ## ADR-004: PCA, not UMAP (P0)
 - **Context:** D5 asks for a "PCA/UMAP" 2-D projection of 32-dim states.
 - **Choice:** PCA via numpy SVD. It avoids a new heavy dependency (umap-learn pulls in numba) and is deterministic.

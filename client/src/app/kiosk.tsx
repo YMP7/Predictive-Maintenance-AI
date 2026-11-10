@@ -16,7 +16,9 @@ export function KioskBar() {
   const [pausedUntil, setPausedUntil] = useState(0);
   const tz = getTimeZone();
 
-  const stop = Math.max(0, TOUR.findIndex(t => location.pathname.startsWith(t.path)));
+  // The current stop is state, not derived from the URL: /assets/kind/<kind> redirects to a concrete machine,
+  // after which no tour path matches the address any more.
+  const [stop, setStop] = useState(() => Math.max(0, TOUR.findIndex(t => location.pathname.startsWith(t.path))));
   const paused = now.getTime() < pausedUntil;
   const progress = paused ? 0 : Math.min(1, Math.max(0, (now.getTime() - stopStart) / TOUR_HOLD_MS));
 
@@ -25,12 +27,13 @@ export function KioskBar() {
     const id = window.setInterval(() => {
       const t = Date.now();
       if (t < pausedUntil || t - stopStart < TOUR_HOLD_MS) return;
-      const idx = Math.max(0, TOUR.findIndex(s => window.location.pathname.startsWith(s.path)));
+      const next = (stop + 1) % TOUR.length;
       setStopStart(t);
-      navigate(TOUR[(idx + 1) % TOUR.length].path);
+      setStop(next);
+      navigate(TOUR[next].path);
     }, 500);
     return () => window.clearInterval(id);
-  }, [pausedUntil, stopStart, navigate]);
+  }, [pausedUntil, stopStart, stop, navigate]);
 
   // Any input hands control to the visitor; 25 s of quiet hands it back. First input requests full screen.
   useEffect(() => {

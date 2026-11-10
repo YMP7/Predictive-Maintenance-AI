@@ -1,5 +1,39 @@
 # Redesign Changelog
 
+## P7: Hardening and full verification (2026-11-10)
+- **What:**
+  - **Removed** the legacy frontend: the old dashboard and home pages, the old components and views, `twin/machineModels.ts`, the old stylesheet, `check-twin`, and `_legacy/`. 26 files in all, kept in git history; `/dashboard` now redirects to `/fleet`.
+  - **Audit:** a single-writer lock on the audit folder; `audit_verify.py` tolerates events in flight.
+  - **Kiosk tour fixed:** it advanced from the URL and stuck on the laptop after the first redirect.
+  - **Accessibility fixes:**
+    - Asset-index links were white on white.
+    - Two scrolling tables could not take keyboard focus.
+    - The search button and rail links lost their names in the narrow layout.
+    - Headings focused on navigation no longer show a ring.
+  - **Overclaims removed:** the API title ("AI Digital Twin API" became "ATLAS API"), the alert email subject, the agent's system prompt ("digital twin platform", "real-time telemetry", "autonomously create") and a demo banner.
+  - **New checks** (`client/e2e/quality.spec.ts`): axe-core on 14 pages in both themes, flow 7 (2-minute kiosk tour), and a keyboard-only path. `@axe-core/playwright` and `lighthouse` are added as pinned dev dependencies.
+- **Why:** the brief's §4 verification list; ADR-029.
+- **Verified:**
+  - **Backend:** pytest **443 passed** (was 440; new: second audit writer refused, verify accepts in-flight events, verify fails on diverging copies). Ruff is clean.
+  - **Client:** `tsc -b` clean; eslint **0 problems** (the 40 warnings were all in the removed legacy files); initial JS 102 KB gz (budget 300); no dev gallery in `dist`.
+  - **Playwright, 15 passed:**
+    - Flows 1 to 7.
+    - Every Evidence link opens a real page.
+    - axe finds 0 WCAG 2.2 A/AA violations on 14 pages, light and dark.
+    - Keyboard only: skip link, Ctrl K to Alarms, Enter opens an alarm, Escape closes it.
+    - Kiosk: 2 minutes, no console errors, every stop visited.
+    - The MQTT leg is skipped without broker credentials.
+  - **Lighthouse on Fleet** (production build, signed in): desktop performance 94, accessibility 100, best practices 100; mobile throttled performance 68, accessibility 100, best practices 100.
+  - **Audit:** `audit_verify.py` intact; the copies agree up to the shared tip while the API writes.
+  - **Overclaims:** the grep finds no product "digital twin" or "real-time learning" claim. Remaining matches are technical names (the `digital_twin` database) and code comments.
+  - **Screens:** `docs/media/screens/p7-*.png` (asset index, login, kiosk at its second stop).
+- **Open:**
+  - Mobile performance 68.
+  - The MQTT end-to-end leg (needs a broker account per device).
+  - A screen-reader pass by a person (automated axe and keyboard checks only).
+  - `ATLAS_APP_DB_PASSWORD` and `API_DATABASE_URL` still to be set.
+  - Nothing pushed.
+
 ## P6: Evidence page and documentation (2026-11-10)
 - **What:**
   - **`/about/evidence`** (all roles) and **`docs/TITLE_JUSTIFICATION.md`:** each title term with its claim, the files that implement it, where to see it in the product, and the number behind it.

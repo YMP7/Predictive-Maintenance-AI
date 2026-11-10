@@ -6,7 +6,7 @@ Checks, for the database and/or the daily JSONL mirror:
   - every prev_hash equals the previous event's hash,
   - every hash equals sha256(prev_hash + canonical event) (a mismatch means an edited event),
   - in the database, the queryable columns still match the hashed canonical record,
-  - with --source both, the two copies end on the same seq and hash.
+  - with --source both, the two copies agree on every event both hold (one may be ahead while the API writes).
 
 Exit code 0 = intact, 1 = broken, 2 = could not read a source.
 
@@ -90,7 +90,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--dir", default=os.environ.get("AUDIT_DIR", "logs/audit"), help="JSONL mirror folder")
     args = ap.parse_args(argv)
 
-    ok, tips = True, {}
+    ok, tips, hashes = True, {}, {}
     if args.source in ("jsonl", "both"):
         try:
             events = read_jsonl(args.dir)
@@ -99,6 +99,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             return 2
         ok &= report("jsonl", events)
         tips["jsonl"] = (events[-1]["seq"], events[-1]["hash"]) if events else None
+        hashes["jsonl"] = {e["seq"]: e["hash"] for e in events}
     if args.source in ("db", "both"):
         try:
             rows = load_db()
@@ -108,14 +109,18 @@ def main(argv: Optional[List[str]] = None) -> int:
         events, problems = db_events(rows)
         ok &= report("db", events, problems)
         tips["db"] = (events[-1]["seq"], events[-1]["hash"]) if events else None
+        hashes["db"] = {e["seq"]: e["hash"] for e in events}
     if args.source == "both" and tips.get("db") != tips.get("jsonl"):
-        # The database can lag the mirror while it is down (rows are retried); anything else is a divergence.
+        # While the API is writing, or while the database is down, one copy can be ahead of the other.
+        # They must agree on every event both hold, so compare them at the newest shared sequence number.
+        shared = min(t[0] for t in tips.values() if t) if all(tips.values()) else 0
+        a, b = hashes.get("jsonl", {}).get(shared), hashes.get("db", {}).get(shared)
         print(f"[both] tips differ: db {tips.get('db')} vs jsonl {tips.get('jsonl')}")
-        db_tip, js_tip = tips.get("db"), tips.get("jsonl")
-        if not (db_tip and js_tip and db_tip[0] < js_tip[0]):
-            ok = False
+        if shared and a and a == b:
+            print(f"[both] the copies agree up to seq {shared}; the rest is in flight, not a break")
         else:
-            print("[both] database is behind the mirror (pending inserts); not a break")
+            print(f"[both] the copies disagree at seq {shared}")
+            ok = False
     print("RESULT:", "INTACT" if ok else "BROKEN")
     return 0 if ok else 1
 

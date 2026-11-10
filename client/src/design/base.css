@@ -120,3 +120,6 @@ textarea {
 .skip-link:focus {
   top: var(--space-2);
 }
+
+/* Headings take focus on navigation only so screen readers announce the page; no ring for that programmatic focus. */
+h1[tabindex="-1"]:focus { outline: none; }

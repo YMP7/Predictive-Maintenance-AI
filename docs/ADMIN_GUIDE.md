@@ -90,7 +90,7 @@ python scripts/audit_verify.py
 python scripts/audit_export.py --from 2026-11-01 --to 2026-11-10 --category alarm --format csv --out alarms.csv
 ```
 
-`audit_verify.py` checks both copies and names the first broken record. Run only one API process per audit folder; a second process writing the same mirror forks the chain. If lines must be set aside, move them to `logs/audit/quarantine/` with the original file and a note, and never delete them. On start-up the API re-inserts any mirror events the database missed.
+`audit_verify.py` checks both copies and names the first broken record. Only one process can write an audit folder: a second one is refused at start-up (it would fork the chain). If lines must be set aside, move them to `logs/audit/quarantine/` with the original file and a note, and never delete them. On start-up the API re-inserts any mirror events the database missed.
 
 ## 7. Health
 

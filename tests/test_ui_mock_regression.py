@@ -19,7 +19,6 @@ Permanently prevents regression of four classes of hardcoded UI / scaffold place
 
 import json
 import time
-from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
@@ -54,14 +53,11 @@ def test_ui_never_labels_estimated_as_measured():
     assert "estimated_thermal_c" in raw
     assert "thermal_headroom" in reading.features
 
-    # 2. UI Component Source Inspection:
-    # Verify that MonitoringView.tsx structurally segregates estimated metrics
-    monitoring_view_path = Path(__file__).resolve().parent.parent / "client" / "src" / "components" / "atlas" / "views" / "MonitoringView.tsx"
-    assert monitoring_view_path.exists(), "MonitoringView.tsx must exist"
-    content = monitoring_view_path.read_text(encoding="utf-8")
-    assert "DERIVED & ESTIMATED METRICS" in content
-    assert "ESTIMATED" in content
-    assert "thermal_headroom" in content
+    # 2. The UI labels it as an estimate. Since P7 the label comes from the server-side asset profile, which the
+    #    3D Asset View, its parts list and trends show verbatim (the old MonitoringView was removed).
+    from server.adapters.asset_profiles import get_asset_profile
+    label = get_asset_profile("laptop").channels["thermal_headroom"].label
+    assert "estimated" in label.lower() and "heuristic" in label.lower()
 
 
 def test_phm_scorecard_sources_canonical_multiseed_baseline(client):

@@ -1,19 +1,11 @@
-import { lazy, Suspense, type ComponentType, type ReactNode } from 'react';
-import { Navigate, useLocation } from 'react-router';
+import { lazy, Suspense, type ComponentType } from 'react';
+import { Navigate } from 'react-router';
 
 import { SkeletonRows } from '../design/states';
 
-/* Legacy pages keep the old stylesheet and stay reachable until P4 replaces them (removed in P7). */
-const LegacyStyles = lazy(() => import('./LegacyStyles'));
-const Home = lazy(() => import('../pages/Home'));
-const Dashboard = lazy(() => import('../pages/Dashboard'));
-
-function WithLegacyStyles({ children }: { children: ReactNode }) {
-  return (
-    <Suspense fallback={<SkeletonRows rows={6} />}>
-      <LegacyStyles>{children}</LegacyStyles>
-    </Suspense>
-  );
+/** Old bookmarks (/dashboard?view=...) land on the fleet overview. */
+export function RedirectDashboard() {
+  return <Navigate to="/fleet" replace />;
 }
 
 /* P4 product pages, each its own chunk. */
@@ -75,28 +67,6 @@ export function EvidencePage() {
 }
 export function DiagnosticsPage() {
   return suspended(DiagnosticsImpl);
-}
-
-export function LegacyHome() {
-  return (
-    <WithLegacyStyles>
-      <Home />
-    </WithLegacyStyles>
-  );
-}
-
-export function LegacyDashboard() {
-  return (
-    <WithLegacyStyles>
-      <Dashboard />
-    </WithLegacyStyles>
-  );
-}
-
-/** Old links (/dashboard?view=...) keep working. */
-export function RedirectDashboard() {
-  const { search } = useLocation();
-  return <Navigate to={`/legacy/dashboard${search}`} replace />;
 }
 
 /* 3D Asset View: three.js and the five machines load only with these pages. */

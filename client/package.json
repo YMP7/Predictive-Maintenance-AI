@@ -8,7 +8,6 @@
     "build": "node ./node_modules/typescript/bin/tsc -b && node ./node_modules/vite/bin/vite.js build",
     "lint": "node ./node_modules/eslint/bin/eslint.js .",
     "preview": "node ./node_modules/vite/bin/vite.js preview",
-    "check:twin": "node --experimental-strip-types --no-warnings scripts/check-twin.mts",
     "e2e": "node ./node_modules/@playwright/test/cli.js test"
   },
   "dependencies": {
@@ -22,6 +21,7 @@
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.10.2",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "1.58.2",
     "@types/node": "^24.12.3",
@@ -33,6 +33,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
+    "lighthouse": "12.2.1",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12"

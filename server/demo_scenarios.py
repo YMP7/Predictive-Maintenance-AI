@@ -1,5 +1,5 @@
 """
-Demonstration Scenarios for AI Digital Twin Prototype
+Demonstration scenarios for the ATLAS simulator
 """
 
 from server.sensor_simulator import MultiMachineSimulator
@@ -157,7 +157,7 @@ class RULEstimationDemo(DemoScenario):
 
 if __name__ == "__main__":
     # Run demonstrations
-    print("AI DIGITAL TWIN PROTOTYPE - DEMONSTRATION SUITE")
+    print("ATLAS SIMULATOR - DEMONSTRATION SUITE")
     print("=" * 60)
     
     # Demo 1: Normal Operation

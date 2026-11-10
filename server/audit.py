@@ -127,11 +127,47 @@ def _utc_iso(dt: datetime) -> str:
     return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
+class AuditFolderInUse(RuntimeError):
+    """Another process already writes this audit folder; two writers would fork the hash chain."""
+
+
+class _FolderLock:
+    """Exclusive, non-blocking lock on <folder>/.writer.lock, released on close or when the process exits."""
+
+    def __init__(self, folder: Path):
+        self._f = open(folder / ".writer.lock", "a+")
+        try:
+            if os.name == "nt":
+                import msvcrt
+                self._f.seek(0)
+                msvcrt.locking(self._f.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(self._f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            self._f.close()
+            raise AuditFolderInUse(f"{folder} is already written by another process; run one API per audit folder")
+
+    def release(self) -> None:
+        try:
+            if os.name == "nt":
+                import msvcrt
+                self._f.seek(0)
+                msvcrt.locking(self._f.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(self._f.fileno(), fcntl.LOCK_UN)
+        except OSError:
+            pass
+        self._f.close()
+
+
 class AuditLog:
     def __init__(self, jsonl_dir: Path | str = "logs/audit", db_sink: Optional[Callable[[Dict[str, Any]], None]] = None,
                  load_tail: bool = True, db_seqs: Optional[Callable[[], Set[int]]] = None):
         self.jsonl_dir = Path(jsonl_dir)
         self.jsonl_dir.mkdir(parents=True, exist_ok=True)
+        self._folder_lock = _FolderLock(self.jsonl_dir)  # one writer per folder (P7)
         self._sink = db_sink
         self._q: "queue.Queue[Optional[Dict[str, Any]]]" = queue.Queue()
         self._pending: List[Dict[str, Any]] = []
@@ -223,6 +259,7 @@ class AuditLog:
         self.flush()
         self._q.put(None)
         self._thread.join(timeout=2)
+        self._folder_lock.release()
 
 
 # ---------------------------------------------------------------- process-wide log
