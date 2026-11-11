@@ -9,7 +9,7 @@ title: "ATLAS: An Adaptive Machine Cognition Platform for Explainable Predictive
 :::
 
 ::: {custom-style="Abstract"}
-***Abstract*—Predictive-maintenance (PdM) systems usually stop at a remaining-useful-life (RUL) estimate, leaving open what to do about it and why to trust it. ATLAS couples RUL prediction with memory-grounded explanation and cost-aware decision support in one architecture shared across machine types through an adapter layer, with a per-domain encoder. An attention LSTM encodes sensor windows into a 32-dimensional state; a memory of labeled run-to-failure cases supplies citations and a dispersion-based confidence score; a Monte Carlo decision graph ranks four maintenance actions by expected cost under action-specific lead times. On NASA C-MAPSS FD001 the predictor reaches RMSE 15.22 ± 0.31 over five seeds. The decision graph costs 47% less than a fixed 30-cycle threshold rule, a gap that comes from two units, but 7.2% more than a threshold rule tuned on held-out engines (95% CI: 5.8% less to 24.3% more), and more on all five retrained models. Confidence correlates with absolute error (Spearman −0.51) only through the spread of neighbor labels, and its intervals are not calibrated. On simulated compute telemetry, retrieval through another domain's encoder and memory inflates error 2.6–11.6×, so memory stays partitioned by domain. End-to-end CPU latency is 21.8 ms. We also report development defects and the guards that prevent them.**
+***Abstract*—Predictive-maintenance (PdM) systems usually stop at a remaining-useful-life (RUL) estimate, leaving open what to do about it and why to trust it. ATLAS couples RUL prediction with memory-grounded explanation and cost-aware decision support in one architecture shared across machine types through an adapter layer, with a per-domain encoder. An attention LSTM encodes sensor windows into a 32-dimensional state; a memory of labeled run-to-failure cases supplies citations and a dispersion-based confidence score; a Monte Carlo decision graph ranks four maintenance actions by expected cost under action-specific lead times. On NASA C-MAPSS FD001 the predictor reaches RMSE 15.22 ± 0.31 over five seeds, and on a simulated pump wear model 7.71 ± 0.27 cycles (constant-mean baseline: 40.5). The decision graph costs 47% less than a fixed 30-cycle threshold rule, a gap that comes from two units, but 7.2% more than a threshold rule tuned on held-out engines (95% CI: 5.8% less to 24.3% more), and more on all five retrained models. Confidence correlates with absolute error (Spearman −0.51) only through the spread of neighbor labels, and its intervals are not calibrated; masking the top-ranked sensors moves the estimate more than masking random ones for 89–94% of C-MAPSS units. On simulated compute telemetry, retrieval through another domain's encoder and memory inflates error 2.6–11.6×, so memory stays partitioned by domain. End-to-end CPU latency is 21.8 ms. We also report development defects and the guards that prevent them.**
 
 ***Index Terms*—predictive maintenance, remaining useful life, explainable AI, decision support, maintenance cost, industrial IoT.**
 :::
@@ -23,6 +23,7 @@ ATLAS links prediction to decision with one architecture that predicts RUL, grou
 1. An integrated pipeline (world model, memory, explanation, Monte Carlo decision graph) evaluated end to end on C-MAPSS FD001 with multi-seed statistics.
 2. A memory-grounding rule with a circularity guard: explanations may cite only neighbors carrying ground-truth labels, never the model's own predictions.
 3. A lead-time-aware decision model with a deterministic, safety-first tie-break, evaluated against fixed, cascaded and tuned threshold rules with a cost breakdown and a sensitivity sweep.
+4. A second degrading asset, a simulated motor pump, and a deletion test of attribution faithfulness on every domain.
 
 We also report a cross-domain retrieval diagnostic on simulated compute telemetry and a catalogue of development defects. We claim neither state-of-the-art RUL accuracy, nor a cost advantage over a tuned threshold rule, nor validation on real run-to-failure data outside C-MAPSS (Section VI).
 
@@ -44,7 +45,7 @@ Figure 1 shows the architecture. Data flows machine → adapter → world model 
 
 ## Adapter Layer and Canonical Features
 
-Each machine is reached through an adapter that returns a normalized reading (domain, machine id, timestamp, health index in [0,1], features, raw channels, optional RUL label); only adapters contain domain-specific code. Adapters exist for C-MAPSS (14 informative sensors), laptop, Android mobile, server and Modbus TCP, and a conformance suite checks new ones. For C-MAPSS the health index is computed from the RUL label, $1-\min(\mathrm{RUL},125)/125$, so it is used only for display and Machine DNA and enters no reported result; for compute domains it measures operational stress, not wear.
+Each machine is reached through an adapter that returns a normalized reading (domain, machine id, timestamp, health index in [0,1], features, raw channels, optional RUL label); only adapters contain domain-specific code. Adapters exist for C-MAPSS (14 informative sensors), laptop, Android mobile, server and Modbus TCP, including a motor pump whose simulator can run to failure; a profile-driven adapter onboards new assets, and a conformance suite checks every adapter. For C-MAPSS the health index is computed from the RUL label, $1-\min(\mathrm{RUL},125)/125$, so it is used only for display and Machine DNA and enters no reported result; for compute domains it measures operational stress, not wear.
 
 ## World Model
 
@@ -80,7 +81,7 @@ Let $d_1,\dots,d_k$ be the cosine distances to the retained neighbors, $\bar s=\
 
 $$\mathcal{C}=\bar s\cdot\frac{1}{1+\sigma^{2}}, \qquad (5)$$
 
-Because $\sigma^2$ is in cycles² (typically $10^2$–$10^3$ here), $\mathcal C$ is small (mean 0.035 on the test set) and in effect a decreasing function of neighbor label spread: a ranking score, not a probability. Attribution occludes each sensor channel over the window and ranks channels by the change in $\hat y$; explanation text is template-based.
+Because $\sigma^2$ is in cycles² (typically $10^2$–$10^3$ here), $\mathcal C$ is small (mean 0.035 on the test set) and in effect a decreasing function of neighbor label spread: a ranking score, not a probability. Attribution occludes each sensor channel over the whole window and ranks channels by the change in $\hat y$. A C-MAPSS channel is set to 0, its training minimum after min-max scaling; other domains use the training population mean, since 0 is an extreme reading on their [0,1] scale. Explanation text is template-based.
 
 ## Monte Carlo Simulation and Decision Graph
 
@@ -102,17 +103,17 @@ so a cost tie favors the action with the lower failure probability. There is no 
 
 ## Learning Engine and Agent Safety Gate
 
-Retraining is batch. A candidate replaces the active model only if its held-out RMSE is within 3% of the active model's, so repeated promotions could drift; comparing against the best checkpoint is planned. A language-model assistant can propose work orders only through a structured tool tied to a live alert and to an allowed action for its fault type; every order needs role-checked human approval, and the agent cannot actuate a machine.
+Retraining is batch and seeded, for every domain with a data source. A candidate is promoted only if its validation RMSE is within 3% of the best model ever promoted, so the tolerance cannot compound across runs. In 24 gated runs across five domains (three epochs each, on copies of the shipped checkpoints), 14 candidates were promoted and 10 rejected; the best C-MAPSS validation RMSE moved from 11.76 to 11.44. A language-model assistant can propose work orders only through a structured tool tied to a live alert and to an allowed action for its fault type; every order needs role-checked human approval, and the agent cannot actuate a machine. Inferences, decisions, promotions and work orders are written to an append-only, hash-chained audit log.
 
 # Experimental Setup
 
-**Data.** C-MAPSS FD001 (100 training and 100 test engines, one operating condition, one fault mode) [1]. The laptop, mobile and server results use synthetic data only. For each domain a seeded generator produces 1,250 windows of 30 steps × 5 channels (e.g., CPU, memory, disk, battery, network); the first 1,000 form the memory and the last 250 the queries. Each domain's encoder is pretrained by next-step prediction on its own data. The retrieval label is a per-domain stress composite in [0,1] (e.g., laptop $0.7\,\mathrm{cpu}+0.3\,\mathrm{mem}$), not a time to failure.
+**Data.** C-MAPSS FD001 (100 training and 100 test engines, one operating condition, one fault mode) [1]. A simulated motor-pump wear model generates run-to-failure data on six channels (temperature, vibration, current, speed, pressure, power factor): 100 training units (80/20 split by unit) and 50 held-out units cut at a random cycle, evaluated on the last 30-cycle window with truth capped at 125. The laptop, mobile and server results also use synthetic data only. For each domain a seeded generator produces 1,250 windows of 30 steps × 5 channels (e.g., CPU, memory, disk, battery, network); the first 1,000 form the memory and the last 250 the queries. Each domain's encoder is pretrained by next-step prediction on its own data. The retrieval label is a per-domain stress composite in [0,1] (e.g., laptop $0.7\,\mathrm{cpu}+0.3\,\mathrm{mem}$), not a time to failure.
 
 **Metrics.** RMSE and the asymmetric PHM score [1]:
 
 $$S=\sum_{d_i<0}\big(e^{-d_i/13}-1\big)+\sum_{d_i\ge0}\big(e^{d_i/10}-1\big),\quad d_i=\hat y_i-y_i. \qquad (10)$$
 
-Grounding quality is the Spearman correlation $r_s$ between $\mathcal C$ and $|\hat y-y|$, with a 95% bootstrap confidence interval (2,000 resamples), plus the coverage of central intervals of $\mathcal N(\hat y,\sigma^2)$. For compute domains a query is predicted as the mean label of its $k=5$ Euclidean nearest neighbors in the latent space of the encoder under test, and the error inflation ratio is
+Grounding quality is the Spearman correlation $r_s$ between $\mathcal C$ and $|\hat y-y|$, with a 95% bootstrap confidence interval (2,000 resamples), plus the coverage of central intervals of $\mathcal N(\hat y,\sigma^2)$. Attribution faithfulness is a deletion test: mask the $k$ top-ranked sensors, and separately $k$ random sensors (mean of 20 draws), and count the units where the top-ranked mask moves $\hat y$ more ($k=1$ holds by construction). For compute domains a query is predicted as the mean label of its $k=5$ Euclidean nearest neighbors in the latent space of the encoder under test, and the error inflation ratio is
 
 $$\mathrm{EIR}=\frac{\mathrm{RMSE}_{\mathrm{cross}}}{\mathrm{RMSE}_{\mathrm{within}}}. \qquad (11)$$
 
@@ -126,15 +127,17 @@ $$\mathrm{EIR}=\frac{\mathrm{RMSE}_{\mathrm{cross}}}{\mathrm{RMSE}_{\mathrm{with
 
 Table I gives FD001 test-set accuracy.
 
-: TABLE I. FD001 test-set accuracy.
+: TABLE I. Test-set accuracy (FD001: 100 units; simulated pump: 50 held-out units).
 
 | Model | RMSE | PHM score |
 |:--|:--|:--|
 | LSTM, linear head (5 seeds) | 15.34 ± 0.60 | 426.1 ± 83.6 |
 | LSTM + attention (5 seeds) | 15.22 ± 0.31 | 375.0 ± 21.9 |
 | LSTM from literature [2] | 16.14 | 338 |
+| Pump, simulated (5 seeds) | 7.71 ± 0.27 | 42.4 ± 3.0 |
+| Pump, constant-mean baseline | 40.51 | 13,440 |
 
-Attention lowered the PHM coefficient of variation from 19.6% to 5.8%. Our RMSE is below [2] but our PHM score is higher (errors skew late); implementations differ, and newer models [3]–[5] report lower RMSE, so we claim no state of the art. An earlier single run (RMSE 15.02) was a favorable seed.
+Attention lowered the PHM coefficient of variation from 19.6% to 5.8%. Our RMSE is below [2] but our PHM score is higher (errors skew late); implementations differ, and newer models [3]–[5] report lower RMSE, so we claim no state of the art. An earlier single run (RMSE 15.02) was a favorable seed. The same architecture fits the simulated pump at 7.71 ± 0.27 cycles against 40.51 for predicting the training mean; this measures fit to our own simulator, not to real pumps.
 
 ![**Fig. 2.** Predicted versus true RUL for the 100 test units (ablation checkpoint: RMSE 15.42, PHM 394.7). Crosses mark units with true RUL ≤ 30 whose estimate is late.](figure4.png){width=2.8in}
 
@@ -166,11 +169,11 @@ On the 10 near-failure units (true RUL ≤ 15) ATLAS acted urgently on 9 and the
 | Neighbor label spread only ($-\sigma$) | −0.51 [−0.66, −0.33] | −0.45 ± 0.04 |
 | Prediction only ($-\hat y$, no memory) | −0.45 [−0.61, −0.26] | −0.43 ± 0.04 |
 
-Confidence falls as error rises, but its ranking equals that of neighbor label spread alone, and the prediction itself ranks errors almost as well (Table III). The ungrounded baseline, a constant 0.5, has no defined $r_s$. The Monte Carlo intervals cover the true RUL for 63%, 85%, 87% and 91% of units at nominal 50%, 80%, 90% and 95% (similar across seeds), so neither the score nor the intervals are calibrated; we use $\mathcal C$ only to rank predictions. Every explanation cites labeled neighbors by construction, which is not evidence of explanation quality.
+Confidence falls as error rises, but its ranking equals that of neighbor label spread alone, and the prediction itself ranks errors almost as well (Table III). The ungrounded baseline, a constant 0.5, has no defined $r_s$. The Monte Carlo intervals cover the true RUL for 63%, 85%, 87% and 91% of units at nominal 50%, 80%, 90% and 95% (similar across seeds), so neither the score nor the intervals are calibrated; we use $\mathcal C$ only to rank predictions. Every explanation cites labeled neighbors by construction, which is not evidence of explanation quality. In the deletion test, masking the top-ranked C-MAPSS sensors moves $\hat y$ more than masking random ones for 90%, 94% and 89% of units at $k$ = 2, 3 and 5 (mean change 35.4 vs. 16.8 cycles at $k=2$), for 82%, 82% and 70% on the simulated pump, and for 63–73% on the compute domains at $k$ = 2–3, so attribution is faithful on the degrading assets and weaker on the compute domains.
 
 ## Cross-Domain Retrieval Diagnostic
 
-This diagnostic asks only whether retrieval can share memory across domains; the compute domains have no failures, and their labels measure stress. In a 3×3 matrix, queries of one domain are encoded by a second domain's encoder and matched to that domain's memory and labels, so query and memory share one latent space. Each domain is best on its own encoder and memory (within-domain RMSE 0.096 laptop, 0.030 mobile, 0.040 server). The other cells inflate error 2.57× and 3.87× for laptop queries (mobile and server memory), 11.56× and 2.66× for mobile queries (laptop and server), and 4.38× and 2.80× for server queries (laptop and mobile). Because foreign labels are different stress composites, part of this is built in: the result confirms that memory must stay partitioned by domain, not that the representations differ intrinsically. An earlier draft also compared C-MAPSS and compute latents by maximum mean discrepancy, cosine similarity and retrieval; those comparisons put vectors from independently trained encoders in one space, so we removed them.
+This diagnostic asks only whether retrieval can share memory across domains; the compute domains have no failures, and their labels measure stress. In a 3×3 matrix, queries of one domain are encoded by a second domain's encoder and matched to that domain's memory and labels, so query and memory share one latent space. Each domain is best on its own encoder and memory (within-domain RMSE 0.096 laptop, 0.030 mobile, 0.040 server). The other cells inflate error 2.57–11.56× (worst: mobile queries on the laptop encoder). Because foreign labels are different stress composites, part of this is built in: the result confirms that memory must stay partitioned by domain, not that the representations differ intrinsically. An earlier draft also compared C-MAPSS and compute latents by maximum mean discrepancy, cosine similarity and retrieval; those comparisons put vectors from independently trained encoders in one space, so we removed them.
 
 ## System Performance
 
@@ -190,7 +193,7 @@ Occlusion attribution dominates latency (Table IV); isolated stages sum to 14.8 
 
 ## Development Defects and Guards
 
-We logged 13 defects and 2 near-misses as they were found (a record of practice, not a controlled study); nearly all were a plausible result computed by the wrong method. Table V lists six. Others: scoring all windows instead of the last per unit (baseline RMSE 48.8 instead of 15.4), mixed clipped and raw RUL scales, and retrieval returning the query itself. This revision found one more: the manuscript described a safety override that the code lacks. Each defect now has a permanent regression test, and the adapter conformance suite applies these checks to new machine types.
+We logged 13 defects and 2 near-misses as they were found (a record of practice, not a controlled study); nearly all were a plausible result computed by the wrong method. Table V lists six. Others: scoring all windows instead of the last per unit (baseline RMSE 48.8 instead of 15.4), mixed clipped and raw RUL scales, and retrieval returning the query itself. Three more followed the register: the manuscript described a safety override that the code lacks; live laptop, phone and server windows reached their models in alphabetical rather than training column order; and C-MAPSS retraining scored its gate on z-scored data while the model is served min-max-scaled windows. Each defect now has a permanent regression test, and the adapter conformance suite applies these checks to new machine types.
 
 : TABLE V. Selected defects, how each was detected, and the guard that now prevents it.
 
@@ -205,11 +208,11 @@ We logged 13 defects and 2 near-misses as they were found (a record of practice,
 
 # Limitations and Threats to Validity
 
-Only FD001 is used. Compute-domain results are synthetic, without failures. Costs, lead times and urgency multipliers are illustrative, and the decision graph does not beat a tuned threshold rule. Confidence is uncalibrated and not compared with Monte Carlo dropout or ensembles. The C-MAPSS health index is label-derived, no hard safety override exists, model promotions can drift, domain encoders have one seed each, and the PHM score trails [2]. Agent grounding checks structure, not the truth of free text; human approval is the final barrier.
+Only FD001 is used. Pump and compute-domain results are synthetic; the pump RMSE measures fit to our own simulator, and the compute domains have no failures. Costs, lead times and urgency multipliers are illustrative, and the decision graph does not beat a tuned threshold rule. Confidence is uncalibrated and not compared with Monte Carlo dropout or ensembles. The C-MAPSS health index is label-derived, no hard safety override exists, domain encoders have one seed each, and the PHM score trails [2]. Agent grounding checks structure, not the truth of free text; human approval is the final barrier.
 
 # Conclusion and Future Work
 
-ATLAS shows that RUL prediction, memory-grounded explanation and cost-aware decisions can share one architecture across machine types when encoders and memory stay per domain. Under illustrative costs its decision graph beats fixed and cascaded rules but not a tuned threshold rule, and its confidence ranks errors without being calibrated. Future work: real cost and lead-time data, calibrated uncertainty, a sensor-based health index, multi-condition C-MAPSS (FD002–FD004), a vibration domain and validation on real industrial hardware.
+ATLAS shows that RUL prediction, memory-grounded explanation and cost-aware decisions can share one architecture across machine types when encoders and memory stay per domain. Under illustrative costs its decision graph beats fixed and cascaded rules but not a tuned threshold rule, and its confidence ranks errors without being calibrated. Future work: real cost and lead-time data, calibrated uncertainty, a sensor-based health index, multi-condition C-MAPSS (FD002–FD004), and validation on real pumps and other industrial hardware.
 
 # Code and Data Availability {.unnumbered}
 
