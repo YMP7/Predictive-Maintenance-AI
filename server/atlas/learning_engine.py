@@ -19,6 +19,7 @@ Key Architectural Guarantees:
 
 from server.adapters.domain_profile import get_profile
 import copy
+import functools
 import json
 import logging
 import os
@@ -42,6 +43,19 @@ logger = logging.getLogger("ATLAS.LearningEngine")
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 PROCESSED_DATA_DIR = _PROJECT_ROOT / "data" / "processed"
+
+
+@functools.lru_cache(maxsize=1)
+def _cmapss_training_windows() -> Tuple[np.ndarray, np.ndarray]:
+    from server.adapters.cmapss_adapter import CMAPSSAdapter
+    from server.atlas.train_rul import build_windows
+
+    adapter = CMAPSSAdapter(subset="FD001", split="train")
+    adapter.connect()
+    try:
+        return build_windows(adapter, seq_len=30)
+    finally:
+        adapter.disconnect()
 
 
 @dataclass
@@ -175,25 +189,14 @@ class LearningEngine:
             return float(np.sqrt(mse))
 
     def _load_cmapss_data(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Loads pre-processed C-MAPSS training set."""
-        train_file = PROCESSED_DATA_DIR / "fd001_train.npz"
+        """C-MAPSS FD001 training windows, built by the adapter.
 
-        if train_file.exists():
-            train_data = np.load(str(train_file))
-            X_train = train_data["X"] if "X" in train_data else train_data["X_train"]
-            y_train = train_data["y"] if "y" in train_data else train_data["y_train"]
-            return X_train, y_train
-
-        # Fallback to adapter if npz not prebuilt
-        from server.adapters.cmapss_adapter import CMAPSSAdapter
-        from server.atlas.train_rul import build_windows
-        adapter = CMAPSSAdapter(subset="FD001", split="train")
-        adapter.connect()
-        try:
-            X_train, y_train = build_windows(adapter, seq_len=30)
-            return X_train, y_train
-        finally:
-            adapter.disconnect()
+        The adapter is the only source: it scales features exactly as the model is trained
+        (train_rul.py) and served. data/processed/fd001_train.npz is z-scored, a different
+        scale; retraining on it scored the gate on inputs the shipped model never sees and
+        promoted candidates that were far worse on the test set.
+        """
+        return _cmapss_training_windows()
 
     def _split(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Fixed 90/10 train/validation split of the training windows.

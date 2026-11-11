@@ -76,7 +76,7 @@ The web app hides what a role cannot use, but the API is the control.
 - **Registry:** lists each domain's World Model versions with their metrics.
   - ATLAS archives a checkpoint under `data/models/registry/<domain>/` the first time it sees its content.
   - **Make active** swaps in an older (or newer) version and reloads it. A reason is required, and the current weights are archived first, so the change can be undone the same way.
-- **Retrain:** runs the Learning Engine on the C-MAPSS training split. A candidate replaces the model only if its validation RMSE is within 3% of the best ever promoted; otherwise production is left alone.
+- **Retrain:** runs the Learning Engine for that domain: the C-MAPSS training split for the turbofan, simulated run-to-failure data for the pump, and simulated workload profiles for laptop, phone and server. A candidate replaces the model only if its validation RMSE is within 3% of the best ever promoted; otherwise production is left alone.
 - **Cognition:** shows the pipeline for any machine.
   - **Run live trace** stores a trace; the slider replays stored traces.
   - The drift monitor needs at least 9 stored traces for a machine.

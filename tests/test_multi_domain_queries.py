@@ -101,10 +101,16 @@ def test_explain_multidomain_attribution_reason(mock_engines):
     
     report = explain.explain(ctx, window=laptop_win, ace=ace)
     
-    # Attributions should be empty with an explicit machine-readable reason
-    assert report.sensor_attributions == []
-    assert report.attribution_unavailable_reason is not None
-    assert "feature_dim != 14" in report.attribution_unavailable_reason
+    # Every domain with a registered sensor layout gets per-sensor attribution
+    assert len(report.sensor_attributions) == 5
+    assert report.attribution_unavailable_reason is None
+    assert {a["sensor_name"].split(" ")[0] for a in report.sensor_attributions} == {
+        "cpu_usage", "memory_usage", "disk_usage", "battery_percent", "is_charging"}
+
+    # A layout nobody registered still comes back empty, with the reason
+    odd = np.random.rand(30, 4).astype(np.float32)
+    empty, reason = explain.calculate_feature_attribution(odd, ace, 0.5, "laptop")
+    assert empty == [] and "No sensor layout" in reason
 
 
 def test_api_endpoints_with_multi_domain_windows(mock_engines):
@@ -137,8 +143,8 @@ def test_api_endpoints_with_multi_domain_windows(mock_engines):
     resp_exp = client.post("/api/explain", json=laptop_payload)
     assert resp_exp.status_code == 200
     exp_data = resp_exp.json()
-    assert exp_data["sensor_attributions"] == []
-    assert exp_data["attribution_unavailable_reason"] is not None
+    assert len(exp_data["sensor_attributions"]) == 5
+    assert exp_data["attribution_unavailable_reason"] is None
     
     # 3. Post Laptop (30, 5) window to /api/decide
     resp_dec = client.post("/api/decide", json=laptop_payload)

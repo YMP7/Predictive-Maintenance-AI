@@ -151,7 +151,7 @@ export default function EvidencePage() {
         { label: 'Users and roles', to: '/admin/users', admin: true },
         { label: 'Diagnostics', to: '/admin/diagnostics', admin: true },
       ],
-      numbers: <>Adapter conformance suite 41 of 41 tests pass, including the configurable adapter; 443 backend tests pass; fifteen end-to-end browser checks pass, including flows 1 to 7 and an accessibility scan of every page, among them onboarding a sensor and seeing its pushed data on screen in under a second; the audit chain verifies intact.</>,
+      numbers: <>Adapter conformance suite 41 of 41 tests pass, including the configurable adapter; 455 backend tests pass; fifteen end-to-end browser checks pass, including flows 1 to 7 and an accessibility scan of every page, among them onboarding a sensor and seeing its pushed data on screen in under a second; the audit chain verifies intact.</>,
     },
     {
       id: 'explainable',

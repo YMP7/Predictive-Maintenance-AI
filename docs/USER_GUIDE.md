@@ -60,7 +60,7 @@ Select a tile to open the machine.
   - **Get recommendation** runs the Decision Graph. It simulates each action 1,000 times and ranks them by expected cost.
   - If it suggests maintenance, **Create a work order for this action** opens a pre-filled order.
 
-Machines without a trained model (the Modbus pump today) show health only; their RUL is marked FUTURE-WORK.
+The Modbus pump shows RUL once it has sent 30 readings and its sensor profile matches the standard register map. Its model is trained on simulated run-to-failure data, so treat the value as a demonstration, not a measured forecast. **Show why** works for all five machine types.
 
 ## Alarms (`/alarms`)
 

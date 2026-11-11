@@ -205,11 +205,10 @@ class ExplanationEngine:
         GRANULARITY: one sensor at a time, the whole column across the window (feature_dim
         extra forward passes, not seq_len * feature_dim).
 
-        BASELINE VALUE: the masked column is set to the population-average value of that
-        sensor, so within-window trends of the other sensors stay intact. C-MAPSS features
-        are z-scored on the population, so its average is 0.0. The other domains are scaled
-        to [0, 1], where 0.0 is an extreme reading, so their average comes from the same
-        profiles the domain model was trained on (see `feature_layout`).
+        BASELINE VALUE: C-MAPSS columns are masked with 0.0, as they always were, so the
+        published deletion-test numbers stay reproducible. Every other domain is masked with
+        the population-average value of that sensor, taken from the profiles its model was
+        trained on (see `feature_layout`), because 0.0 on a [0, 1] scale is an extreme reading.
 
         Returns (attributions sorted by magnitude, None) or ([], reason).
         """
@@ -264,7 +263,7 @@ def feature_layout(domain: str, feature_dim: int) -> Optional[Tuple[Tuple[str, .
         if feature_dim != len(INFORMATIVE_SENSORS):
             return None
         return (tuple(f"{c} ({SENSOR_DESCRIPTIONS.get(c, c)})" for c in INFORMATIVE_SENSORS),
-                (0.0,) * feature_dim)  # z-scored: 0.0 is the population mean
+                (0.0,) * feature_dim)  # the benchmark's original occlusion value
 
     profile = get_profile(domain)
     if not profile.features or len(profile.features) != feature_dim:

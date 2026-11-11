@@ -1,5 +1,17 @@
 # Redesign Changelog
 
+## After P7: the Evidence page's FUTURE-WORK items built (2026-11-10)
+- **What:**
+  - **Pump RUL (SIMULATED):** a simulated motor-pump wear model, a World Model trained on it, live RUL, Show why and recommendations for onboarded pumps, and a run-to-failure mode in the Modbus simulator (`scripts/modbus_bridge.py --simulate --state run_to_failure`).
+  - **Attribution for all five domains,** with the deletion test extended to each.
+  - **Retraining for all five domains** from the model registry, seeded, and a recorded 24-run history (`scripts/run_retrain_history.py`).
+  - **Fixed:** live column order for laptop, phone and server models; the C-MAPSS retraining data source. See ADR-030.
+  - Evidence page and `docs/TITLE_JUSTIFICATION.md` updated; the remaining FUTURE-WORK lines are narrower.
+- **Why:** owner request to build the future-work items; ADR-030.
+- **Numbers:** pump RMSE 7.72 cycles on 50 held-out simulated units (five seeds 7.71 ± 0.27; constant guess 40.51). Retrain history 14 promoted, 10 rejected. C-MAPSS deletion-test numbers unchanged.
+- **Verified:** pytest **455 passed**, 10 skipped (was 443); ruff clean; `tsc -b` and eslint clean; Playwright 14 passed with the MQTT leg skipped (one Fleet accessibility finding fixed: the alarm summary now has a group role); live check of an onboarded simulated pump with 14 cycles left: RUL 17.2 cycles, vibration named the main driver, recommendation returned. Screens: `docs/media/screens/fw-pump-rul-why.png`, `docs/media/screens/fw-evidence.png`.
+- **Open:** AMKB memory for laptop, phone and server should be repopulated after the column-order fix; the pump has no AMKB memory, so its explanations carry attribution without citations and its Monte Carlo spread is at the floor.
+
 ## Before the first push: MQTT credentials rotated (2026-11-10)
 - **What:** the branch's base commit `1deba76` put the MQTT broker passwords in `.env.example`, and they were the same values the local broker used (the generator's development defaults). Before the branch was ever pushed:
   - The owner's local broker passwords were rotated to new random values.

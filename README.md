@@ -21,7 +21,7 @@ ATLAS connects unlike machines (a turbofan, a laptop, a phone, a server, a Modbu
 | Platform | Seven-step sensor onboarding, devices, roles, audit | 41/41 adapter conformance tests; onboarded sensor's data on screen in 0.6 s |
 | Explainable | "Show why" in the 3D Asset View; attribution and AMKB citations | Masking the top-2 attributed sensors moves RUL 35.4 cycles vs 16.8 for random ones (90% of 100 test units) |
 | Predictive Maintenance | Asset Detail RUL band, recommended action, work orders | NASA C-MAPSS FD001: RMSE 15.42, PHM 394.7 (five seeds: 15.22 ± 0.30) |
-| Heterogeneous Machine Systems | Cross-domain view; five machines in 3D | Four trained domains plus a Modbus pump with health monitoring |
+| Heterogeneous Machine Systems | Cross-domain view; five machines in 3D | Five trained domains: turbofan on the NASA benchmark; laptop, phone, server and Modbus pump on simulated data (pump RMSE 7.72 cycles on simulated failures) |
 
 Every cell, with file paths, endpoints and the command that reproduces it: [docs/TITLE_JUSTIFICATION.md](docs/TITLE_JUSTIFICATION.md). The same matrix is the product page `/about/evidence`. What is not done is marked FUTURE-WORK there, not hidden.
 

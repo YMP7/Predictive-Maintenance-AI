@@ -150,6 +150,20 @@ One entry per non-trivial decision. Format: context, options, choice, consequenc
 - **Accessibility:** asset-index links used `--accent-ink` (text-on-accent, white) and had no contrast; scrollable tables are focusable named regions; the header search button and rail links carry names that survive the narrow layout; headings focused by navigation show no ring.
 - **Lighthouse:** run on the production build served by the API, signed in, with Lighthouse 12.2.1 and Playwright's Chromium (the chrome-devtools connector was unavailable). Desktop meets the target (94/100/100). Mobile throttled performance is 68 (LCP 6.0 s): about 134 KB of the main bundle and 59 KB of CSS are unused on Fleet. Recorded as open; splitting the shell bundle is the next step if phones matter.
 
+## ADR-030: Building the title matrix's FUTURE-WORK items (after P7)
+- **Context:** the Evidence page listed four unbuilt items: pump RUL, attribution beyond C-MAPSS, a retrain history, and (with it) retraining beyond C-MAPSS. The owner approved building them, with the pump model on simulated data. This changes the Explainability and Learning engines, which P0 to P7 treated as frozen.
+- **Choice:**
+  - **Pump RUL on simulated data.** `server/adapters/pump_degradation.py` is one wear model used by both the trainer (`server/atlas/train_pump_rul.py`) and the ModbusSimulator's new run-to-failure mode. Everything derived from it is labelled SIMULATED (result file, model metadata, RUL caption, model registry).
+  - **A profile that does not match the trained layout gets no prediction.** `server/atlas/profiled_inference.py` reorders an onboarded pump's window into the trained column order and refuses when channels are missing or scaled differently, with the reason shown in place of the RUL.
+  - **Attribution for every domain.** The occlusion value is the sensor's population mean outside C-MAPSS, because 0.0 on a 0 to 1 scale is an extreme reading. C-MAPSS keeps 0.0 so the published deletion-test numbers are unchanged (verified identical).
+  - **Retraining for every domain,** each on its own data source, with the same 3% gate. The history study runs on scratch copies so shipped checkpoints and every published number stay as they are.
+- **Two defects found and fixed on the way:**
+  - Live laptop, phone and server windows were fed to their models in alphabetical column order, not the order the models were trained on. On held-out profile windows this raised the error from 0.089 to 0.126 (laptop), 0.027 to 0.161 (phone) and 0.038 to 0.089 (server). The live order now comes from `DomainProfile.features`, the training order.
+  - The Learning Engine retrained C-MAPSS from `data/processed/fd001_train.npz`, which is z-scored, while the model is trained and served on the adapter's scale. The shipped model scored RMSE 49 on that file, and the gate then promoted candidates that were far worse on the test set (15.4 to 59). This is what the single recorded run (15.42 to 59.14) had hit. Retraining now builds its windows with the adapter.
+- **Consequences:**
+  - Live laptop, phone and server estimates change (they are now what the models were trained to produce). Stored AMKB state vectors for those domains were computed with the old order and should be repopulated.
+  - The remaining FUTURE-WORK is narrower and real: validation on real pump failures and real hardware fleets, retraining on field failures, and checking attributions against known fault causes.
+
 ## ADR-004: PCA, not UMAP (P0)
 - **Context:** D5 asks for a "PCA/UMAP" 2-D projection of 32-dim states.
 - **Choice:** PCA via numpy SVD. It avoids a new heavy dependency (umap-learn pulls in numba) and is deterministic.

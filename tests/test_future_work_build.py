@@ -91,16 +91,20 @@ def client():
     app.dependency_overrides.clear()
 
 
+_T0 = datetime.now(timezone.utc) - timedelta(seconds=600)
+_sent = iter(range(10_000))
+
+
 def push(svc, wear_levels):
     """One sample per wear level, in engineering units, as scripts/modbus_bridge.py sends them."""
     from server.adapters.modbus_adapter import DEFAULT_REGISTER_MAP
 
     rng = np.random.default_rng(1)
-    now = datetime.now(timezone.utc)
     samples = []
-    for i, d in enumerate(wear_levels):
+    for d in wear_levels:
         regs = pd.registers_at(d, 1.0, rng)
-        samples.append({"ts": (now - timedelta(seconds=len(wear_levels) - i)).isoformat().replace("+00:00", "Z"),
+        # strictly increasing times: an older sample never replaces the latest value
+        samples.append({"ts": (_T0 + timedelta(milliseconds=50 * next(_sent))).isoformat().replace("+00:00", "Z"),
                         "values": {c.name: r * c.scale + c.offset for c, r in zip(DEFAULT_REGISTER_MAP, regs)}})
     svc.ingest("pump_t1", samples, source="test", actor="test")
 
@@ -287,7 +291,8 @@ def test_recorded_retrain_history_has_promotions_and_rejections_per_domain(clien
     assert set(r["by_domain"]) == set(DOMAIN_PROFILES)
     assert r["promoted"] > 0 and r["rejected"] > 0
     for run in r["runs"]:
-        best = min([x["val_rmse_after"] for x in r["runs"] if x["domain"] == run["domain"] and x["promoted"]
-                    and x["run"] < run["run"]] + [run["val_rmse_before"]])
+        mine = [x for x in r["runs"] if x["domain"] == run["domain"]]
+        best = min([x["val_rmse_after"] for x in mine if x["promoted"] and x["run"] < run["run"]]
+                   + [mine[0]["val_rmse_before"]])
         # the gate as specified: promoted exactly when within 3% of the best so far
         assert run["promoted"] == (run["val_rmse_after"] <= best * 1.03 + 1e-4), run

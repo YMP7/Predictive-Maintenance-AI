@@ -33,7 +33,7 @@ Not one benchmark model: the same pipeline, behind a single adapter layer, predi
 - Terminology: say "3D Asset View", never "Digital Twin" as a component. Never "real-time learning" or "continuous learning".
 - Every synthetic or simulated value carries a visible `SIMULATED` / `SYNTHETIC` badge. Features in docs are labelled BUILD or FUTURE-WORK.
 - Time zone defaults to Asia/Kolkata; SI units throughout.
-- Undecided: Modbus RUL (no trained model yet, so it is FUTURE-WORK until approved).
+- Modbus pump RUL: built on SIMULATED run-to-failure data (approved 2026-11-10). It always carries the SIMULATED label; validation on real pump failures is FUTURE-WORK.
 
 ## Brand Commitments
 
