@@ -104,8 +104,10 @@ LAPTOP = AssetProfile(
         "disk_write_throughput": B("storage", "Disk writes"),
         "disk_iops_rate": B("storage", "Disk operations"),
         "battery_percent": B("battery", "Battery charge", -1),
+        "is_charging": B("battery", "On charger (1 = plugged in)", 0),
         "network_throughput": B("wifi", "Network traffic"),
     },
+    attribution=True,
 )
 
 PHONE = AssetProfile(
@@ -137,6 +139,7 @@ PHONE = AssetProfile(
         "proximity": B("sensors", "Proximity", 0),
         "magnetic_field": B("compass", "Magnetic field strength", 0),
     },
+    attribution=True,
 )
 
 SERVER = AssetProfile(
@@ -158,6 +161,7 @@ SERVER = AssetProfile(
         "network_io_rate": B("nic", "Network traffic"),
         "gpu_utilization": B("gpu", "GPU load"),
     },
+    attribution=True,
 )
 
 # Channel names match the ModbusAdapter register map (server/adapters/modbus_adapter.py).
@@ -182,7 +186,10 @@ MOTOR_PUMP = AssetProfile(
         "pressure_bar": B("pump", "Discharge pressure", 0, "bar"),
     },
     spin="speed_rpm",
-    rul_note="No trained model for this machine type yet (FUTURE-WORK).",
+    rul_unit="cycles",
+    attribution=True,
+    rul_note="The pump RUL model (trained on SIMULATED run-to-failure data) is not installed. "
+             "Train it with: python -m server.atlas.train_pump_rul",
 )
 
 ASSET_PROFILES: Dict[str, AssetProfile] = {

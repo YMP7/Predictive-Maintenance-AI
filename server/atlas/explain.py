@@ -1,9 +1,10 @@
 from dataclasses import dataclass, field
-from typing import List, Dict, Optional
+import functools
+from typing import List, Dict, Optional, Tuple
 import numpy as np
 import logging
 
-from server.adapters.domain_profile import get_profile
+from server.adapters.domain_profile import PRIMARY_DOMAIN, get_profile
 from server.atlas.adaptive_context import AdaptiveContext, NeighborContext
 
 logger = logging.getLogger(__name__)
@@ -61,27 +62,32 @@ class ExplanationEngine:
     def __init__(self, grounding_enabled: bool = True):
         self.grounding_enabled = grounding_enabled
 
+    def _attribute(self, context: AdaptiveContext, window: Optional[np.ndarray], ace):
+        """Occlusion attribution plus the sentence that names the strongest sensor."""
+        if window is None or ace is None:
+            return [], [], "", None
+        attributions, reason = self.calculate_feature_attribution(window, ace, context.predicted_rul, context.domain)
+        if not attributions:
+            return [], [], "", reason
+        top = attributions[0]
+        if get_profile(context.domain).rul_scale is None:
+            # The output of these domains is a 0-1 estimate, not cycles: state the size, not a direction.
+            text = (f" {top['sensor_name']} is the strongest driver of this estimate: masking it moves the "
+                    f"model output by {top['magnitude']:.3f}.")
+        elif top["signed_delta"] > 0:
+            text = f" {top['sensor_name']} readings are actively driving this prediction toward a shorter RUL estimate."
+        elif top["signed_delta"] < 0:
+            text = f" {top['sensor_name']} readings are supporting a healthier (longer) RUL estimate."
+        else:
+            text = f" {top['sensor_name']} is the most influential factor in this prediction."
+        return attributions, [a["sensor_name"] for a in attributions[:3]], text, reason
+
     def explain(self, context: AdaptiveContext, window: Optional[np.ndarray] = None, ace=None) -> ExplanationReport:
+        attributions, top_contributors, attribution_text, attribution_unavailable_reason = self._attribute(context, window, ace)
+        noun = "engine" if context.domain == PRIMARY_DOMAIN else "machine"
+
         # Check if grounding is explicitly disabled
         if not self.grounding_enabled:
-            attributions = []
-            top_contributors = []
-            attribution_text = ""
-            attribution_unavailable_reason = None
-
-            if window is not None and ace is not None:
-                attributions, attribution_unavailable_reason = self.calculate_feature_attribution(window, ace, context.predicted_rul)
-                top_k = attributions[:3]
-                top_contributors = [attr["sensor_name"] for attr in top_k]
-                if attributions:
-                    top_sensor = attributions[0]
-                    if top_sensor["signed_delta"] > 0:
-                        attribution_text = f" {top_sensor['sensor_name']} readings are actively driving this prediction toward a shorter RUL estimate."
-                    elif top_sensor["signed_delta"] < 0:
-                        attribution_text = f" {top_sensor['sensor_name']} readings are supporting a healthier (longer) RUL estimate."
-                    else:
-                        attribution_text = f" {top_sensor['sensor_name']} is the most influential factor in this prediction."
-
             return ExplanationReport(
                 confidence_score=0.50,
                 confidence_level="Moderate",
@@ -97,16 +103,13 @@ class ExplanationEngine:
         
         # Guard against zero neighbors
         if not neighbors:
-            attributions = []
-            attribution_unavailable_reason = None
-            if window is not None and ace is not None:
-                attributions, attribution_unavailable_reason = self.calculate_feature_attribution(window, ace, context.predicted_rul)
             return ExplanationReport(
                 confidence_score=0.0,
                 confidence_level="Low",
-                primary_justification="No historical similar engines found to ground this prediction.",
+                primary_justification=f"No historical similar {noun}s found to ground this prediction." + attribution_text,
                 citations=[],
                 sensor_attributions=attributions,
+                top_contributors=top_contributors,
                 attribution_unavailable_reason=attribution_unavailable_reason
             )
 
@@ -134,8 +137,11 @@ class ExplanationEngine:
             return ExplanationReport(
                 confidence_score=0.5,
                 confidence_level="Low",
-                primary_justification="Insufficient historical failure data for confident citation.",
-                citations=[]
+                primary_justification="Insufficient historical failure data for confident citation." + attribution_text,
+                citations=[],
+                sensor_attributions=attributions,
+                top_contributors=top_contributors,
+                attribution_unavailable_reason=attribution_unavailable_reason
             )
             
         true_ruls_arr = np.array(true_ruls)
@@ -163,33 +169,10 @@ class ExplanationEngine:
         if len(neighbors) < 10:
             note = "Confidence scores derived from small neighbor counts should be interpreted as indicative, not precise."
             
-        # Feature Attribution
-        attributions = []
-        top_contributors = []
-        attribution_text = ""
-        
-        attribution_unavailable_reason = None
-        
-        if window is not None and ace is not None:
-            attributions, attribution_unavailable_reason = self.calculate_feature_attribution(window, ace, context.predicted_rul)
-            
-            # Get top K contributors (e.g., top 3)
-            top_k = attributions[:3]
-            top_contributors = [attr["sensor_name"] for attr in top_k]
-            
-            if attributions:
-                top_sensor = attributions[0]
-                if top_sensor["signed_delta"] > 0:
-                    attribution_text = f" {top_sensor['sensor_name']} readings are actively driving this prediction toward a shorter RUL estimate."
-                elif top_sensor["signed_delta"] < 0:
-                    attribution_text = f" {top_sensor['sensor_name']} readings are supporting a healthier (longer) RUL estimate."
-                else:
-                    attribution_text = f" {top_sensor['sensor_name']} is the most influential factor in this prediction."
-            
         # 3. Construct structured explanation string from a template
         avg_true_rul = float(np.mean(true_ruls_arr))
         primary_justification = (
-            f"Prediction is grounded in {len(neighbors)} historically similar engine trajectories "
+            f"Prediction is grounded in {len(neighbors)} historically similar {noun} trajectories "
             f"with an average true RUL of {avg_true_rul:.1f} cycles. "
             f"The matching units exhibited a variance of {variance:.1f} cycles."
         ) + attribution_text
@@ -214,59 +197,97 @@ class ExplanationEngine:
             attribution_unavailable_reason=attribution_unavailable_reason
         )
 
-    def calculate_feature_attribution(self, window: np.ndarray, ace, baseline_rul: float) -> List[Dict[str, float]]:
+    def calculate_feature_attribution(self, window: np.ndarray, ace, baseline_rul: float,
+                                      domain: str = PRIMARY_DOMAIN) -> Tuple[List[Dict[str, float]], Optional[str]]:
         """
-        Calculates Occlusion Sensitivity for the 14 sensors.
-        
-        GRANULARITY: Occlusion is performed at the coarse, per-sensor level
-        (zeroing the entire sensor column across all 30 timesteps at once). This
-        matches the project's established per-sensor analysis granularity and is
-        far cheaper than cell-by-cell (14 extra forward passes vs 420).
-        
-        BASELINE VALUE: We use `0.0` to occlude the features. Since the operational
-        data is already z-score normalized on the population (via Month 2's fit_normalizer),
-        `0.0` intrinsically represents the population-average value. Using the window
-        mean would improperly erase within-window degradation trends.
+        Occlusion sensitivity per sensor, for any domain with a known feature layout.
+
+        GRANULARITY: one sensor at a time, the whole column across the window (feature_dim
+        extra forward passes, not seq_len * feature_dim).
+
+        BASELINE VALUE: the masked column is set to the population-average value of that
+        sensor, so within-window trends of the other sensors stay intact. C-MAPSS features
+        are z-scored on the population, so its average is 0.0. The other domains are scaled
+        to [0, 1], where 0.0 is an extreme reading, so their average comes from the same
+        profiles the domain model was trained on (see `feature_layout`).
+
+        Returns (attributions sorted by magnitude, None) or ([], reason).
         """
-        if window.shape != (30, 14):
-            return [], "Feature attribution not yet implemented for domains with feature_dim != 14 (got shape {}).".format(window.shape)
-            
-        attributions = []
+        window = np.asarray(window)
+        if window.ndim != 2:
+            return [], f"Feature attribution needs a 2D window, got shape {window.shape}."
+        layout = feature_layout(domain, window.shape[1])
+        if layout is None:
+            return [], (f"No sensor layout is registered for domain '{domain}' with {window.shape[1]} features, "
+                        "so per-sensor attribution is not available.")
+        names, baseline = layout
+
+        resolve = getattr(ace, "get_world_model", None)
+        model = resolve(domain, window.shape[1]) if callable(resolve) else getattr(ace, "world_model", None)
+        if model is None:
+            return [], f"No trained World Model for domain '{domain}' with {window.shape[1]} features."
+        seq_len = int(getattr(getattr(model, "config", None), "seq_len", 30) or 30)
+        if window.shape[0] != seq_len:
+            return [], f"Feature attribution needs a window of {seq_len} steps, got {window.shape[0]}."
+
         from server.atlas.world_model import prepare_window
-        
-        from server.adapters.cmapss_adapter import INFORMATIVE_SENSORS, SENSOR_DESCRIPTIONS
-        
-        for sensor_idx in range(14):
-            # Map the 0-13 index to the actual C-MAPSS sensor string (e.g., 's3')
-            # and then to its physical description.
-            sensor_code = INFORMATIVE_SENSORS[sensor_idx]
-            physical_desc = SENSOR_DESCRIPTIONS.get(sensor_code, sensor_code)
-            sensor_name = f"{sensor_code} ({physical_desc})"
-            
-            # 1. Copy window
-            occluded_window = np.copy(window)
-            
-            # 2. Coarse occlusion: zero out entire column using population mean baseline (0.0)
-            occluded_window[:, sensor_idx] = 0.0
-            
-            # 3. Predict RUL
-            occ_tensor = prepare_window(occluded_window, seq_len=30, feature_dim=14)
-            occ_out = ace.world_model.predict(occ_tensor)
-            occ_rul = occ_out.rul_pred
-            
-            # 4. Calculate signed delta and magnitude
-            # If removing sensor increases RUL, the sensor's real values were dragging RUL DOWN (degradation signal)
+
+        attributions = []
+        for idx, sensor_name in enumerate(names):
+            occluded = np.copy(window)
+            occluded[:, idx] = baseline[idx]
+            occ_rul = float(model.predict(prepare_window(occluded, seq_len=seq_len, feature_dim=window.shape[1])).rul_pred)
+            # A positive delta means the real readings were pulling the estimate down.
             signed_delta = occ_rul - baseline_rul
-            magnitude = abs(signed_delta)
-            
             attributions.append({
-                "sensor_index": sensor_idx,
+                "sensor_index": idx,
                 "sensor_name": sensor_name,
-                "magnitude": float(magnitude),
-                "signed_delta": float(signed_delta)
+                "magnitude": float(abs(signed_delta)),
+                "signed_delta": float(signed_delta),
             })
-            
-        # 5. Sort by magnitude descending
-        # To ensure stable sort for ties, sort by sensor_index ascending secondarily
+
+        # Largest first; ties by sensor index so the order is stable.
         attributions.sort(key=lambda x: (-x["magnitude"], x["sensor_index"]))
         return attributions, None
+
+
+@functools.lru_cache(maxsize=16)
+def feature_layout(domain: str, feature_dim: int) -> Optional[Tuple[Tuple[str, ...], Tuple[float, ...]]]:
+    """(sensor names, occlusion baseline) in the model's column order, or None when the layout is unknown.
+
+    A sensor name reads "<channel> (<what it measures>)"; the channel key comes first so the
+    3D Asset View can bind it to a part.
+    """
+    if domain == PRIMARY_DOMAIN:
+        from server.adapters.cmapss_adapter import INFORMATIVE_SENSORS, SENSOR_DESCRIPTIONS
+
+        if feature_dim != len(INFORMATIVE_SENSORS):
+            return None
+        return (tuple(f"{c} ({SENSOR_DESCRIPTIONS.get(c, c)})" for c in INFORMATIVE_SENSORS),
+                (0.0,) * feature_dim)  # z-scored: 0.0 is the population mean
+
+    profile = get_profile(domain)
+    if not profile.features or len(profile.features) != feature_dim:
+        return None
+    from server.adapters.asset_profiles import get_asset_profile
+
+    asset = get_asset_profile(domain)
+    labels = {k: b.label for k, b in asset.channels.items()} if asset else {}
+    names = tuple(f"{f} ({labels[f]})" if f in labels else f for f in profile.features)
+    return names, tuple(float(v) for v in population_mean(domain))
+
+
+def population_mean(domain: str) -> np.ndarray:
+    """Per-feature mean of the profiles the domain model was trained on, in live column order."""
+    profile = get_profile(domain)
+    if profile.simulated_run_to_failure:
+        from server.adapters import pump_degradation
+
+        mean, order = pump_degradation.population_mean(), pump_degradation.FEATURES
+    else:
+        from server.atlas.pretrain_domain import DOMAIN_FEATURE_MAP, DomainDatasetGenerator
+
+        X, _, _ = DomainDatasetGenerator.get_dataset(domain)
+        mean, order = X.reshape(-1, X.shape[-1]).mean(axis=0), DOMAIN_FEATURE_MAP[domain]
+    by_name = dict(zip(order, mean))
+    return np.asarray([by_name[f] for f in profile.features], dtype=np.float32)

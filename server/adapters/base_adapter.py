@@ -19,6 +19,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from server.adapters.domain_profile import DOMAIN_PROFILES
+
 
 # ---------------------------------------------------------------------------
 # Exceptions (ATLAS Adapter SDK Specification v1.0.0)
@@ -154,29 +156,10 @@ class NormalizedReading:
     # Helpers
     # ------------------------------------------------------------------
 
-    # Canonical model features for non-CMAPSS domains to preserve model tensor contracts
+    # Column order of the model input per domain. It must equal the order the domain's World Model
+    # was trained on (DomainProfile.features), or the model reads one sensor's values as another's.
     _CANONICAL_MODEL_FEATURES: Dict[str, List[str]] = field(default_factory=lambda: {
-        "mobile": [
-            "battery_current",
-            "battery_level",
-            "battery_temp",
-            "cpu_usage",
-            "memory_used_percent",
-        ],
-        "laptop": [
-            "battery_percent",
-            "cpu_usage",
-            "disk_usage",
-            "is_charging",
-            "memory_usage",
-        ],
-        "server": [
-            "cpu_usage",
-            "disk_usage",
-            "gpu_utilization",
-            "memory_usage",
-            "network_io_rate",
-        ],
+        name: list(p.features) for name, p in DOMAIN_PROFILES.items() if p.features
     })
 
     @property
@@ -185,7 +168,8 @@ class NormalizedReading:
         If canonical model features are registered for this domain, extracts them in fixed order;
         otherwise falls back to sorting all keys in features."""
         canonical = self._CANONICAL_MODEL_FEATURES.get(self.domain)
-        if canonical:
+        # A device with its own channel names (a custom Modbus register map) keeps its own layout.
+        if canonical and any(k in self.features for k in canonical):
             return [float(self.features.get(k, 0.0)) for k in canonical]
         return [self.features[k] for k in sorted(self.features)]
 

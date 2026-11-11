@@ -28,8 +28,21 @@ interface Transfer {
 interface Benchmark {
   benchmark: { stage_8_end_to_end_ms: Record<string, { mean_ms: number }> };
 }
+type Deletion = Record<string, { mean_abs_delta_top: number; mean_abs_delta_random: number; top_beats_random_pct: number; n_units: number }>;
 interface Faithfulness {
-  summary: Record<string, { mean_abs_delta_top: number; mean_abs_delta_random: number; top_beats_random_pct: number; n_units: number }>;
+  summary: Deletion;
+  domains?: Record<string, { summary: Deletion; n_features: number; provenance: string; output: string }>;
+}
+interface RetrainHistory {
+  total_runs: number;
+  promoted: number;
+  rejected: number;
+  by_domain: Record<string, { runs: number; promoted: number; rejected: number; data: string }>;
+}
+interface PumpRul {
+  shipped_checkpoint: { rmse: number; mae: number; phm_score: number; n_units: number };
+  baseline_constant_mean: { rmse: number };
+  multi_seed: { n: number; rmse_mean: number; rmse_std: number };
 }
 
 /** A live number, or a plain note when its result file is missing. Never a made-up default. */
@@ -49,7 +62,7 @@ interface Row {
   future?: string;
 }
 
-const DOMAIN: Record<string, string> = { laptop: 'laptop', mobile: 'phone', server: 'server', cmapss: 'turbofan' };
+const DOMAIN: Record<string, string> = { laptop: 'laptop', mobile: 'phone', server: 'server', cmapss: 'turbofan', modbus: 'pump' };
 
 export default function EvidencePage() {
   const ev = usePoll<Evaluation>('/api/atlas/evaluation/summary', 0);
@@ -57,18 +70,21 @@ export default function EvidencePage() {
   const tr = usePoll<Transfer>('/api/atlas/research/transfer-study', 0);
   const bm = usePoll<Benchmark>('/api/atlas/system/benchmark', 0);
   const ff = usePoll<Faithfulness>('/api/atlas/research/attribution-faithfulness', 0);
+  const rh = usePoll<RetrainHistory>('/api/atlas/research/retrain-history', 0);
+  const pr = usePoll<PumpRul>('/api/atlas/research/pump-rul', 0);
 
   const rows: Row[] = [
     {
       id: 'adaptive',
       term: 'Adaptive',
       claim: "Adapts its estimate to the machine's context and to new machines.",
-      components: ['server/atlas/adaptive_context.py', 'server/atlas/learning_engine.py (batch retrain, 3% gate)', 'server/atlas/transfer_study.py'],
+      components: ['server/atlas/adaptive_context.py', 'server/atlas/learning_engine.py (batch retrain for every domain, 3% gate)', 'scripts/run_retrain_history.py', 'server/atlas/transfer_study.py'],
       see: [
         { label: 'Cognition: Adaptive Context and Learning Engine panels', to: '/admin/cognition', admin: true },
         { label: 'Model registry', to: '/admin/models', admin: true },
       ],
       numbers: (
+        <>
         <N poll={tr}>
           {t => (
             <>
@@ -80,8 +96,20 @@ export default function EvidencePage() {
             </>
           )}
         </N>
+          <N poll={rh}>
+            {h => (
+              <>
+                {' '}Retraining history: {h.total_runs} gated runs across {Object.keys(h.by_domain).length} domains on scratch copies of the shipped models, {h.promoted} promoted and {h.rejected} rejected by the 3% gate (
+                {Object.entries(h.by_domain)
+                  .map(([d, r]) => `${DOMAIN[d] ?? d} ${r.promoted} of ${r.runs} promoted`)
+                  .join(', ')}
+                ). Only the turbofan runs use benchmark data; the others retrain on simulated data.
+              </>
+            )}
+          </N>
+        </>
       ),
-      future: 'Only one retraining run is on record (rejected by the gate); a longer retrain history is future work.',
+      future: 'Retraining on failures recorded from real machines in service; every run on record uses the NASA benchmark or simulated data.',
     },
     {
       id: 'cognition',
@@ -129,9 +157,9 @@ export default function EvidencePage() {
       id: 'explainable',
       term: 'Explainable',
       claim: 'Every prediction comes with a reason a person can check.',
-      components: ['server/atlas/explain.py (occlusion attribution, AMKB-grounded justification)', 'scripts/attribution_faithfulness.py'],
+      components: ['server/atlas/explain.py (occlusion attribution for all five domains, AMKB-grounded justification)', 'scripts/attribution_faithfulness.py'],
       see: [
-        { label: 'Show why in the 3D Asset View', to: '/assets/kind/turbofan' },
+        { label: 'Show why in the 3D Asset View (any of the five machines)', to: '/assets' },
         { label: 'Cognition: Explainability panel', to: '/admin/cognition', admin: true },
         { label: 'Agent chat with AMKB evidence', to: '/chat' },
       ],
@@ -141,23 +169,34 @@ export default function EvidencePage() {
             <>
               Deletion test on {f.summary.k2.n_units} FD001 test units: masking the 2 most-attributed sensors moves the prediction {f.summary.k2.mean_abs_delta_top.toFixed(1)} cycles against {f.summary.k2.mean_abs_delta_random.toFixed(1)} for 2 random sensors, and beats random in{' '}
               {formatPercent(f.summary.k2.top_beats_random_pct / 100)} of units (top 3: {f.summary.k3.mean_abs_delta_top.toFixed(1)} vs {f.summary.k3.mean_abs_delta_random.toFixed(1)}, {formatPercent(f.summary.k3.top_beats_random_pct / 100)}).
+              {f.domains && (
+                <>
+                  {' '}The same test on the other domains, on simulated data (top 2 against 2 random sensors, share of windows where the top 2 win):{' '}
+                  {Object.entries(f.domains)
+                    .filter(([d]) => d !== 'cmapss')
+                    .map(([d, r]) => `${DOMAIN[d] ?? d} ${r.summary.k2.mean_abs_delta_top.toPrecision(3)} vs ${r.summary.k2.mean_abs_delta_random.toPrecision(3)} (${formatPercent(r.summary.k2.top_beats_random_pct / 100)})`)
+                    .join(', ')}
+                  . Pump values are cycles; laptop, phone and server values are on their 0 to 1 output scale.
+                </>
+              )}
             </>
           )}
         </N>
       ),
-      future: 'Per-sensor attribution exists only for the 14-feature turbofan layout; laptop, phone, server and pump get the AMKB justification only.',
+      future: 'A check of the attribution against known fault causes on real machines; the deletion test only shows the ranking is faithful to the model.',
     },
     {
       id: 'pm',
       term: 'Predictive Maintenance',
       claim: 'Forecasts remaining useful life and turns it into a maintenance action.',
-      components: ['server/atlas/rul_engine.py', 'server/atlas/decision.py', 'server/operations_api.py (work orders, alarms)'],
+      components: ['server/atlas/rul_engine.py', 'server/atlas/decision.py', 'server/operations_api.py (work orders, alarms)', 'server/atlas/train_pump_rul.py and server/adapters/pump_degradation.py (pump RUL, simulated)'],
       see: [
         { label: 'Asset Detail: RUL band and recommended action', to: '/assets/kind/turbofan' },
         { label: 'Work orders', to: '/work-orders' },
         { label: 'Alarms', to: '/alarms' },
       ],
       numbers: (
+        <>
         <N poll={ev}>
           {e => {
             const p = e.prediction_accuracy;
@@ -169,8 +208,16 @@ export default function EvidencePage() {
             );
           }}
         </N>
+          <N poll={pr}>
+            {p => (
+              <>
+                {' '}Motor-pump, on simulated run-to-failure data only: {p.shipped_checkpoint.n_units} held-out simulated units, RMSE {p.shipped_checkpoint.rmse.toFixed(2)} cycles, MAE {p.shipped_checkpoint.mae.toFixed(2)}, PHM score {p.shipped_checkpoint.phm_score.toFixed(1)}; {p.multi_seed.n} seeds RMSE {p.multi_seed.rmse_mean.toFixed(2)} ± {p.multi_seed.rmse_std.toFixed(2)}; a constant guess scores RMSE {p.baseline_constant_mean.rmse.toFixed(2)}. These pump numbers measure fit to the simulator, not to real pumps.
+              </>
+            )}
+          </N>
+        </>
       ),
-      future: 'RUL for the Modbus motor-pump: no trained model yet.',
+      future: 'Validating the pump RUL model on real pump failure data; it has only seen simulated wear.',
     },
     {
       id: 'heterogeneous',
@@ -185,7 +232,7 @@ export default function EvidencePage() {
         <N poll={tr}>
           {t => (
             <>
-              Four domains with trained World Models (turbofan, laptop, phone, server) and a fifth (Modbus motor-pump) ingested and shown with health. Within-domain RUL error on the normalised scale:{' '}
+Five domains with trained World Models: turbofan on the NASA benchmark; laptop, phone, server and the Modbus motor-pump on simulated data. Within-domain RUL error on the normalised scale:{' '}
               {Object.entries(t.retrieval_transfer_diagnostics)
                 .map(([d, r]) => `${r.within_rmse} (${DOMAIN[d] ?? d})`)
                 .join(', ')}
@@ -194,7 +241,7 @@ export default function EvidencePage() {
           )}
         </N>
       ),
-      future: 'The fifth domain has health monitoring only; its RUL model is future work.',
+      future: 'Validation on real hardware fleets: the laptop, phone, server and pump models are trained on simulated profiles, and none of the five domains has kHz-range vibration data.',
     },
   ];
 

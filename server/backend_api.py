@@ -656,7 +656,7 @@ def atlas_ablations():
 
 
 @app.get("/api/atlas/research/attribution-faithfulness",
-         summary="Deletion test of the occlusion attribution on the FD001 test set (scripts/attribution_faithfulness.py)")
+         summary="Deletion test of the occlusion attribution, per domain (scripts/attribution_faithfulness.py)")
 def atlas_attribution_faithfulness():
     from pathlib import Path
     import json
@@ -665,6 +665,26 @@ def atlas_attribution_faithfulness():
         with open(json_path, "r", encoding="utf-8") as f:
             return JSONResponse(content=json.load(f))
     raise HTTPException(status_code=404, detail="Run scripts/attribution_faithfulness.py first")
+
+
+def _result_file(name: str, hint: str):
+    import json
+    json_path = Path(__file__).resolve().parent.parent / "data" / name
+    if json_path.exists():
+        return JSONResponse(content=json.loads(json_path.read_text(encoding="utf-8")))
+    raise HTTPException(status_code=404, detail=hint)
+
+
+@app.get("/api/atlas/research/retrain-history",
+         summary="Recorded series of gated retraining runs per domain (scripts/run_retrain_history.py)")
+def atlas_retrain_history():
+    return _result_file("retrain_history.json", "Run scripts/run_retrain_history.py first")
+
+
+@app.get("/api/atlas/research/pump-rul",
+         summary="Pump RUL model evaluated on SIMULATED run-to-failure data (server/atlas/train_pump_rul.py)")
+def atlas_pump_rul():
+    return _result_file("pump_rul_evaluation.json", "Run python -m server.atlas.train_pump_rul first")
 
 
 @app.get("/api/atlas/evaluation/summary")
@@ -736,6 +756,28 @@ def atlas_system_benchmark():
     })
 
 
+def _profiled_window(domain: str, machine_id: str):
+    """Window of a machine onboarded with a sensor profile, in its trained model's column order."""
+    from server.atlas.profiled_inference import model_window
+    from server.ingest import get_ingest_service
+
+    ingest = get_ingest_service()
+    try:
+        if not ingest.has_profile(machine_id):
+            return None
+        adapter = ingest.adapter(machine_id)
+    except Exception:
+        return None
+    if adapter.profile.domain != domain:
+        return None
+    window, reason = model_window(adapter)
+    if window is None:
+        warming = bool(reason and reason.startswith("Warming up"))
+        raise HTTPException(status_code=409 if warming else 404, detail=reason)
+    return JSONResponse(content={"domain": domain, "machine_id": machine_id, "window": window,
+                                 "seq_len": len(window), "feature_dim": len(window[0]), "cycle": 0})
+
+
 @app.get("/api/atlas/domain/{domain}/machine/{machine_id}/window")
 def atlas_machine_window(domain: str, machine_id: str):
     """Returns the current sliding feature window for machine_id in domain."""
@@ -744,6 +786,9 @@ def atlas_machine_window(domain: str, machine_id: str):
     engine = svc.get_engine(domain)
     adapter = svc.get_adapter(domain)
     if engine is None or adapter is None:
+        profiled = _profiled_window(domain, machine_id)
+        if profiled is not None:
+            return profiled
         raise HTTPException(status_code=404, detail=f"Domain engine for '{domain}' not found")
 
     with engine._lock:
