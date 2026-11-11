@@ -53,7 +53,7 @@ def fig_architecture():
     ax.text(9, 61.5, "Machines", ha="center", fontsize=8, fontweight="bold", color="#333")
     srcs = [("C-MAPSS FD001\n(turbofan)", 51), ("Laptop\n(psutil)", 41),
             ("Mobile\n(Android / Termux)", 31), ("Server\n(SSH / simulation)", 21),
-            ("Modbus TCP\n(industrial PLC)", 11)]
+            ("Modbus TCP pump\n(simulated wear)", 11)]
     for text, y in srcs:
         box(1, y, 16, 7.5, text, fc="#f4f4f4", ec=GREY)
         arrow(17.8, y + 3.75, 22.2, 33.75)
@@ -73,7 +73,7 @@ def fig_architecture():
     box(78, 4, 21, 14, "Decision graph\n4 actions, lead times\n30 / 10 / 3 / 0 cycles\nrank: E[cost], P(fail),\nstd, name",
         fc="#fdf1e6", ec=ORANGE)
 
-    box(41, 23, 17, 10, "Learning engine\nretrain -> gate\n(RMSE within 3%)\natomic promote", fc="#f1f8f3", ec=GREEN)
+    box(41, 23, 17, 10, "Learning engine\nretrain -> gate\n(within 3% of best)\natomic promote", fc="#f1f8f3", ec=GREEN)
     arrow(49.5, 33.8, 49.5, 40.2)
     box(41, 4, 33, 13, "LLM agent safety gate\nlive alert (< 24 h) + exact fault match\n+ allowed action per fault\n"
         "-> Pending Approval -> human sign-off", fc="#fbeeee", ec=RED)
