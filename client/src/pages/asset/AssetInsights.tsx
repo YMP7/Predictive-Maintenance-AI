@@ -5,7 +5,7 @@ import { Link } from 'react-router';
 
 import { TrendChart, type TrendPoint } from '../../design/TrendChart';
 import { formatPercent, formatValue } from '../../design/format';
-import { Button, EvidenceLabel, StatusPill } from '../../design/primitives';
+import { Button, StatusPill } from '../../design/primitives';
 import { EmptyState } from '../../design/states';
 import { useSession } from '../../contexts/SessionContext';
 import { apiFetch, errorMessage, statusOf } from '../../lib/api';
@@ -73,7 +73,7 @@ export function AssetInsights({ frame, focus }: { frame: TwinFrame; focus: Frame
             )
           ) : (
             <p className="ax-row">
-              <EvidenceLabel kind="FUTURE-WORK" /> {frame.rul_note ?? 'No RUL model for this machine.'}
+              {frame.rul_note ?? 'No RUL model for this machine.'}
             </p>
           )}
         </div>
@@ -139,7 +139,7 @@ function Recommendation({ frame }: { frame: TwinFrame }) {
       <div className="ax-panel__body ax-stack">
         {!frame.rul && (
           <p className="ax-row">
-            <EvidenceLabel kind="FUTURE-WORK" /> Decisions need a RUL model for this machine type.
+            Decisions need a RUL prediction for this machine. {frame.rul_note}
           </p>
         )}
         {state.error && <p className="ax-error">{state.error}</p>}

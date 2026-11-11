@@ -331,7 +331,7 @@ export function DiagnosticsPage() {
                       {m.trained_domains.includes(d) ? (
                         <span className="ax-note">{m.active_engines[d]?.using_lstm ? 'LSTM loaded' : 'EMA fallback'}</span>
                       ) : (
-                        <StatusPill tone="quiet">No model (FUTURE-WORK)</StatusPill>
+                        <StatusPill tone="quiet">No model installed</StatusPill>
                       )}
                       {bm && (
                         <span className="num">

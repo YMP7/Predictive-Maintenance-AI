@@ -188,7 +188,10 @@ def _window_and_reading(domain: str, machine_id: str):
         try:
             if ingest.has_profile(machine_id):
                 a = ingest.adapter(machine_id)
-                adapter, window, reading = a, a.window(), a.get_reading(machine_id)
+                from server.atlas.profiled_inference import model_window
+
+                # the trained model's column order when the profile matches it, else the profile's own
+                adapter, window, reading = a, model_window(a)[0] or a.window(), a.get_reading(machine_id)
         except Exception:
             pass
     return window, reading, adapter
@@ -216,7 +219,7 @@ def build_trace(domain: str, machine_id: str, k: int, seed: int) -> Dict[str, An
     model = api._ace.get_world_model(domain, feature_dim)
     if model is None:
         raise HTTPException(status_code=409, detail=f"No trained World Model for domain '{domain}' "
-                                                    f"with {feature_dim} features (FUTURE-WORK for this domain)")
+                                                    f"with {feature_dim} features")
     seq_len = model.config.seq_len
     if len(window) < seq_len:
         raise HTTPException(status_code=409, detail=f"Warming up: {len(window)}/{seq_len} readings for {domain}/{machine_id}")

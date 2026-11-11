@@ -236,6 +236,7 @@ class RetrainRequest(BaseModel):
     epochs: int = Field(5, ge=1, le=50)
     batch_size: int = Field(128, ge=1, le=1024)
     lr: float = Field(1e-3, gt=0, le=1)
+    seed: Optional[int] = Field(None, ge=0, le=2**31 - 1, description="Seeds the candidate's training so the run can be reproduced")
 
 
 _retrain_lock = threading.Lock()
@@ -258,22 +259,25 @@ def retrain_model(req: RetrainRequest):
             epochs=req.epochs,
             batch_size=req.batch_size,
             lr=req.lr,
+            seed=req.seed,
         )
         # Serve the promoted checkpoint right away instead of after the next restart.
-        if result.success and result.domain == PRIMARY_DOMAIN and _ace is not None:
-            _world_model = WorldModel.load(Path(result.checkpoint_path))
+        if result.success and result.checkpoint_path and _ace is not None:
+            promoted = WorldModel.load(Path(result.checkpoint_path))
+            if result.domain == PRIMARY_DOMAIN:
+                _world_model = promoted
             _ace = AdaptiveContextEngine(
                 _amkb, _dna_engine, _world_model,
-                domain_models={**_ace.domain_models, PRIMARY_DOMAIN: _world_model},
+                domain_models={**_ace.domain_models, result.domain: promoted},
             )
             from server.atlas.domain_service import get_domain_service
-            engine = get_domain_service().get_engine(PRIMARY_DOMAIN)
+            engine = get_domain_service().get_engine(result.domain)
             if engine is not None:
                 engine.reload_model()
         summary = result.to_dict()
         audit(category="learning", action="retrain", target=req.domain, outcome="success" if result.success else "rejected",
               details={"trigger_reason": req.trigger_reason, "epochs": req.epochs, "batch_size": req.batch_size,
-                       "lr": req.lr, "result": {k: v for k, v in summary.items() if not isinstance(v, (list, dict))}})
+                       "lr": req.lr, "seed": req.seed, "result": {k: v for k, v in summary.items() if not isinstance(v, (list, dict))}})
         return summary
     except Exception:
         import traceback

@@ -5,7 +5,7 @@ import { Link, useParams } from 'react-router';
 import { useKiosk } from '../../app/kioskState';
 import { KpiTile, LiveValue } from '../../design/data';
 import { formatPercent } from '../../design/format';
-import { Button, EvidenceLabel, PriorityGlyph, QualityBadge, SimBadge, StatusPill, Timestamp } from '../../design/primitives';
+import { Button, PriorityGlyph, QualityBadge, SimBadge, StatusPill, Timestamp } from '../../design/primitives';
 import { Page } from '../../design/shell';
 import { EmptyState, ErrorState, Skeleton, StaleNotice } from '../../design/states';
 import { useTheme } from '../../hooks/useTheme';
@@ -157,13 +157,13 @@ function AssetView({ domain, machineId }: { domain: string; machineId: string })
             quality={quality}
             priority={tone}
             ts={frame.ts ?? undefined}
-            caption={frame.rul.uncertainty !== null ? `± ${frame.rul.uncertainty.toFixed(1)} ${frame.rul.unit}, 1 sd${frame.rul.using_lstm === false ? ', EMA fallback' : ''}` : undefined}
+            caption={frame.rul.uncertainty !== null ? `± ${frame.rul.uncertainty.toFixed(1)} ${frame.rul.unit}, 1 sd${frame.rul.using_lstm === false ? ', EMA fallback' : ''}${frame.rul.provenance === 'SIMULATED' ? ', model trained on simulated failures' : ''}` : undefined}
           />
         ) : (
           <section className="ax-kpi">
             <div className="ax-kpi__head">
               <span>Remaining useful life</span>
-              <EvidenceLabel kind="FUTURE-WORK" />
+              {frame.rul_pending && <StatusPill tone="quiet">Collecting</StatusPill>}
             </div>
             <p className="ax-asset__note">{frame.rul_note ?? 'No prediction for this machine.'}</p>
           </section>

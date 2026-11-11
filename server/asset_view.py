@@ -60,7 +60,8 @@ def part_state(load: Optional[float], monitored: bool, has_values: bool = False)
 def build_frame(domain: str, machine_id: str, profile: AssetProfile, *, features: Dict[str, Any],
                 raw: Dict[str, Any], quality: Dict[str, str], parts_override: Dict[str, str],
                 units_override: Dict[str, str], ts: Optional[str], status: Optional[str],
-                adapter_status: Optional[str], health_index: Optional[float], rul: Optional[dict]) -> dict:
+                adapter_status: Optional[str], health_index: Optional[float], rul: Optional[dict],
+                rul_note: Optional[str] = None, rul_pending: bool = False) -> dict:
     channels: List[dict] = []
     for feature, b in profile.channels.items():
         value = _num(features.get(feature))
@@ -95,7 +96,9 @@ def build_frame(domain: str, machine_id: str, profile: AssetProfile, *, features
         "simulated": adapter_status == "simulation",
         "health_index": health_index,
         "rul": rul,
-        "rul_note": profile.rul_note if rul is None else None,
+        "rul_note": None if rul is not None else (rul_note or profile.rul_note),
+        # True when a model exists and is only waiting for its first full window.
+        "rul_pending": rul is None and rul_pending,
         "attribution": profile.attribution,
         "spin": _num(features.get(profile.spin)) if profile.spin else None,
         "spin_label": profile.channels[profile.spin].label if profile.spin else None,
@@ -138,6 +141,12 @@ def frame_from_ingest(machine_id: str) -> Optional[dict]:
     if profile is None:
         raise HTTPException(status_code=422, detail=f"No 3D asset profile for domain '{sp.domain}'")
     reading = adapter.get_reading(machine_id)
+    try:
+        from server.atlas.profiled_inference import profiled_rul
+
+        rul, rul_note, rul_pending = profiled_rul(adapter)
+    except Exception:  # a model problem must not take the live readings off the screen
+        rul, rul_note, rul_pending = None, "The RUL model could not be run for this machine.", False
     by_feature = {c.feature: c for c in sp.channels}
     quality = {f: reading.metadata["quality"].get(c.channel, "MISSING") for f, c in by_feature.items()}
     if sp.simulated:
@@ -147,7 +156,7 @@ def frame_from_ingest(machine_id: str) -> Optional[dict]:
                        parts_override={f: c.part for f, c in by_feature.items() if c.part},
                        units_override={f: c.unit for f, c in by_feature.items() if c.unit},
                        ts=reading.timestamp, status=None, adapter_status=reading.adapter_status,
-                       health_index=reading.health_index, rul=None)
+                       health_index=reading.health_index, rul=rul, rul_note=rul_note, rul_pending=rul_pending)
 
 
 @router.get("/api/atlas/domain/{domain}/profile", tags=["assets"],
@@ -180,9 +189,16 @@ def list_assets():
     for sp in profiles:
         p = get_asset_profile(sp.domain)
         if p is not None:
+            rul = None
+            try:
+                from server.atlas.profiled_inference import profiled_rul
+
+                rul = profiled_rul(get_ingest_service().adapter(sp.machine_id))[0]
+            except Exception:
+                pass
             out.append({"domain": sp.domain, "machine_id": sp.machine_id, "kind": p.kind,
                         "label": sp.display_name or p.label, "status": None, "health_index": None,
-                        "simulated": sp.simulated, "rul": None, "ts": None})
+                        "simulated": sp.simulated, "rul": rul, "ts": None})
     return {"assets": out}
 
 

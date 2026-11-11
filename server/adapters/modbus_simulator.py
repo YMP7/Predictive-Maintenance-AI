@@ -182,7 +182,13 @@ class ModbusSimulator:
           - 'idle': Low speed, cool motor, minimal vibration.
           - 'nominal': Standard production operating load and temperature.
           - 'degraded': Rising thermal load, severe harmonic vibration, high current.
+          - 'run_to_failure': wears from nominal to failure over the unit's life, one cycle per
+            step(), then starts a new unit (see start_run_to_failure).
         """
+        if state == "run_to_failure":
+            self.start_run_to_failure()
+            return
+        self._rtf = None
         self._state = state
         if state == "idle":
             # Temp: 25.0 C, Vib: 0.15 mm/s, Curr: 2.0 A, RPM: 0, Press: 1.0 bar, PF: 0.40
@@ -194,7 +200,29 @@ class ModbusSimulator:
             # Temp: 78.0 C, Vib: 5.60 mm/s, Curr: 22.0 A, RPM: 3520, Press: 1.8 bar, PF: 0.72
             self.set_registers([780, 5600, 220, 3520, 180, 72])
         else:
-            raise ValueError(f"Unknown simulator state: '{state}'. Choose 'idle', 'nominal', or 'degraded'.")
+            raise ValueError(f"Unknown simulator state: '{state}'. Choose 'idle', 'nominal', 'degraded' or 'run_to_failure'.")
+
+    def start_run_to_failure(self, seed: Optional[int] = None, start_fraction: float = 0.0) -> None:
+        """
+        SIMULATED wear from nominal to failure, using the same model the pump RUL model was
+        trained on (server/adapters/pump_degradation.py). `start_fraction` skips into the life
+        (0.6 starts at 60 % of it) so a demo reaches visible wear sooner.
+        """
+        import numpy as np
+
+        from server.adapters import pump_degradation as pd
+
+        rng = np.random.default_rng(seed)
+        unit = pd.draw_unit(rng)
+        self._state = "run_to_failure"
+        self._rtf = {"rng": rng, "unit": unit, "load": float(rng.uniform(0.92, 1.05)),
+                     "cycle": int(max(0.0, min(0.99, start_fraction)) * unit.life)}
+
+    @property
+    def true_rul(self) -> Optional[int]:
+        """Cycles left in the current simulated life (run_to_failure only): the label a real pump never gives."""
+        rtf = getattr(self, "_rtf", None)
+        return None if rtf is None else max(0, rtf["unit"].life - rtf["cycle"])
 
     def step(self) -> None:
         """
@@ -202,6 +230,16 @@ class ModbusSimulator:
         to avoid static latent representation collapse (DEF-007 compliance).
         """
         self._cycle += 1
+        rtf = getattr(self, "_rtf", None)
+        if rtf is not None:
+            from server.adapters import pump_degradation as pd
+
+            if rtf["cycle"] >= rtf["unit"].life:  # failed: the next unit starts fresh
+                rtf.update(unit=pd.draw_unit(rtf["rng"]), cycle=0)
+            rtf["cycle"] += 1
+            rtf["load"] = pd.next_load(rtf["load"], rtf["rng"])
+            self.set_registers(pd.registers_at(pd.wear(rtf["unit"], rtf["cycle"]), rtf["load"], rtf["rng"], rtf["unit"]))
+            return
         noise = [
             int(random.gauss(0, 3)),   # temp deci-C (+/- 0.3 C)
             int(random.gauss(0, 25)),  # vib milli-mm/s (+/- 0.025 mm/s)

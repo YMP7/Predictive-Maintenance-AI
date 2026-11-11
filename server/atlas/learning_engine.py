@@ -19,6 +19,7 @@ Key Architectural Guarantees:
 
 from server.adapters.domain_profile import get_profile
 import copy
+import functools
 import json
 import logging
 import os
@@ -42,6 +43,19 @@ logger = logging.getLogger("ATLAS.LearningEngine")
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 PROCESSED_DATA_DIR = _PROJECT_ROOT / "data" / "processed"
+
+
+@functools.lru_cache(maxsize=1)
+def _cmapss_training_windows() -> Tuple[np.ndarray, np.ndarray]:
+    from server.adapters.cmapss_adapter import CMAPSSAdapter
+    from server.atlas.train_rul import build_windows
+
+    adapter = CMAPSSAdapter(subset="FD001", split="train")
+    adapter.connect()
+    try:
+        return build_windows(adapter, seq_len=30)
+    finally:
+        adapter.disconnect()
 
 
 @dataclass
@@ -73,6 +87,7 @@ class LearningEngine:
         model_path: Optional[Path] = None,
         epsilon_tol: float = 0.03,
         min_samples_threshold: int = 500,
+        log_events: bool = True,
     ) -> None:
         """
         Parameters
@@ -84,6 +99,9 @@ class LearningEngine:
                                 by default; it actively gates live streaming domains once accumulated).
         """
         self.model_path = Path(model_path) if model_path else (MODELS_DIR / "best_model.pt")
+        self._explicit_path = model_path is not None
+        # False for studies run on scratch copies, so they never appear as production events.
+        self.log_events = bool(log_events)
         self.epsilon_tol = float(epsilon_tol)
         self.min_samples_threshold = int(min_samples_threshold)
 
@@ -171,25 +189,14 @@ class LearningEngine:
             return float(np.sqrt(mse))
 
     def _load_cmapss_data(self) -> Tuple[np.ndarray, np.ndarray]:
-        """Loads pre-processed C-MAPSS training set."""
-        train_file = PROCESSED_DATA_DIR / "fd001_train.npz"
+        """C-MAPSS FD001 training windows, built by the adapter.
 
-        if train_file.exists():
-            train_data = np.load(str(train_file))
-            X_train = train_data["X"] if "X" in train_data else train_data["X_train"]
-            y_train = train_data["y"] if "y" in train_data else train_data["y_train"]
-            return X_train, y_train
-
-        # Fallback to adapter if npz not prebuilt
-        from server.adapters.cmapss_adapter import CMAPSSAdapter
-        from server.atlas.train_rul import build_windows
-        adapter = CMAPSSAdapter(subset="FD001", split="train")
-        adapter.connect()
-        try:
-            X_train, y_train = build_windows(adapter, seq_len=30)
-            return X_train, y_train
-        finally:
-            adapter.disconnect()
+        The adapter is the only source: it scales features exactly as the model is trained
+        (train_rul.py) and served. data/processed/fd001_train.npz is z-scored, a different
+        scale; retraining on it scored the gate on inputs the shipped model never sees and
+        promoted candidates that were far worse on the test set.
+        """
+        return _cmapss_training_windows()
 
     def _split(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Fixed 90/10 train/validation split of the training windows.
@@ -203,8 +210,43 @@ class LearningEngine:
         # shortcut: splits windows, not units, so one engine can sit on both sides; split by unit if the npz gains unit ids.
         return X[idx[n_val:]], y[idx[n_val:]], X[idx[:n_val]], y[idx[:n_val]]
 
-    def _validation_rmse(self, model: WorldModel) -> float:
-        _, _, X_val, y_val = self._split()
+    @staticmethod
+    def data_source(domain: str) -> Optional[str]:
+        """Where a domain's retraining data comes from, or None when it has none."""
+        profile = get_profile(domain)
+        if profile.run_to_failure:
+            return "benchmark"            # NASA C-MAPSS run-to-failure windows
+        if profile.simulated_run_to_failure:
+            return "simulated_failure"    # SIMULATED pump run-to-failure (pump_degradation.py)
+        if profile.pretrain_generator:
+            return "simulated_profile"    # SIMULATED workload profile, stress-score target
+        return None
+
+    def _domain_split(self, domain: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Train and validation windows for a domain. The gate only ever scores on the validation part."""
+        source = self.data_source(domain)
+        if source == "benchmark":
+            return self._split()
+        if source == "simulated_failure":
+            from server.atlas.train_pump_rul import datasets
+
+            d = datasets()
+            return d["X_train"], d["y_train"], d["X_val"], d["y_val"]
+        # Same 1000 / 250 split of the simulated profile the domain model was pretrained with.
+        from server.atlas.pretrain_domain import DomainDatasetGenerator
+
+        X, _, y = DomainDatasetGenerator.get_dataset(domain)
+        return X[:1000], y[:1000], X[1000:], y[1000:]
+
+    def _path_for(self, domain: str) -> Path:
+        from server.adapters.domain_profile import PRIMARY_DOMAIN
+
+        if self._explicit_path or domain == PRIMARY_DOMAIN:
+            return self.model_path
+        return MODELS_DIR / get_profile(domain).checkpoints[-1]
+
+    def _validation_rmse(self, model: WorldModel, domain: str = "cmapss") -> float:
+        _, _, X_val, y_val = self._domain_split(domain)
         return self.evaluate_model(model, X_val, y_val)
 
     def _log_learning_event(self, result: LearningResult) -> None:
@@ -244,20 +286,27 @@ class LearningEngine:
         batch_size: int = 128,
         lr: float = 1e-3,
         forced_candidate_rmse: Optional[float] = None,
+        seed: Optional[int] = None,
     ) -> LearningResult:
         """
         Executes a controlled retraining run for the specified domain.
 
         Parameters
         ----------
-        domain : Domain identifier (currently 'cmapss')
+        domain : Domain identifier. C-MAPSS retrains on the NASA benchmark; the pump on SIMULATED
+                 run-to-failure data; laptop, phone and server on their SIMULATED workload profiles
+                 (stress-score target). No domain retrains on real failures other than C-MAPSS's
+                 simulated benchmark, and none retrains online.
         trigger_reason : 'manual' | 'scheduled' | 'sample_threshold'
         epochs : Number of training epochs on candidate model
         batch_size : Batch size
         lr : Learning rate
         forced_candidate_rmse : Optional test override to test promotion gate without training.
+        seed : Seeds the candidate's training (batch order, dropout) so a run can be reproduced.
         """
-        if not get_profile(domain).run_to_failure:
+        source = self.data_source(domain)
+        model_path = self._path_for(domain)
+        if source is None:
             return LearningResult(
                 domain=domain,
                 trigger_reason=trigger_reason,
@@ -267,18 +316,18 @@ class LearningEngine:
                 rmse_after=0.0,
                 checkpoint_path=None,
                 success=False,
-                notes=f"Domain '{domain}' retraining not supported yet (lacks labeled failure ground truth; operates on EMA).",
+                notes=f"Domain '{domain}' has no retraining data source (no benchmark, simulator or profile registered).",
             )
 
         # 1. Evaluate baseline active model
-        if not self.model_path.exists():
+        if not model_path.exists():
             # Initial bootstrap if no model exists
             cfg = WorldModelConfig(domain=domain)
             active_model = WorldModel(cfg)
             rmse_before = 999.0
         else:
-            active_model = WorldModel.load(self.model_path)
-            rmse_before = self._validation_rmse(active_model)
+            active_model = WorldModel.load(model_path)
+            rmse_before = self._validation_rmse(active_model, domain)
 
         # 2. Train candidate model on isolated copy
         candidate_model = copy.deepcopy(active_model)
@@ -289,9 +338,12 @@ class LearningEngine:
             n_samples = 0
             epochs_run = epochs
         else:
-            X_train, y_train, _, _ = self._split()
+            X_train, y_train, _, _ = self._domain_split(domain)
             n_samples = len(X_train)
             epochs_run = epochs
+            if seed is not None:
+                np.random.seed(seed)
+                torch.manual_seed(seed)
 
             candidate_model.train()
             optimizer = torch.optim.Adam(candidate_model.parameters(), lr=lr)
@@ -300,7 +352,8 @@ class LearningEngine:
             X_tensor = torch.tensor(X_train, dtype=torch.float32)
             y_tensor = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1)
             dataset = TensorDataset(X_tensor, y_tensor)
-            loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+            loader = DataLoader(dataset, batch_size=batch_size, shuffle=True,
+                                generator=torch.Generator().manual_seed(seed) if seed is not None else None)
 
             for epoch in range(1, epochs + 1):
                 for bx, by in loader:
@@ -312,12 +365,12 @@ class LearningEngine:
                     optimizer.step()
 
             # 3. Evaluate candidate model
-            rmse_after = self._validation_rmse(candidate_model)
+            rmse_after = self._validation_rmse(candidate_model, domain)
 
         # 4. Check Candidate vs. Best-Ever Promotion Gate
         # Anchored to the best RMSE ever promoted, not the current model, so the
         # 3% tolerance cannot compound across runs (10 x +2.9% would be +33%).
-        gate_file = self.model_path.with_suffix(".gate.json")
+        gate_file = model_path.with_suffix(".gate.json")
         best_rmse = rmse_before
         if gate_file.exists():
             best_rmse = min(best_rmse, float(json.loads(gate_file.read_text())["best_val_rmse"]))
@@ -330,7 +383,7 @@ class LearningEngine:
             # simulate promotion without overwriting validated production weights.
             is_production_model = False
             try:
-                is_production_model = self.model_path.resolve() == (MODELS_DIR / "best_model.pt").resolve()
+                is_production_model = model_path.resolve().parent == MODELS_DIR.resolve()
             except Exception:
                 pass
 
@@ -339,20 +392,20 @@ class LearningEngine:
                     "[LearningEngine] forced_candidate_rmse active on production checkpoint. "
                     "Promotion checkpoint disk overwrite skipped to preserve validated weights."
                 )
-                saved_path = str(self.model_path)
+                saved_path = str(model_path)
             else:
-                self._atomic_save_checkpoint(candidate_model, self.model_path)
+                self._atomic_save_checkpoint(candidate_model, model_path)
                 gate_file.write_text(json.dumps({"best_val_rmse": min(best_rmse, rmse_after)}))
-                saved_path = str(self.model_path)
+                saved_path = str(model_path)
 
             success = True
-            notes = (
+            notes = self._provenance(source, seed, lr) + (
                 f"PROMOTED: Candidate val RMSE ({rmse_after:.4f}) <= "
                 f"Best ({best_rmse:.4f}) * (1 + {self.epsilon_tol:.2f}) = {max_acceptable_rmse:.4f}"
             )
         else:
             success = False
-            notes = (
+            notes = self._provenance(source, seed, lr) + (
                 f"REJECTED (Rollback Invariant): Candidate val RMSE ({rmse_after:.4f}) exceeded "
                 f"acceptable threshold ({max_acceptable_rmse:.4f} = Best {best_rmse:.4f} * (1 + {self.epsilon_tol:.2f})). "
                 f"Production checkpoint was NOT modified."
@@ -372,9 +425,16 @@ class LearningEngine:
         )
 
         # 5. Persist audit log
-        self._log_learning_event(result)
+        if self.log_events:
+            self._log_learning_event(result)
 
         return result
+
+    @staticmethod
+    def _provenance(source: Optional[str], seed: Optional[int], lr: float) -> str:
+        label = {"benchmark": "NASA C-MAPSS", "simulated_failure": "SIMULATED run-to-failure",
+                 "simulated_profile": "SIMULATED workload profile"}.get(source or "", "unknown")
+        return f"[data: {label}; lr {lr:g}" + (f"; seed {seed}" if seed is not None else "") + "] "
 
     def get_learning_history(self, domain: str = "cmapss", limit: int = 20) -> List[Dict[str, Any]]:
         """Queries historical learning events from the database."""

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 import { ConfirmDialog } from '../../design/overlays';
-import { Button, EvidenceLabel, StatusPill, Timestamp } from '../../design/primitives';
+import { Button, SimBadge, StatusPill, Timestamp } from '../../design/primitives';
 import { Page } from '../../design/shell';
 import { apiFetch, errorMessage } from '../../lib/api';
 import { usePoll } from '../../lib/usePoll';
@@ -35,12 +35,21 @@ interface DomainRow {
   learning_history: LearningEvent[];
 }
 
+/* What each domain's model learns from (server/atlas/learning_engine.py data_source()). */
+const RETRAIN_DATA: Record<string, string> = {
+  cmapss: 'the NASA C-MAPSS FD001 training split',
+  modbus: 'simulated pump run-to-failure data',
+  laptop: 'a simulated laptop workload profile',
+  mobile: 'a simulated phone workload profile',
+  server: 'a simulated server workload profile',
+};
+
 const SHOWN = ['final_val_loss', 'final_train_loss', 'epochs', 'training_time_s', 'subset'];
 
 export default function ModelsPage() {
   const poll = usePoll<{ domains: DomainRow[]; note: string }>('/api/admin/models/registry', 0);
   const [pending, setPending] = useState<{ domain: string; version: Version; current: string } | null>(null);
-  const [retrain, setRetrain] = useState(false);
+  const [retrain, setRetrain] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -50,7 +59,7 @@ export default function ModelsPage() {
     try {
       setMessage({ ok: true, text: await fn() });
       setPending(null);
-      setRetrain(false);
+      setRetrain(null);
       poll.reload();
     } catch (e) {
       setMessage({ ok: false, text: errorMessage(e) });
@@ -79,15 +88,17 @@ export default function ModelsPage() {
                       active {d.active.checkpoint} · {d.active.version}
                     </span>
                   ) : (
-                    <EvidenceLabel kind="FUTURE-WORK" />
+                    <span className="ax-note">No checkpoint installed</span>
                   )}
-                  {d.domain === 'cmapss' && (
-                    <Button size="sm" onClick={() => setRetrain(true)}>
+                  {d.domain !== 'cmapss' && d.active && <SimBadge />}
+                  {d.active && (
+                    <Button size="sm" onClick={() => setRetrain(d.domain)}>
                       Retrain
                     </Button>
                   )}
                 </div>
                 <div className="ax-panel__body ax-stack">
+                  {RETRAIN_DATA[d.domain] && d.domain !== 'cmapss' && <p className="ax-note">Trained and retrained on {RETRAIN_DATA[d.domain]}. Not validated on real hardware.</p>}
                   {d.metrics.benchmark && (
                     <p>
                       FD001 test benchmark: RMSE <strong className="num">{d.metrics.benchmark.rmse.toFixed(2)}</strong>, PHM score <strong className="num">{d.metrics.benchmark.phm_score.toFixed(1)}</strong> on{' '}
@@ -175,19 +186,19 @@ export default function ModelsPage() {
       {retrain && (
         <ConfirmDialog
           open
-          title="Retrain the C-MAPSS World Model"
+          title={`Retrain the ${DOMAIN_LABEL[retrain] ?? retrain} World Model`}
           description={
             <p>
-              Runs 5 epochs on the FD001 training split (several minutes of CPU). The candidate is promoted only if its validation RMSE is within 3% of the best ever promoted; otherwise the active model is left as it is.
+              Runs 5 epochs on {RETRAIN_DATA[retrain] ?? 'the domain\'s training data'} (up to several minutes of CPU). The candidate is promoted only if its validation RMSE is within 3% of the best ever promoted; otherwise the active model is left as it is.
             </p>
           }
           confirmLabel="Start retraining"
           requireReason
           busy={busy}
-          onCancel={() => setRetrain(false)}
+          onCancel={() => setRetrain(null)}
           onConfirm={reason =>
             act(async () => {
-              const r = await apiFetch<{ success: boolean; notes: string }>('/api/learn/retrain', { method: 'POST', body: JSON.stringify({ domain: 'cmapss', trigger_reason: `manual: ${reason}`.slice(0, 200) }) });
+              const r = await apiFetch<{ success: boolean; notes: string }>('/api/learn/retrain', { method: 'POST', body: JSON.stringify({ domain: retrain, trigger_reason: `manual: ${reason}`.slice(0, 200) }) });
               return r.notes;
             })
           }

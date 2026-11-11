@@ -208,5 +208,6 @@ Legend: **BUILD** = in scope and committed · **FUTURE** = named future work, ne
 - [x] P5: Cognition Dashboard *(10 stage panels, replay, drift, fleet health, model registry; Playwright flow 5 and trace snapshot test pass)*
 - [x] P6: Evidence page and docs *(title matrix with live numbers; every cited path and evidence link checked; attribution faithfulness deletion test added)*
 - [x] P7: hardening and full verification *(legacy UI removed; axe 0 violations on 14 pages in both themes; Lighthouse Fleet desktop 94/100/100; flows 1-7 pass; audit single-writer lock)*
-- [ ] Open decision: Modbus RUL model (FUTURE-WORK until approved)
+- [x] Modbus RUL model *(built on SIMULATED run-to-failure data: RMSE 7.72 cycles on 50 held-out simulated units; real-pump validation stays FUTURE-WORK)*
+- [x] Attribution for all five domains, retraining for all five domains, 24-run retrain history
 - [x] Decision: separate non-owner DB role for audit immutability *(both trigger and role, built in P2)*

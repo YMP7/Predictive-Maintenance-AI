@@ -58,7 +58,10 @@ def main() -> int:
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=5020)
     ap.add_argument("--simulate", action="store_true", help="start the bundled simulator on --port")
-    ap.add_argument("--state", choices=["idle", "nominal", "degraded"], default="nominal")
+    ap.add_argument("--state", choices=["idle", "nominal", "degraded", "run_to_failure"], default="nominal",
+                    help="run_to_failure wears the simulated pump from nominal to failure, then starts a new one")
+    ap.add_argument("--start-fraction", type=float, default=0.0,
+                    help="with --state run_to_failure: start this far into the pump's life (0 to 0.99)")
     ap.add_argument("--interval", type=float, default=1.0)
     ap.add_argument("--print-profile", action="store_true", help="print the sensor profile JSON and exit")
     args = ap.parse_args()
@@ -76,7 +79,10 @@ def main() -> int:
         from server.adapters.modbus_simulator import ModbusSimulator
         sim = ModbusSimulator(host=args.host, port=args.port, machine_id=args.machine_id)
         args.port = sim.start()
-        sim.set_state(args.state)
+        if args.state == "run_to_failure":
+            sim.start_run_to_failure(start_fraction=args.start_fraction)
+        else:
+            sim.set_state(args.state)
     adapter = ModbusAdapter(host=args.host, port=args.port, machine_ids=[args.machine_id], domain_id="modbus")
     adapter.connect()
     print(f"Polling {args.host}:{args.port} every {args.interval}s, pushing to {args.api} as {args.machine_id}")

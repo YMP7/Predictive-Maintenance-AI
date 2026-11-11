@@ -79,4 +79,4 @@ The fps figures came from an unthrottled Chrome window. The in-app browser pane 
 - Part load is a heuristic on normalised channels, labelled as such. It is not a diagnosis.
 - Attribution glow exists only for C-MAPSS (§5 Q3 of the plan).
 - The screenshots and films use the dev gallery (`/dev/assets`, dev build only) on synthetic frames built by the server's own `build_frame()` from seeded values, every channel badged SIMULATED. The live page reads the same frame shape from the API; a signed-in run against a P3 backend was not recorded.
-- The Modbus motor-pump shows data only once `scripts/modbus_bridge.py` (or a real device) pushes readings for a `modbus` sensor profile; it has no RUL model (FUTURE-WORK).
+- The Modbus motor-pump shows data only once `scripts/modbus_bridge.py` (or a real device) pushes readings for a `modbus` sensor profile; its RUL model is trained on simulated run-to-failure data (`server/atlas/train_pump_rul.py`).

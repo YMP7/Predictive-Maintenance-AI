@@ -1,7 +1,7 @@
 import { Link } from 'react-router';
 
 import { formatPercent } from '../../design/format';
-import { EvidenceLabel, SimBadge } from '../../design/primitives';
+import { SimBadge } from '../../design/primitives';
 import { Page } from '../../design/shell';
 import { EmptyState } from '../../design/states';
 import { usePoll } from '../../lib/usePoll';
@@ -62,7 +62,7 @@ export default function CrossDomainPage() {
                             <th scope="row">{DOMAIN_LABEL[d] ?? d}</th>
                             <td className="num">{rows.length}</td>
                             <td>{rows.length ? <Bar value={mean(health)} label="Mean health index" /> : <span className="ax-note">no assets</span>}</td>
-                            <td>{rul.length ? <Bar value={mean(rul)} label="Mean RUL" /> : rows.length ? <EvidenceLabel kind="FUTURE-WORK" /> : null}</td>
+                            <td>{rul.length ? <Bar value={mean(rul)} label="Mean RUL" /> : rows.length ? <span className="ax-note">waiting for 30 readings</span> : null}</td>
                             <td className="num">{rul.length ? formatPercent(Math.min(...rul)) : ''}</td>
                             <td>{sim ? <SimBadge /> : rows.length ? 'Measured or dataset' : ''}</td>
                           </tr>
@@ -72,7 +72,7 @@ export default function CrossDomainPage() {
                   </table>
                 </div>
                 <p className="ax-note" style={{ padding: 'var(--space-3) var(--space-4)' }}>
-                  No RUL means no trained model for that machine type yet (FUTURE-WORK). C-MAPSS values replay the NASA FD001 training set; laptop, phone and server read live or simulated telemetry as badged.
+                  No RUL means the machine has not sent 30 readings yet, or its sensor profile does not match the trained model. C-MAPSS values replay the NASA FD001 training set; laptop, phone and server read live or simulated telemetry as badged; the pump's RUL model is trained on simulated run-to-failure data.
                 </p>
               </section>
 

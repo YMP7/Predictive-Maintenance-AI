@@ -83,7 +83,7 @@ function AlarmSummary({ alarms }: { alarms: OpsAlarm[] }) {
   if (!active.length) return <EmptyState title="No active alarms" body={shelved ? `${shelved} shelved.` : 'Nothing needs acknowledging.'} />;
   return (
     <div className="ax-panel__body ax-stack">
-      <div className="ax-row" aria-label="Unacknowledged alarms by priority">
+      <div className="ax-row" role="group" aria-label="Unacknowledged alarms by priority">
         {PRIORITY_ORDER.map(p => {
           const n = needsAck.filter(a => a.priority === p).length;
           return n ? (

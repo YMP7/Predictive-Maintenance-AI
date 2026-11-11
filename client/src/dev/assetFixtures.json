@@ -974,9 +974,9 @@
   "adapter_status": "simulation",
   "simulated": true,
   "health_index": 0.54,
-  "rul": null,
-  "rul_note": "No trained model for this machine type yet (FUTURE-WORK).",
-  "attribution": false,
+  "rul": { "value": 38.0, "unit": "cycles", "uncertainty": 7.7, "normalized": 0.304, "confidence": null, "using_lstm": true, "provenance": "SIMULATED" },
+  "rul_note": null,
+  "attribution": true,
   "spin": 0.292,
   "spin_label": "Shaft speed",
   "parts": [
