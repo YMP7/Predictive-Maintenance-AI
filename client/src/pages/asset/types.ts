@@ -33,7 +33,7 @@ export interface TwinFrame {
   adapter_status: string | null;
   simulated: boolean;
   health_index: number | null;
-  rul: { value: number; unit: string; uncertainty: number | null; normalized: number | null; confidence: number | null; using_lstm: boolean | null; provenance?: string | null } | null;
+  rul: { value: number; unit: string; uncertainty: number | null; normalized: number | null; confidence: number | null; using_lstm: boolean | null; provenance?: string | null; lower?: number | null; upper?: number | null; interval_level?: number | null } | null;
   rul_note: string | null;
   /** A model exists and is waiting for its first full window. */
   rul_pending?: boolean;
