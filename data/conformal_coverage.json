@@ -1,0 +1,36 @@
+{
+  "method": "split conformal, symmetric absolute residual",
+  "model": "data/models/cmapss_world_model.pt",
+  "model_sha256": "97bb3f6625adc8be05ff9032a822d35ea104c4c2b350f17d3d4f73eabdefaec5",
+  "calibration": "FD001 train engines held out as validation by train_rul.py (seed 42): 20 engines, 3969 windows, target capped at 125",
+  "test": "FD001 test set, 100 engines, terminal 30-cycle window, true RUL",
+  "test_rmse": 15.4242,
+  "levels": {
+    "90": {
+      "alpha": 0.1,
+      "q_cycles": 22.047,
+      "test_coverage_pct": 85.0,
+      "test_coverage_95ci_pct": [
+        76.7,
+        90.7
+      ],
+      "mean_width_cycles": 42.82,
+      "test_true_below_lower_pct": 9.0,
+      "test_true_above_upper_pct": 6.0
+    },
+    "80": {
+      "alpha": 0.2,
+      "q_cycles": 14.037,
+      "test_coverage_pct": 67.0,
+      "test_coverage_95ci_pct": [
+        57.3,
+        75.4
+      ],
+      "mean_width_cycles": 27.72,
+      "test_true_below_lower_pct": 20.0,
+      "test_true_above_upper_pct": 13.0
+    }
+  },
+  "caveat": "Calibration windows span whole engine lives and are capped at 125; test windows are truncated trajectories with uncapped RUL, so exchangeability is approximate. The empirical test coverage is the number to trust. q is never tuned on the test set. Binning q by predicted RUL (0-40, 40-80, 80+) was tried and gave 83% at 90%, so the single global q is kept.",
+  "created": "2026-11-12T05:14:20+00:00"
+}

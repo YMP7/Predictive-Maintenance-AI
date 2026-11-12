@@ -51,7 +51,9 @@ export function AssetInsights({ frame, focus }: { frame: TwinFrame; focus: Frame
     const r = frame.rul;
     setHist({
       last: frame.ts,
-      rul: r ? push(hist.rul, { t, v: r.value, lo: r.uncertainty !== null ? r.value - r.uncertainty : null, hi: r.uncertainty !== null ? r.value + r.uncertainty : null }) : hist.rul,
+      rul: r ? push(hist.rul, r.lower != null && r.upper != null
+        ? { t, v: r.value, lo: r.lower, hi: r.upper }
+        : { t, v: r.value, lo: r.uncertainty !== null ? r.value - r.uncertainty : null, hi: r.uncertainty !== null ? r.value + r.uncertainty : null }) : hist.rul,
       channels,
     });
   }
@@ -67,7 +69,7 @@ export function AssetInsights({ frame, focus }: { frame: TwinFrame; focus: Frame
         <div className="ax-panel__body">
           {frame.rul ? (
             hist.rul.length > 1 ? (
-              <TrendChart data={hist.rul} unit={frame.rul.unit} digits={0} height={180} seriesLabel="RUL" bandLabel="± 1 sd" summary={`RUL over ${hist.rul.length} readings, latest ${frame.rul.value.toFixed(0)} ${frame.rul.unit}`} />
+              <TrendChart data={hist.rul} unit={frame.rul.unit} digits={0} height={180} seriesLabel="RUL" bandLabel={frame.rul.lower != null && frame.rul.interval_level != null ? `${Math.round(frame.rul.interval_level * 100)}% conformal interval` : '± 1 sd'} summary={`RUL over ${hist.rul.length} readings, latest ${frame.rul.value.toFixed(0)} ${frame.rul.unit}`} />
             ) : (
               <p className="ax-note">Collecting readings for the trend.</p>
             )
