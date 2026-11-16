@@ -1,0 +1,9 @@
+{
+  "domain": "cmapss",
+  "alpha": 0.1,
+  "q_cycles": 22.047,
+  "n_calibration": 3969,
+  "calibration_engines": 20,
+  "model_sha256": "97bb3f6625adc8be05ff9032a822d35ea104c4c2b350f17d3d4f73eabdefaec5",
+  "created": "2026-11-12T05:14:20+00:00"
+}

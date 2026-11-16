@@ -112,7 +112,8 @@ def snapshot_rul(profile: AssetProfile, snap: dict) -> Optional[dict]:
         return None
     return {"value": snap["rul_cycles"], "unit": profile.rul_unit, "uncertainty": snap.get("uncertainty"),
             "normalized": snap.get("normalized_rul"), "confidence": snap.get("confidence"),
-            "using_lstm": snap.get("using_lstm")}
+            "using_lstm": snap.get("using_lstm"), "lower": snap.get("rul_lower"), "upper": snap.get("rul_upper"),
+            "interval_level": snap.get("interval_level")}
 
 
 def frame_from_snapshot(domain: str, machine_id: str, profile: AssetProfile, snap: dict, now: datetime) -> dict:

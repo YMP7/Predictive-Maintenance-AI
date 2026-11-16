@@ -157,7 +157,9 @@ function AssetView({ domain, machineId }: { domain: string; machineId: string })
             quality={quality}
             priority={tone}
             ts={frame.ts ?? undefined}
-            caption={frame.rul.uncertainty !== null ? `± ${frame.rul.uncertainty.toFixed(1)} ${frame.rul.unit}, 1 sd${frame.rul.using_lstm === false ? ', EMA fallback' : ''}${frame.rul.provenance === 'SIMULATED' ? ', model trained on simulated failures' : ''}` : undefined}
+            caption={frame.rul.lower != null && frame.rul.upper != null && frame.rul.interval_level != null
+              ? `${Math.round(frame.rul.interval_level * 100)}% interval ${frame.rul.lower.toFixed(0)} to ${frame.rul.upper.toFixed(0)} ${frame.rul.unit}, conformal${frame.rul.provenance === 'SIMULATED' ? ', model trained on simulated failures' : ''}`
+              : frame.rul.uncertainty !== null ? `± ${frame.rul.uncertainty.toFixed(1)} ${frame.rul.unit}, 1 sd${frame.rul.using_lstm === false ? ', EMA fallback' : ''}${frame.rul.provenance === 'SIMULATED' ? ', model trained on simulated failures' : ''}` : undefined}
           />
         ) : (
           <section className="ax-kpi">

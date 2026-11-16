@@ -49,6 +49,43 @@ logger = logging.getLogger("ATLAS.RULEngine")
 
 
 # ---------------------------------------------------------------------------
+# Split-conformal RUL interval
+# ---------------------------------------------------------------------------
+
+def conformal_quantile(residuals, alpha: float) -> float:
+    """Split-conformal half-width: the ceil((n+1)(1-alpha))-th smallest |residual|.
+
+    With calibration residuals exchangeable with a new case, [pred - q, pred + q]
+    covers the true RUL with probability >= 1 - alpha. Returns inf when n is too small.
+    """
+    r = np.sort(np.abs(np.asarray(residuals, dtype=float)))
+    k = int(np.ceil((len(r) + 1) * (1.0 - alpha)))
+    return float("inf") if k > len(r) else float(r[k - 1])
+
+
+def conformal_path(domain: str) -> Path:
+    return MODELS_DIR / f"{domain}_conformal.json"
+
+
+def file_sha256(path: Path) -> str:
+    import hashlib
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _load_conformal(domain: str) -> Optional[dict]:
+    """Calibration for the checkpoint on disk, or None if missing or calibrated for another checkpoint."""
+    import json
+    path, model = conformal_path(domain), MODELS_DIR / f"{domain}_world_model.pt"
+    if not path.exists() or not model.exists():
+        return None
+    cal = json.loads(path.read_text())
+    if cal.get("model_sha256") != file_sha256(model):
+        logger.warning(f"[{domain}] conformal calibration is for a different checkpoint; RUL interval disabled")
+        return None
+    return cal
+
+
+# ---------------------------------------------------------------------------
 # RULPrediction output schema
 # ---------------------------------------------------------------------------
 
@@ -78,6 +115,10 @@ class RULPrediction:
     using_lstm:   bool
     state_vector: Optional[np.ndarray]
     health_index: float
+    # Split-conformal interval in cycles; None when the model has no matching calibration
+    rul_lower:    Optional[float] = None
+    rul_upper:    Optional[float] = None
+    interval_level: Optional[float] = None
 
     def to_dict(self) -> dict:
         return {
@@ -89,6 +130,9 @@ class RULPrediction:
             "status":       self.status,
             "using_lstm":   self.using_lstm,
             "health_index": round(self.health_index, 4),
+            "rul_lower":    None if self.rul_lower is None else round(self.rul_lower, 2),
+            "rul_upper":    None if self.rul_upper is None else round(self.rul_upper, 2),
+            "interval_level": self.interval_level,
             "state_vector": (
                 self.state_vector.tolist() if self.state_vector is not None else None
             ),
@@ -209,6 +253,7 @@ class RULEngine:
         # Try to load a trained WorldModel
         self._model: Optional[WorldModel] = None
         self._config: WorldModelConfig = config or WorldModelConfig(domain=domain)
+        self._conformal: Optional[dict] = None
         self._try_load_model()
 
     # ------------------------------------------------------------------
@@ -219,6 +264,7 @@ class RULEngine:
         if model is not None:
             self._model = model
             self._config = model.config
+            self._conformal = _load_conformal(self.domain)
             logger.info(f"[{self.domain}] RULEngine: LSTM model loaded [OK]")
         else:
             logger.info(
@@ -237,6 +283,8 @@ class RULEngine:
                 if model is not None:
                     self._model = model
                     self._config = model.config
+                    # a retrained checkpoint has a new hash, so a stale calibration is dropped here
+                    self._conformal = _load_conformal(self.domain)
                     logger.info(f"[{self.domain}] RULEngine: model hot-reloaded ✓")
                     return True
             except Exception as e:
@@ -308,6 +356,12 @@ class RULEngine:
 
         status = _rul_to_status(rul_days, reading.health_index)
 
+        lower = upper = level = None
+        if self._conformal is not None:
+            q = float(self._conformal["q_cycles"])
+            lower, upper = max(0.0, rul_cycles - q), rul_cycles + q
+            level = round(1.0 - float(self._conformal["alpha"]), 4)
+
         return RULPrediction(
             machine_id=machine_id,
             rul_cycles=rul_cycles,
@@ -318,6 +372,9 @@ class RULEngine:
             using_lstm=True,
             state_vector=state_vector,
             health_index=reading.health_index,
+            rul_lower=lower,
+            rul_upper=upper,
+            interval_level=level,
         )
 
     def _ema_predict(
