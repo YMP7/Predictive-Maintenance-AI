@@ -169,7 +169,7 @@ On the 10 near-failure units (true RUL ≤ 15) ATLAS acted urgently on 9 and the
 | Neighbor label spread only ($-\sigma$) | −0.51 [−0.66, −0.33] | −0.45 ± 0.04 |
 | Prediction only ($-\hat y$, no memory) | −0.45 [−0.61, −0.26] | −0.43 ± 0.04 |
 
-Confidence falls as error rises, but its ranking equals that of neighbor label spread alone, and the prediction itself ranks errors almost as well (Table III). The ungrounded baseline, a constant 0.5, has no defined $r_s$. The Monte Carlo intervals cover the true RUL for 63%, 85%, 87% and 91% of units at nominal 50%, 80%, 90% and 95% (similar across seeds), so neither the score nor the intervals are calibrated; we use $\mathcal C$ only to rank predictions. Every explanation cites labeled neighbors by construction, which is not evidence of explanation quality. In the deletion test, masking the top-ranked C-MAPSS sensors moves $\hat y$ more than masking random ones for 90%, 94% and 89% of units at $k$ = 2, 3 and 5 (mean change 35.4 vs. 16.8 cycles at $k=2$), for 82%, 82% and 70% on the simulated pump, and for 63–73% on the compute domains at $k$ = 2–3, so attribution is faithful on the degrading assets and weaker on the compute domains.
+Confidence falls as error rises, but its ranking equals that of neighbor label spread alone, and the prediction itself ranks errors almost as well (Table III). The ungrounded baseline, a constant 0.5, has no defined $r_s$. The Monte Carlo intervals cover the true RUL for 63%, 85%, 87% and 91% of units at nominal 50%, 80%, 90% and 95% (similar across seeds), so neither the score nor the intervals are calibrated; we use $\mathcal C$ only to rank predictions. As a calibrated alternative we add a split-conformal interval on C-MAPSS: the absolute residual quantile on the 20 FD001 training engines held out for validation gives $q$ = 22.0 cycles at nominal 90%, and $\hat y \pm q$ covers 85% of the 100 test units (95% CI 76.7–90.7%; 9% below, 6% above) with mean width 42.8 cycles; at nominal 80% coverage is 67%. Coverage falls short of nominal because calibration windows span whole capped lives while test windows end at truncation, so exchangeability holds only approximately. Every explanation cites labeled neighbors by construction, which is not evidence of explanation quality. In the deletion test, masking the top-ranked C-MAPSS sensors moves $\hat y$ more than masking random ones for 90%, 94% and 89% of units at $k$ = 2, 3 and 5 (mean change 35.4 vs. 16.8 cycles at $k=2$), for 82%, 82% and 70% on the simulated pump, and for 63–73% on the compute domains at $k$ = 2–3, so attribution is faithful on the degrading assets and weaker on the compute domains.
 
 ## Cross-Domain Retrieval Diagnostic
 
@@ -208,7 +208,7 @@ We logged 13 defects and 2 near-misses as they were found (a record of practice,
 
 # Limitations and Threats to Validity
 
-Only FD001 is used. Pump and compute-domain results are synthetic; the pump RMSE measures fit to our own simulator, and the compute domains have no failures. Costs, lead times and urgency multipliers are illustrative, and the decision graph does not beat a tuned threshold rule. Confidence is uncalibrated and not compared with Monte Carlo dropout or ensembles. The C-MAPSS health index is label-derived, no hard safety override exists, domain encoders have one seed each, and the PHM score trails [2]. Agent grounding checks structure, not the truth of free text; human approval is the final barrier.
+Only FD001 is used. Pump and compute-domain results are synthetic; the pump RMSE measures fit to our own simulator, and the compute domains have no failures. Costs, lead times and urgency multipliers are illustrative, and the decision graph does not beat a tuned threshold rule. Confidence is uncalibrated and not compared with Monte Carlo dropout or ensembles; the split-conformal RUL interval exists for C-MAPSS only and under-covers its nominal level. The C-MAPSS health index is label-derived, no hard safety override exists, domain encoders have one seed each, and the PHM score trails [2]. Agent grounding checks structure, not the truth of free text; human approval is the final barrier.
 
 # Conclusion and Future Work
 
@@ -216,7 +216,7 @@ ATLAS shows that RUL prediction, memory-grounded explanation and cost-aware deci
 
 # Code and Data Availability {.unnumbered}
 
-C-MAPSS is publicly available [1]. The ATLAS code, trained checkpoints and the scripts that regenerate Tables I–V are available from the authors on request.
+C-MAPSS is publicly available [1]. The ATLAS code, trained checkpoints and the scripts that regenerate Tables I–V are available under the Apache-2.0 license at https://github.com/YMP7/Predictive-Maintenance-AI.
 
 # References {.unnumbered}
 

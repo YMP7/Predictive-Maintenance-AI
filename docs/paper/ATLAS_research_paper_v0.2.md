@@ -2,7 +2,7 @@
 
 **Authors:** \[Author\] · \[Supervisor\] · \[Department, Institution\]
 
-**Status:** DRAFT v0.2, private. Do not post, upload, or submit anywhere until IP clearance is confirmed (see Availability).
+**Status:** SUPERSEDED by `docs/paper/ieee/paper.md`. Kept for history only; do not edit or submit this draft.
 
 ## Abstract
 
@@ -185,7 +185,7 @@ ATLAS shows that RUL prediction, memory-grounded explanation and cost-aware deci
 
 ## Availability
 
-Code, benchmark artifacts and trained models: \[to be filled in after IP clearance and the license decision\].
+Code, benchmark artifacts and trained models: Apache-2.0, https://github.com/YMP7/Predictive-Maintenance-AI (no IP filing; see the IEEE paper for the current statement).
 
 ## References
 

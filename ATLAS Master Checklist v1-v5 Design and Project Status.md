@@ -124,18 +124,18 @@ Legend: **BUILD** = in scope and committed · **FUTURE** = named future work, ne
 ## 7. Research, IP and publication
 
 - [x] 36-paper literature map (`LITERATURE_MAPPING.md`)
-- [ ] Paper section A: Attention-LSTM benchmark vs published FD001 baselines (draft) *(docs/paper/ATLAS_research_paper_v0.2.md exists as a draft)*
-- [ ] Paper section B: Decision Graph and explainability (draft)
-- [ ] Paper section C: Cross-domain transfer study (draft)
+- [x] Paper section A: Attention-LSTM benchmark vs published FD001 baselines *(in `docs/paper/ieee/paper.md`, Results: RUL Prediction)*
+- [x] Paper section B: Decision Graph and explainability *(in `docs/paper/ieee/paper.md`, Decision Value; Grounding and Confidence)*
+- [x] Paper section C: Cross-domain transfer study *(in `docs/paper/ieee/paper.md`, Cross-Domain Retrieval Diagnostic)*
 - [x] Ablation 1: full pipeline vs RUL-alone (+47.17% cost reduction)
 - [x] Ablation 2: grounded vs ungrounded explainability (r\_s = -0.509)
 - [x] Ablation 3: Decision Graph vs naive thresholds
 - [x] Ablation 4: domain-adapted vs foreign transfer (3×3 matrix)
 - [x] Original plan listed Ablation 4 as *single-domain vs cross-domain-informed World Model*. The delivered version differs, so document the change or add the original *(delivered 3x3 domain-adapted vs foreign matrix is documented; original single-vs-cross-domain variant not run)*
-- [ ] Patent candidate 1: simulation-coupled Decision Graph (post-implementation evaluation) *(NOT DONE, needs your counsel/prior-art search; patent must precede paper)*
-- [ ] Patent candidate 2: Machine DNA (prior-art search pending)
-- [ ] Patent candidate 3: AMKB-grounded explainability
-- [ ] Patent candidate 4: adapter-based cross-domain pipeline
+- [x] ~~Patent candidate 1: simulation-coupled Decision Graph~~ *(dropped 2026-11-08: sole owner, no IP filing)*
+- [x] ~~Patent candidate 2: Machine DNA~~ *(dropped 2026-11-08: no IP filing)*
+- [x] ~~Patent candidate 3: AMKB-grounded explainability~~ *(dropped 2026-11-08: no IP filing)*
+- [x] ~~Patent candidate 4: adapter-based cross-domain pipeline~~ *(dropped 2026-11-08: no IP filing)*
 - [ ] Open-source release of the ATLAS Cross-Domain Benchmark (data and eval scripts) *(not done)*
 - [ ] Multi-seed variance for the headline numbers
 
@@ -188,13 +188,13 @@ Legend: **BUILD** = in scope and committed · **FUTURE** = named future work, ne
 - [ ] HTTPS via Nginx + Let's Encrypt (not deployed) *(needs a domain and host)*
 - [ ] Twilio live-delivery test (sandbox only so far) *(needs your credentials)*
 - [x] Work-order grounding, 3/day cap and provenance checks pass *(test_work_order_safeguards passes)*
-- [ ] UI flow to resolve work orders (not built) *(not built)*
+- [x] UI flow to resolve work orders *(built: `client/src/pages/ops/WorkOrdersPage.tsx`, resolve action)*
 
 ## 10. Documentation hygiene
 
 - [ ] Three document sets conflict: older docs describe SQLite + port 8000 and 29 tests; newer ones describe TimescaleDB, MQTT and ATLAS. Pick one source of truth per topic
 - [x] `USER_GUIDE.md` and `ADMIN_GUIDE.md` say the dashboard is on port 3000; the integrated server uses 8000 *(now port 8000)*
-- [ ] Retire or mark the legacy digital-twin docs (SRS, SAD, ML guide) as separate from ATLAS
+- [x] Retire or mark the legacy digital-twin docs (SRS, SAD, ML guide) as separate from ATLAS *(LEGACY banner added 2026-11-17)*
 - [ ] Keep `ATLAS_PROJECT_CONTEXT.md` Section 6 current
 
 ## 11. Industrial redesign (`feature/industrial-frontend`, plan in `docs/redesign/00_PLAN.md`)

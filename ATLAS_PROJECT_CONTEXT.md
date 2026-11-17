@@ -135,7 +135,12 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 - **P5 done (2026-11-10):** Cognition Dashboard at `/admin/cognition` (10 stage panels with latency, state-vector heat strip, PCA trajectory, RUL band, Monte Carlo histogram, decision and attribution, replay scrubber over stored traces, drift monitor, fleet cognition health, recorded ablations and transfer study) and Model registry at `/admin/models` (archived versions, activate with reason, retrain). Backend: `server/cognition_admin.py`. ADR-025 to ADR-027.
 - **P6 done (2026-11-10):** `/about/evidence` and `docs/TITLE_JUSTIFICATION.md` (title matrix, numbers read live from the result files), attribution faithfulness deletion test (`scripts/attribution_faithfulness.py`: top-2 sensors move RUL 35.4 vs 16.8 cycles for random, 90% of 100 FD001 test units), README, user and admin guides rewritten, every API operation described in OpenAPI, final architecture diagram `docs/figures/atlas-architecture.svg`. ADR-028.
 - **P7 done (2026-11-10):** legacy frontend and `_legacy/` removed; audit single-writer lock and tip-aware `audit_verify`; kiosk tour fixed (it stuck on the laptop); accessibility fixes (asset links, scroll regions, names at narrow widths). Verified: pytest 443, Playwright 15 (flows 1-7, Evidence links, axe on 14 pages in both themes, keyboard), Lighthouse Fleet desktop performance 94 / accessibility 100 / best practices 100. ADR-029.
-- **Immediate Task:** FINAL gate review. Open: mobile Lighthouse performance 68 (bundle splitting); MQTT end-to-end leg needs a broker account per onboarded device; `ATLAS_APP_DB_PASSWORD` and `API_DATABASE_URL` still to be set by the owner; nothing pushed.
+- **Merged to `main` (PR #11, 2026-11-10):** industrial redesign P0 to P7. pytest 455 passed (`docs/redesign/CHANGELOG.md`).
+- **PR #12 (2026-11-11):** simulated pump run-to-failure RUL (RMSE 7.72 cycles on our own simulator), attribution for every domain, batch retraining for every domain; C-MAPSS retrained on adapter-scaled windows with retrain history recorded.
+- **PR #13 (2026-11-11):** IEEE paper (`docs/paper/ieee/paper.md`) synced with the project on `main`.
+- **PR #14 (2026-11-16):** split-conformal RUL interval for C-MAPSS (`scripts/conformal_rul.py`, `data/conformal_coverage.json`): 85% test coverage at nominal 90%, mean width 42.8 cycles. Landscape report in `docs/research/LANDSCAPE_REPORT_2026-11.md`.
+- **2026-11-17 doc hygiene:** conformal result and Apache-2.0 availability written into the IEEE paper; v0.2 paper draft marked superseded; patent candidates dropped (no IP filing); legacy prototype docs bannered.
+- **Immediate Task:** next-steps checklist in `reports/Project next steps and enhancements.md` (Next tier: 5-seed results, FD002-FD004, safety override and defer-to-human margin, `atlas_app` DB role switch, thesis chapter refresh). Still open: mobile Lighthouse performance 68; MQTT end-to-end leg needs a broker account per onboarded device; `ATLAS_APP_DB_PASSWORD` and `API_DATABASE_URL` still to be set by the owner.
 
 **Sequencing decision in effect:** AI core built first on C-MAPSS (Months 1–5); adapters for Laptop/Mobile/Server built and verified in Month 6; adaptive learning and cross-domain transfer verified in Month 7.
 
@@ -202,7 +207,7 @@ This project went through 5 design iterations. **Do not reintroduce ideas that w
 **Next immediate step:** Month 2 — AMKB + Machine DNA.
 
 **Weekly checklist (Month 2):**
-- [ ] **Week 1 — Plumbing complete, semantic validation pending Week 3:** AMKB core module built and verified against live pgvector DB.
+- [x] **Week 1 — Plumbing complete (semantic validation closed in Month 2 Week 3 and the Month 7 transfer study):** AMKB core module built and verified against live pgvector DB.
   - `server/atlas/amkb.py`: `store_experience`, `retrieve_similar` (cosine distance via `<=>`), `get_unit_history`, `get_experience`, `count`
   - ⭐ **true_rul / predicted_rul separation**: `true_rul` (ground-truth C-MAPSS label) and `predicted_rul` (model estimate) are stored as independent nullable fields.
   - `ml/preprocessing.py`: `make_windows` and both pipeline methods now return `(X, y, unit_ids)` — closes the unit_id gap needed for AMKB population.
