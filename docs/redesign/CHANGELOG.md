@@ -1,5 +1,10 @@
 # Redesign Changelog
 
+## Doc hygiene and conformal write-up (2026-11-17)
+- **What:** split-conformal C-MAPSS interval (PR #14) written into the IEEE paper's Results and Limitations; availability statement now names the public Apache-2.0 repo; v0.2 paper draft marked superseded; patent candidates closed as dropped (no IP filing); stale master-checklist items ticked (paper sections A-C, work-order resolve UI); LEGACY banner on the 12 June-2026 prototype docs; `ATLAS_PROJECT_CONTEXT.md` Section 6 brought up to PR #14.
+- **Why:** "Now" tier of `reports/Project next steps and enhancements.md`.
+- **Verified:** pytest **463 passed**, 7 skipped (TimescaleDB up; was 455). This is the current test count; older counts in legacy docs are historical.
+
 ## After P7: the Evidence page's FUTURE-WORK items built (2026-11-10)
 - **What:**
   - **Pump RUL (SIMULATED):** a simulated motor-pump wear model, a World Model trained on it, live RUL, Show why and recommendations for onboarded pumps, and a run-to-failure mode in the Modbus simulator (`scripts/modbus_bridge.py --simulate --state run_to_failure`).

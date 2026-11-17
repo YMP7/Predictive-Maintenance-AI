@@ -1,5 +1,8 @@
 # Data Model and API Specification
 
+> [!WARNING]
+> **LEGACY prototype document (June 2026).** It describes the pre-ATLAS prototype (SQLite, rule-based detection, early test counts) and is kept for history only. For the current system see `README.md`, `docs/USER_GUIDE.md`, `docs/ADMIN_GUIDE.md`, `ATLAS_PROJECT_CONTEXT.md` and `docs/paper/ieee/paper.md`; the current test count is recorded in `docs/redesign/CHANGELOG.md`.
+
 > [!IMPORTANT]
 > **Implementation Status (June 21, 2026):**
 > - **Current Implemented Specification**: Runs locally using **SQLite** for database storage and a set of synchronous **REST API endpoints** served by FastAPI on port 8000.

@@ -1,4 +1,8 @@
 # AI Agent Design and ML Pipeline Document
+
+> [!WARNING]
+> **LEGACY prototype document (June 2026).** It describes the pre-ATLAS prototype (SQLite, rule-based detection, early test counts) and is kept for history only. For the current system see `README.md`, `docs/USER_GUIDE.md`, `docs/ADMIN_GUIDE.md`, `ATLAS_PROJECT_CONTEXT.md` and `docs/paper/ieee/paper.md`; the current test count is recorded in `docs/redesign/CHANGELOG.md`.
+
 ## Implemented Baseline and Target ML Architecture
 
 **Validated against code:** June 21, 2026
